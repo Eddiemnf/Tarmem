@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;color:#1B1464}
+  a{color:#D9401F;text-decoration:none}
+  a:hover{text-decoration:underline}
+  doc-page:not(:defined){visibility:hidden}
+  h1,h2,h3{color:#1B1464;text-wrap:balance}
+  p,li{color:#2E2D4A;line-height:1.75;text-wrap:pretty}
+  .kick{display:block;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8B8AA3;margin-bottom:6px}
+  .lede{font-size:13.5px;color:#4A4966;line-height:1.8}
+  table.g{width:100%;border-collapse:collapse;margin:14px 0 4px;font-size:11.5px}
+  table.g th{text-align:start;font-weight:600;color:#1B1464;border-bottom:1.5px solid #1B1464;padding:7px 10px 7px 0;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+  table.g td{padding:9px 10px 9px 0;border-bottom:1px solid #EEEDF5;vertical-align:top;color:#2E2D4A;line-height:1.6}
+  table.g tr{break-inside:avoid}
+  .box{break-inside:avoid;border:1px solid #EEEDF5;border-radius:10px;padding:16px 18px;margin:14px 0}
+  .box-w{background:#FFF9EC;border-color:#F5E4BC}
+  .box-r{background:#FFF3EF;border-color:#FFD9CB}
+  .box-g{background:#F3FBF6;border-color:#CDE9D8}
+  .box h3{margin:0 0 8px;font-size:13px}
+  .box p{margin:0;font-size:12px;line-height:1.7}
+  .rule{height:1px;background:#EEEDF5;border:0;margin:26px 0}
+  .phase{break-inside:avoid;display:grid;grid-template-columns:56px 1fr;gap:16px;padding:16px 0;border-bottom:1px solid #EEEDF5}
+  .pnum{font-size:26px;font-weight:700;color:#FF7722;line-height:1}
+  .tag{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:4px;margin-inline-start:8px;vertical-align:2px}
+  .t-block{background:#FFECE6;color:#B3341A}
+  .t-build{background:#EEEDF8;color:#3B3488}
+  .t-ops{background:#FFF6DB;color:#8A5A00}
+  ul{margin:8px 0;padding-inline-start:18px}
+  li{font-size:12px;margin-bottom:5px}
+</style>
+<script src="./doc-page.js"></script>
+</helmet>
+
+<doc-page margin="0.85in">
+  <div slot="header" style="display:flex;justify-content:space-between;align-items:baseline;font-size:9.5px;color:#8B8AA3;letter-spacing:.06em;padding-bottom:8px;border-bottom:1px solid #EEEDF5">
+    <span style="font-weight:700;color:#1B1464">TARMEM</span>
+    <span>Launch readiness · September 2026 · Confidential</span>
+  </div>
+
+  <span class="kick">Launch readiness assessment</span>
+  <h1 style="font-size:30px;line-height:1.2;margin:0 0 12px">From a finished design to a business that can take money</h1>
+  <p class="lede" style="margin:0 0 4px">Tarmem's product design is complete: every screen a homeowner, contractor or administrator needs exists, in Arabic and English, with the fee model, the identity policy, the milestone-evidence rules and the dispute path all expressed in the interface. What follows is an honest account of the distance between that and a business that can accept a real customer's money.</p>
+
+  <div class="box box-r">
+    <h3>Read this first</h3>
+    <p>What exists today is a high-fidelity prototype. It runs entirely in the visitor's browser: contractors, projects and payments are seeded data in a file, and the record of what happens is stored in that browser only. Two people on two phones see two unconnected worlds. No money moves, no identity is checked, no message is delivered. Everything in section 1 has to be built before a single real project can run.</p>
+  </div>
+
+  <hr class="rule">
+
+  <h2 style="font-size:17px;margin:0 0 4px">1 · Engineering<span class="tag t-block">Blocking</span></h2>
+  <p style="font-size:12px;margin:0 0 6px">The prototype defines behaviour precisely, which makes it a specification rather than a starting codebase. It should be rebuilt against a real backend, not extended.</p>
+
+  <table class="g">
+    <thead><tr><th style="width:30%">Component</th><th style="width:45%">What it involves</th><th style="width:25%">Rough effort</th></tr></thead>
+    <tbody>
+      <tr><td>Backend &amp; database</td><td>Accounts, sessions, projects, bids, milestones, ledger entries, reviews, disputes. Server-enforced rules — a stage cannot release without evidence and approval.</td><td>8–12 weeks</td></tr>
+      <tr><td>File storage</td><td>Milestone photos and video, project drawings, identity documents. Encrypted at rest; documents never exposed to other users.</td><td>2 weeks</td></tr>
+      <tr><td>SMS &amp; OTP</td><td>Contract with a local SMS provider. Rate limiting and abuse protection on the login path.</td><td>1–2 weeks</td></tr>
+      <tr><td>Nafath integration</td><td>A commercial agreement and technical onboarding with the national identity service. Not a screen — an approval process with lead time.</td><td>4–8 weeks (mostly waiting)</td></tr>
+      <tr><td>Payments &amp; escrow</td><td>Integration with a SAMA-licensed payment partner: card and Apple Pay collection, funds held per project, staged release, IBAN payouts, refunds.</td><td>12–20 weeks</td></tr>
+      <tr><td>Notifications</td><td>SMS and email on new bid, submitted stage, approval due, payment released, dispute raised. Arabic templates.</td><td>2–3 weeks</td></tr>
+      <tr><td>Admin tooling</td><td>Document review with the images visible, approve or reject with a reason, dispute case management, manual payment intervention.</td><td>3–4 weeks</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box box-w">
+    <h3>The critical path is the payment licence, not the software</h3>
+    <p>Holding a homeowner's money between stages is a regulated activity in Saudi Arabia. You will not do it yourself; you will do it through a licensed partner, and they will ask for your commercial registration, your beneficial ownership, your AML and KYC procedures, and evidence of how disputes are handled. Start that conversation before you write code — it determines your timeline and may change your product.</p>
+  </div>
+
+  <hr class="rule">
+
+  <h2 style="font-size:17px;margin:0 0 4px">2 · Legal and regulatory<span class="tag t-block">Blocking</span></h2>
+  <ul>
+    <li><strong>Commercial registration and VAT registration.</strong> Your fees are subject to VAT; invoices must be compliant and issued to both sides.</li>
+    <li><strong>Business bank account,</strong> separate from any account holding client funds.</li>
+    <li><strong>Terms of use and privacy policy reviewed by a Saudi lawyer.</strong> The drafts in the product are written to be readable and to state the real rules, including the undertaking to transact on the platform. They are not legal advice and have not been reviewed.</li>
+    <li><strong>PDPL compliance.</strong> You will store national ID and Iqama images. That carries obligations on consent, retention, access and breach notification.</li>
+    <li><strong>The off-platform undertaking is only as strong as your evidence.</strong> It sits inside accepted terms, which is where it holds. Enforcement in practice will be commercial — suspension — rather than legal.</li>
+  </ul>
+
+  <hr class="rule">
+
+  <h2 style="font-size:17px;margin:0 0 4px">3 · Product decisions still open<span class="tag t-build">Decide</span></h2>
+  <table class="g">
+    <thead><tr><th style="width:34%">Question</th><th style="width:66%">Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td>Does 5% / 10% hold at the top of the range?</td><td>On a 1,000,000 SAR project that is 150,000 SAR in fees. Large projects are exactly where both sides are most tempted to leave. Consider tiering the rate down above a threshold.</td></tr>
+      <tr><td>Auto-transfer or manual withdrawal?</td><td>Automatic transfer on release is friendlier to contractors but costs a payout fee per milestone rather than per withdrawal.</td></tr>
+      <tr><td>How long is deemed approval?</td><td>The product now shows a seven-day window before a submitted stage approves itself. Confirm the number, and whether raising an issue resets it.</td></tr>
+      <tr><td>How many trade categories at launch?</td><td>Forty-three exist. Filtering to a category with no contractors looks like an empty platform. Launch with the ten you can actually supply.</td></tr>
+      <tr><td>What happens when a contractor abandons a project?</td><td>Partial completion, released stages, and who bears the cost of finishing. The terms mention apportionment; the operational rule needs writing.</td></tr>
+    </tbody>
+  </table>
+
+  <hr class="rule">
+
+  <h2 style="font-size:17px;margin:0 0 4px">4 · Operations before customers<span class="tag t-ops">Prepare</span></h2>
+  <ul>
+    <li><strong>Twenty to thirty verified contractors in Riyadh, recruited before any homeowner sees the site.</strong> A marketplace with no supply is an empty room, and the first homeowner who posts and receives nothing will not come back.</li>
+    <li><strong>A written verification standard.</strong> Which documents, checked against what, by whom, and what disqualifies an applicant. Your verified badge is your entire proposition; it has to mean something specific.</li>
+    <li><strong>A written dispute procedure.</strong> Who decides, on what evidence, within how many days, and what the escalation route is. Publish it.</li>
+    <li><strong>Support with a phone number.</strong> Renovation disputes are emotional and expensive. Email alone will not hold.</li>
+    <li><strong>A test project run end to end</strong> — your own home, or a friend's — through funding, evidence, approval and payout, before any customer does it.</li>
+  </ul>
+
+  <hr class="rule">
+
+  <h2 style="font-size:17px;margin:0 0 14px">5 · Suggested sequence</h2>
+
+  <div class="phase"><div class="pnum">01</div><div>
+    <h3 style="margin:0 0 4px;font-size:13.5px">Foundation — months 1–2</h3>
+    <p style="margin:0;font-size:12px">Company registration and VAT. Open the conversation with payment partners and with Nafath. Have a lawyer review the terms. Decide the open questions in section 3. Nothing here needs an engineer.</p>
+  </div></div>
+
+  <div class="phase"><div class="pnum">02</div><div>
+    <h3 style="margin:0 0 4px;font-size:13.5px">Supply — months 2–4, in parallel</h3>
+    <p style="margin:0;font-size:12px">Recruit and verify contractors in Riyadh by hand. Use the prototype as your sales tool: it shows a contractor exactly what the platform will do for them. Write the verification standard while doing the first ten, then apply it.</p>
+  </div></div>
+
+  <div class="phase"><div class="pnum">03</div><div>
+    <h3 style="margin:0 0 4px;font-size:13.5px">Build — months 3–8</h3>
+    <p style="margin:0;font-size:12px">Backend, accounts, projects, bidding, milestones, evidence and the shared record. Payments last, because the partner integration governs the date. Admin tooling alongside, because you will operate it manually at first.</p>
+  </div></div>
+
+  <div class="phase"><div class="pnum">04</div><div>
+    <h3 style="margin:0 0 4px;font-size:13.5px">Closed pilot — months 8–10</h3>
+    <p style="margin:0;font-size:12px">Ten to twenty real projects in one city, with you personally verifying every contractor, watching every milestone and mediating every disagreement by phone. Manual operations are a feature at this stage: they tell you which rules are wrong.</p>
+  </div></div>
+
+  <div class="phase" style="border-bottom:0"><div class="pnum">05</div><div>
+    <h3 style="margin:0 0 4px;font-size:13.5px">Open launch — month 10 onward</h3>
+    <p style="margin:0;font-size:12px">Open registration in Riyadh only. Add cities when you have contractor supply in them, not before. Automate the parts of operations the pilot proved repetitive.</p>
+  </div></div>
+
+  <div class="box box-g" style="margin-top:22px">
+    <h3>The one thing to prove first</h3>
+    <p>Not whether the software works — it will. Whether a homeowner will pay a 5% fee for the assurance that payment follows approved work, and whether a good contractor will accept 10% for reliable payment and a documented record. Ten completed projects answer that, and they can be run with manual operations behind a simple booking form. Everything in this document is worth building only if the answer is yes.</p>
+  </div>
+
+  <div slot="footer" style="display:flex;justify-content:space-between;font-size:9px;color:#A9A8BD;padding-top:8px;border-top:1px solid #EEEDF5">
+    <span>Tarmem · Launch readiness</span>
+    <span>Prepared September 2026</span>
+  </div>
+</doc-page>
+</x-dc>
+</body>
+</html>
