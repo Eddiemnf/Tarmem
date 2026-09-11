@@ -11,6 +11,8 @@ This repository holds both the design and its implementation.
 | `project/` | The Claude Design prototype the implementation was built from, with its assets, copy and legal PDFs |
 | `chats/` | The design conversations — where the intent behind each decision lives |
 
+Live preview: **https://eddiemnf.github.io/Tarmem/** (published from `main` on every push).
+
 ```bash
 cd web
 npm install

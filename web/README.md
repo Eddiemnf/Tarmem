@@ -79,6 +79,15 @@ you'd rather not depend on a third party. Images, logo and the three legal PDFs 
 `public/assets/`. Contractor cards, portfolios and the About page use `ImageSlot`, which
 accepts a dropped photo per browser until real photography is wired to `src`.
 
+## Publishing
+
+Pushing to `main` builds this app and publishes it to GitHub Pages
+(`.github/workflows/deploy.yml`) at https://eddiemnf.github.io/Tarmem/.
+
+Pages serves the site from a sub-path, so `vite.config.ts` sets `base` to
+`/Tarmem/`. Building for a domain root instead — a custom domain, Netlify,
+Vercel, or any plain static host — just needs `BASE_PATH=/ npm run build`.
+
 ## Known gaps
 
 - No backend, so no shared state, accounts, uploads or notifications between devices.
