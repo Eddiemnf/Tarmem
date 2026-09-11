@@ -1,25 +1,38 @@
-# CODING AGENTS: READ THIS FIRST
+# Tarmem
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+A Saudi renovation marketplace: homeowners describe a project, verified contractors bid, and
+payment is held in escrow and released stage by stage as the homeowner approves the work.
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+This repository holds both the design and its implementation.
 
-## What you should do — IMPORTANT
+| Path | What it is |
+| --- | --- |
+| `web/` | **The implementation** — Vite + React + TypeScript. Start here: [`web/README.md`](web/README.md) |
+| `project/` | The Claude Design prototype the implementation was built from, with its assets, copy and legal PDFs |
+| `chats/` | The design conversations — where the intent behind each decision lives |
 
-**Read the chat transcripts first.** There are 3 chat transcript(s) in `chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
+```bash
+cd web
+npm install
+npm run dev
+```
 
-**Read `project/Tarmem.dc.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+## How the two relate
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+`project/Tarmem.dc.html` is the approved design: every page, all Arabic and English copy, the
+fee structure, and the flows the business depends on. `web/` recreates it as a real app —
+markup generated from the design file, logic ported by hand, styling carried over verbatim.
+When the design changes, re-run `npm run sync:template` in `web/` and reconcile.
 
-## About the design files
+`project/` also carries two documents produced alongside the design: `Tarmem Launch Plan.dc.html`
+(what launching actually requires — payment licensing first) and `Tarmem UX Audit.dc.html`.
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+## What works, and what it isn't yet
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+The whole product is walkable: public site, sign-up with the Nafath gates, both dashboards,
+posting and bidding, the two-party services agreement, milestone evidence and approvals,
+wallets, admin verification and dispute handling — in Arabic (RTL) and English.
 
-## Bundle contents
-
-- `README.md` — this file
-- `chats/` — conversation transcripts (read these!)
-- `project/` — the `Tarmem Business Website Design` project files (HTML prototypes, assets, components)
+It runs entirely in the browser on seed data, so it is a complete product design rather than a
+running marketplace: each visitor gets a private copy and nothing is shared between devices.
+The payment, identity and messaging integrations it implies are the subject of the launch plan.
