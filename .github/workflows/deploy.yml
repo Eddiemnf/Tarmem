@@ -43,6 +43,9 @@ jobs:
 
       - name: Type-check and build
         run: npm run build
+        env:
+          # Pages serves this repo under /Tarmem/; every other host uses the root.
+          BASE_PATH: /Tarmem/
 
       - uses: actions/upload-pages-artifact@v3
         with:
