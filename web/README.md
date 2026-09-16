@@ -26,6 +26,7 @@ npm run test:flows # smoke-test the core flows against a running dev server
 | `src/data/extra-copy.ts` | Copy added by this implementation, kept apart from the approved copy |
 | `src/styles/global.css` | The design's stylesheet, carried over verbatim |
 | `tools/convert-template.py` | Regenerates the page components from the design file |
+| `src/components/TarmemHero/` | The approved landing-page hero (villa film), and its site wiring |
 | `tests/flows.mjs` | Browser smoke test for agreement signing, funding, milestones, posting |
 
 ## How the port works
@@ -45,6 +46,34 @@ Two halves were treated differently:
 Because the markup is generated, prefer editing the design file and re-running the converter
 over hand-editing `src/pages/*`. If you do edit a page directly, note it — the next sync
 would otherwise overwrite it.
+
+## The landing-page hero
+
+`src/components/TarmemHero/TarmemHero.tsx` is the approved hero export, ported to
+TypeScript with the same DOM, classes and playback behaviour. Two adaptations:
+text arrives through a `copy` prop so the EN toggle works on it, and `dir`/`lang`
+follow the site language. `TarmemHeroSection.tsx` holds the site wiring — copy,
+direction, asset URLs and the two flows the buttons run.
+
+Three departures from the export, all deliberate:
+
+- **The site header stays above the hero** (`header={false}`). It is shared by
+  every route and carries the account menu, notifications and language toggle,
+  so it cannot move inside a landing-page-only component. The export documents
+  this as the supported alternative to adapting the navigation.
+- **The contractor button moved into the hero's action column.** It lives in the
+  hero's own header in the approved design, which this site does not render.
+- **The assistant bar moved below the hero** (`components/AssistantBar.tsx`).
+  It used to sit inside the old hero; without it the planning workspace would
+  have no entry point.
+
+The film is silent H.264 and plays once, holding on the finished frame, with a
+poster fallback when it cannot decode and no autoplay under reduced-motion or
+data-saver. The generator swaps the design file's old hero section for this
+component — see `NODE_REPLACEMENTS` in `tools/convert-template.py`.
+
+The English hero copy is a translation written during integration, not approved
+wording; the Arabic is verbatim from the export.
 
 ## Data, money and identity
 

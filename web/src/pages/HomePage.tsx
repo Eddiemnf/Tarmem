@@ -3,96 +3,13 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import AssistantBar from '../components/AssistantBar';
+import TarmemHero from '../components/TarmemHero/TarmemHeroSection';
 
 export default function HomePage({ vm }: { vm: VM }) {
   return (<>
-    <section className="fade" style={{ background: '#fff' }}>
-      <div className="v-wrap v-hero-g" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.06fr) minmax(0,.94fr)', gap: 'clamp(28px,4vw,64px)', alignItems: 'center', paddingBlock: 'clamp(18px,2.2vw,40px) clamp(14px,1.8vw,26px)', paddingTop: '80.05px' }}>
-
-        <div>
-          <span className="v-kick">{vm.t.home.kicker}</span>
-          <h1 className="v-h1" style={{ margin: '14px 0 0', maxWidth: '17ch', lineHeight: '1.18', fontSize: 'clamp(32px,4.4vw,52px)' }}>{vm.heroTitle}</h1>
-          <p className="v-body" style={{ marginTop: '18px', maxWidth: '44ch' }}>{vm.t.home.sub}</p>
-
-          <div style={{ marginTop: 'clamp(26px,3vw,36px)' }}>
-            <label className="v-kick" htmlFor="v-ai-in" style={{ display: 'block', color: '#FF5A3C', letterSpacing: '.1em' }}>{vm.t.ai.label}</label>
-            <div className="v-ai" style={{ marginTop: '12px' }}>
-              <textarea id="v-ai-in" rows={2} value={vm.aiText} onChange={vm.setAi} placeholder={vm.t.ai.ph} />
-              <div className="v-aifoot">
-                <button className="v-icb" type="button" onClick={vm.aiAttach}>
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-4.5-4.5L3 21" /></svg>
-                  {vm.aiAttachLabel}
-                </button>
-                <button className="v-go" type="button" onClick={vm.startPlan} disabled={vm.aiEmpty}>
-                  {vm.t.ai.send}
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={vm.arrowPath} /></svg>
-                </button>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '14px' }}>
-              
-    {((vm.aiSug) || []).map((g: any, _i0: number) => (
-      <React.Fragment key={_i0}>
-                <button className="v-chip" type="button" data-q={g.q} onClick={vm.useSug}>{g.q}</button>
-              </React.Fragment>
-    ))}
-    
-              
-              
-            </div>
-            
-          </div>
-        </div>
-
-        <div style={{ position: 'relative' }}>
-          <div className="v-stage">
-            
-    {vm.heroOn ? (<>
-              <div className="v-inner">
-                <div className="v-grid" aria-hidden="true"></div>
-                <div className="v-pw">
-                  <div className="v-holder">
-                    <img className="v-fr v-lines" src="assets/room-01.png" alt={vm.heroAlt} />
-                    <img className="v-fr v-color" src="assets/room-final.png" alt="" aria-hidden="true" />
-                    <div className="v-plx" aria-hidden="true">
-                      <div className="v-scan"><span style={{ top: '0' }}></span><span style={{ bottom: '0' }}></span></div>
-                      <div className="v-anno v-a1"><i></i><b></b><em>01 · {vm.annoA}</em></div>
-                      <div className="v-anno v-a2"><i></i><b></b><em>02 · {vm.annoB}</em></div>
-                      <div className="v-anno v-a3"><i></i><b></b><em>03 · {vm.annoC}</em></div>
-                      <div className="v-dim"><div></div><span className="cap"></span><span className="cap2"></span><span className="lbl num">{vm.t.v3.dim}</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <span className="v-cnr v-cnr1" aria-hidden="true"></span>
-              <span className="v-cnr v-cnr2" aria-hidden="true"></span>
-              <span className="v-cnr v-cnr3" aria-hidden="true"></span>
-              <span className="v-cnr v-cnr4" aria-hidden="true"></span>
-            </>) : null}
-    
-          </div>
-          <div className="v-stepcard">
-            <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#1B1464', flex: 'none' }}>{vm.t.v3.stepsCard}</span>
-            <div className="v-steprow">
-              
-    {((vm.heroSteps) || []).map((st: any, _i0: number) => (
-      <React.Fragment key={_i0}>
-                <span className="v-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className={st.cls}>{st.mark}</span>
-                  <span style={{ fontSize: '12.5px', color: st.color }}>{st.label}</span>
-                </span>
-              </React.Fragment>
-    ))}
-    
-            </div>
-          </div>
-        </div>
-      </div>
-
-      
-
-      <div className="v-arc" style={{ background: '#fff' }}></div>
-    </section>
+    <TarmemHero vm={vm} />
+    <AssistantBar vm={vm} />
 
     
     {vm.showAiPill ? (<>
