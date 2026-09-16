@@ -164,6 +164,42 @@ STYLE_FIXUPS = {
 }
 _fixups_applied: set[str] = set()
 
+"""Sections of the design file that a hand-written component now renders.
+
+The landing page's hero comes from a separate approved export (the Saudi villa
+construction film) that never existed in the Claude Design file, so the
+generator swaps the old hero section for that component. The assistant bar used
+to live inside that section and is kept alongside it, otherwise the planning
+workspace would lose its only entry point.
+
+Matched on a descendant's class so this survives edits to the section itself.
+"""
+NODE_REPLACEMENTS = {
+    "v-hero-g": (
+        "<TarmemHero vm={vm} />\n    <AssistantBar vm={vm} />",
+        ["import AssistantBar from '../components/AssistantBar';",
+         "import TarmemHero from '../components/TarmemHero/TarmemHeroSection';"],
+    ),
+}
+_replacements_applied: set[str] = set()
+
+
+def replacement_for(node: "Element") -> tuple[str, list[str]] | None:
+    """The replacement for a section, if one of its descendants is marked."""
+    if node.tag != "section":
+        return None
+    stack = list(node.children)
+    while stack:
+        current = stack.pop()
+        if isinstance(current, Element):
+            classes = dict(current.attrs).get("class") or ""
+            for marker, replacement in NODE_REPLACEMENTS.items():
+                if marker in classes.split():
+                    _replacements_applied.add(marker)
+                    return replacement
+            stack.extend(current.children)
+    return None
+
 
 def style_object(scope: Scope, value: str) -> str:
     decls: dict[str, str] = {}  # later declarations win, as in CSS
@@ -241,6 +277,10 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
             f"{pad}))}}\n{pad}"
         )
 
+    swap = replacement_for(node)
+    if swap:
+        return swap[0]
+
     tag = "ImageSlot" if node.tag == "image-slot" else node.tag
     props = []
     for name, value in node.attrs:
@@ -283,6 +323,9 @@ def component(name: str, body: str, uses_slot: bool) -> str:
     imports.append("import type { VM } from '../state/viewModel';")
     if uses_slot:
         imports.append("import { ImageSlot } from '../components/ImageSlot';")
+    for _marker, (snippet, extra) in NODE_REPLACEMENTS.items():
+        if snippet.split(" ", 1)[0].lstrip("<") in body:
+            imports.extend(extra)
     return (
         BANNER
         + "\n".join(imports)
@@ -372,6 +415,10 @@ def main() -> None:
     stale = set(STYLE_FIXUPS) - _fixups_applied
     if stale:
         raise SystemExit(f"STYLE_FIXUPS no longer match the design file: {sorted(stale)}")
+
+    unmatched = set(NODE_REPLACEMENTS) - _replacements_applied
+    if unmatched:
+        raise SystemExit(f"NODE_REPLACEMENTS no longer match the design file: {sorted(unmatched)}")
 
     print(f"wrote {len(written) + 1} files:")
     for path in written:

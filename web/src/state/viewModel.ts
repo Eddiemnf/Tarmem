@@ -187,6 +187,25 @@ function buildViewModel(
     nav(rl === 'homeowner' ? 'hdash' : 'cdash');
   };
 
+  /** Open sign-up with a role preselected — the «انضم كمقاول» route. */
+  const openSignup = (rl: Role) => {
+    setState({
+      route: 'auth', menuOpen: false, navOpen: false,
+      auth: { ...s.auth, mode: 'signup', step: 1, role: rl, error: '' },
+    });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  /** The «انشر مشروعك» route. A signed-in contractor or admin is sent to
+      homeowner sign-up first, exactly as the header button does. */
+  const startProject = () => {
+    if (role && role !== 'homeowner') {
+      nav('auth', { auth: { ...s.auth, mode: 'signup', role: 'homeowner', step: 1 } });
+      return;
+    }
+    nav('post', s.navOpen ? { navOpen: false } : {});
+  };
+
   const bKeys = () => ['type', 'city', 'space', 'scope', 'budget', 'timing'];
 
   const aiErrorFor = (error: unknown) => (
@@ -1119,6 +1138,13 @@ Rules:
     heroFrames: ((t.v2.frames || []) as string[]).map((l, i) => ({
       n: String(i + 1).padStart(2, '0'), l,
     })),
+    hero: {
+      copy: EXTRA[lang].hero,
+      dir: (lang === 'ar' ? 'rtl' : 'ltr') as 'rtl' | 'ltr',
+      lang,
+      videoSrc: import.meta.env.BASE_URL + 'assets/villa-construction-1080p.mp4',
+      posterSrc: import.meta.env.BASE_URL + 'assets/villa-film-poster.webp',
+    },
     heroTitle: t.home.heroTitle,
     trustStrip: t.home.stats || [],
     stepRows: t.home.steps || [],
@@ -1563,14 +1589,10 @@ Rules:
     allProjects: s.projects.map(decorateP),
     verifQueue, noVerif: !verifQueue.length, cases, payRows, userRows, faqs,
 
-    goAuth: (e: ClickEvent) => {
-      const rl = dataset(e).signup as Role;
-      setState({
-        route: 'auth', menuOpen: false, navOpen: false,
-        auth: { ...s.auth, mode: 'signup', step: 1, role: rl, error: '' },
-      });
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    },
+    goAuth: (e: ClickEvent) => openSignup(dataset(e).signup as Role),
+    /** Wired to the hero's two buttons; same flows as the header's. */
+    startProject,
+    joinContractor: () => openSignup('contractor'),
     go: (e: ClickEvent) => {
       const d = dataset(e);
       const extra: Partial<AppState> = {};
@@ -1581,8 +1603,8 @@ Rules:
       if (d.route === 'auth' && d.role) {
         extra.auth = { ...s.auth, mode: 'signup', role: d.role as Role, step: 1, error: '' };
       }
-      if (d.route === 'post' && role && role !== 'homeowner') {
-        nav('auth', { auth: { ...s.auth, mode: 'signup', role: 'homeowner', step: 1 } });
+      if (d.route === 'post') {
+        startProject();
         return;
       }
       nav(d.route as string, extra);
