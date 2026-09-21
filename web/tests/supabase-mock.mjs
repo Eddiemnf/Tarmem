@@ -12,7 +12,7 @@ const jwt = (sub) => `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub, role: 'a
 const subOf = (header) => { try { return JSON.parse(Buffer.from(String(header || '').split('.')[1], 'base64url').toString()).sub || null; } catch { return null; } };
 
 export async function installSupabaseMock(context, supabaseUrl) {
-  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, refused: [], unknown: [] };
+  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], refused: [], unknown: [] };
   let nextCode = 2001;
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
   const send = (route, status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
@@ -50,6 +50,24 @@ export async function installSupabaseMock(context, supabaseUrl) {
     if (path === '/auth/v1/user') { const user = db.users.find((u) => u.id === me); return user ? send(route, 200, publicUser(user)) : send(route, 401, { msg: 'no session' }); }
 
     const admin = db.profiles.some((p) => p.id === me && p.role === 'admin');
+    // storage: a private bucket, <owner>/<project>/<file>; owners add to their own projects, owners and admins read
+    const BUCKET = '/storage/v1/object/';
+    if (path.startsWith(BUCKET + 'list/project-files')) {
+      const prefix = body.prefix.replace(/\/$/, '') + '/';
+      return send(route, 200, db.files.filter((f) => f.path.startsWith(prefix) && (admin || f.path.startsWith(me + '/'))).map((f, i) => ({ id: 'obj-' + i, name: f.path.slice(prefix.length), created_at: f.created_at })));
+    }
+    if (path.startsWith(BUCKET + 'sign/project-files/')) {
+      const key = decodeURIComponent(path.slice((BUCKET + 'sign/project-files/').length));
+      return admin || key.startsWith(me + '/') ? send(route, 200, { signedURL: `/object/sign/project-files/${key}?token=test` }) : refuse(route, 'storage: not yours to open');
+    }
+    if (path.startsWith(BUCKET + 'project-files/') && method === 'POST') {
+      const key = decodeURIComponent(path.slice((BUCKET + 'project-files/').length));
+      const [owner, project] = key.split('/');
+      if (owner !== me || !db.projects.some((p) => p.id === project && p.owner_id === me)) return refuse(route, 'storage: not your project');
+      if (!/^[\x20-\x7E]+$/.test(key)) return refuse(route, 'storage: keys must be plain ASCII');
+      db.files.push({ path: key, type: headers['content-type'] || '', created_at: new Date().toISOString() });
+      return send(route, 200, { Key: 'project-files/' + key, Id: 'obj' });
+    }
     if (path === '/rest/v1/profiles') {
       if (method === 'GET') return rows(db.profiles.filter((p) => (admin || p.id === me) && (!eq('id') || p.id === eq('id'))));
       if (method === 'POST') {

@@ -44,7 +44,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
             <div><label className="lbl">{vm.t.post.budgetMin}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="min" value={vm.post.f.min} onChange={vm.setPostField} placeholder="20000" /></div>
             <div><label className="lbl">{vm.t.post.budgetMax}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="max" max="1000000" value={vm.post.f.max} onChange={vm.setPostField} placeholder="60000" /></div>
           </div>
-          {vm.launch ? null : (<div className="sugbox">
+          <div className="sugbox">
             <span className="evlbl">{vm.t.post.sugTitle}</span>
             
       {vm.post.sug.has ? (<>
@@ -59,7 +59,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
             
       {vm.post.sug.none ? (<><p className="muted" style={{ fontSize: '12px', margin: '0' }}>{vm.t.post.sugFew}</p></>) : null}
       
-          </div>)}
+          </div>
           
       {vm.post.overCap ? (<><div className="pledge" style={{ background: '#FFF1EC', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}><span style={{ fontSize: '13px', color: '#8A2B12', maxWidth: '46ch' }}>{vm.t.post.capNote}</span><button className="btn btn-s btn-sm" data-route="contact" onClick={vm.go}>{vm.t.faq.contact}</button></div></>) : null}
       
@@ -69,7 +69,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
         
     {vm.post.step3 ? (<>
           <p style={{ fontSize: '13.5px', color: '#5B5A7A' }}>{vm.t.post.filesIntro}</p>
-          {vm.launch ? null : (<label className="drop" style={{ padding: '36px' }}><input type="file" multiple style={{ display: 'none' }} onChange={vm.postUpload} />{vm.t.post.drop}</label>)}
+          {vm.launch && !vm.uploads ? null : (<label className="drop" style={{ padding: '36px' }}><input type="file" multiple style={{ display: 'none' }} onChange={vm.postUpload} />{vm.t.post.drop}</label>)}
           <p className="muted" style={{ fontSize: '12px', lineHeight: '1.7', margin: '0' }}>{vm.t.post.fileTypes}</p>
           
       {vm.post.hasFiles ? (<><ul style={{ margin: '0', padding: '0', listStyle: 'none', fontSize: '13.5px' }}>

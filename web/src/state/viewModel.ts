@@ -25,7 +25,8 @@ import { guardLaunchState, type SentRequest } from '../launch/guard';
 import { isLaunch } from '../launch/mode';
 import { connectUrls } from '../launch/urls';
 import { EMPTY_ANALYTICS, analyticsVals } from '../platform/admin';
-import { bindPlatform, guardEffects } from '../platform/bind';
+import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
+import { acceptFiles, holdFiles } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
 import Component from './designLogic.generated';
@@ -90,7 +91,24 @@ function adminVals(vm: LogicVals, state: LogicState): LogicVals {
   };
 }
 
-function launchVals(vm: LogicVals, state: LogicState): LogicVals {
+/** The design's two file pickers, made real: the files themselves are kept, checked and uploaded (src/platform/files.ts). */
+function filePickers(host: LogicHost, copy: (typeof PLATFORM_COPY)['ar' | 'en']): LogicVals {
+  const picked = (e: { target: HTMLInputElement }) => { const files = [...(e.target.files || [])]; e.target.value = ''; return files; };
+  return {
+    postUpload: (e: { target: HTMLInputElement }) => {
+      const state = host.logic.state;
+      const { ok, problem } = acceptFiles(picked(e), (state.post.files || []).length);
+      host.setLogicState((s) => ({ post: { ...s.post, files: [...s.post.files, ...holdFiles(ok)], error: problem ? copy.fileErr[problem] : '' } }));
+    },
+    wsUpload: (e: { target: HTMLInputElement }) => {
+      const project = (host.logic.state.projects as LogicState[]).find((p) => p.id === host.logic.state.curId);
+      const { ok } = acceptFiles(picked(e), (project?.files || []).filter((f: LogicState) => !f.failed).length);
+      for (const file of ok) void uploadToProject(host, host.logic.state.curId, file);
+    },
+  };
+}
+
+function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
@@ -99,6 +117,9 @@ function launchVals(vm: LogicVals, state: LogicState): LogicVals {
     launch: true,
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
     accounts: platformOn,
+    /** Photos have somewhere to go (supabase/003): the design's file pickers show, and really upload. */
+    uploads: platformOn,
+    ...(real ? filePickers(host, real) : {}),
     justPosted: state.justPosted,
     /** The request last written into WhatsApp, for the page that follows it (src/launch/SentPage.tsx). */
     launchLast: state.launchLast,
@@ -106,8 +127,11 @@ function launchVals(vm: LogicVals, state: LogicState): LogicVals {
       ...vm.t,
       pages: { ...vm.t.pages, cSent: real ? real.contactSent : copy.contactSent },
       footer: { ...vm.t.footer, note: '' },
-      // the photo step explains where photos go instead of offering a picker that uploads nothing
-      post: { ...vm.t.post, filesIntro: real ? real.filesIntro : copy.filesIntro, fileTypes: '' },
+      // Without storage the photo step explains where photos go instead of offering a picker that uploads nothing.
+      // The English note under the suggested range claimed "the average actually paid on similar projects here",
+      // which nothing supports yet; it now says what the Arabic always said.
+      post: { ...vm.t.post, ...(real ? {} : { filesIntro: copy.filesIntro, fileTypes: '' }),
+        ...(vm.dir === 'ltr' ? { sugNote: 'An indicative estimate based on the type and scope of work. Contractors\' bids may differ with the details and materials.' } : {}) },
       // an open project with no bids yet: say what actually happens next
       ...(real ? { ws: { ...vm.t.ws, noBids: real.postedNoBids } } : {}),
     },
@@ -147,7 +171,7 @@ export function useViewModel(): VM {
   const host = useHost();
   const version = useSyncExternalStore(host.subscribe, host.getVersion);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` is the change signal
-  const vm = useMemo(() => (isLaunch ? launchVals(host.render(), host.logic.state) : host.render()), [host, version]);
+  const vm = useMemo(() => (isLaunch ? launchVals(host.render(), host.logic.state, host) : host.render()), [host, version]);
   useEffect(() => {
     host.committed();
   });

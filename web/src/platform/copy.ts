@@ -27,8 +27,10 @@ export const PLATFORM_COPY = {
     },
     posted: 'نُشر مشروعك. يراجعه فريق ترميم ويتواصل معك على جوالك خلال يوم عمل.',
     postedNoBids: 'استلمنا مشروعك. يراجعه فريق ترميم ويتواصل معك على جوالك خلال يوم عمل. ستظهر عروض المقاولين الموثّقين هنا فور وصولها.',
-    publish: 'نشر المشروع', filesIntro: 'الصور تساعد كثيرًا. رفع الصور من الموقع قيد الإعداد، وسيطلبها منك فريقنا عند التواصل.',
+    publish: 'نشر المشروع',
     contactSent: 'وصلتنا رسالتك. نرد عليك خلال يوم عمل.', contactFailed: 'تعذّر إرسال الرسالة. حاول مجددًا.',
+    uploading: 'جارٍ رفع الملفات…', uploadFailed: 'تعذّر رفع هذا الملف. حاول مجددًا من تبويب الملفات.',
+    fileErr: { type: 'الملفات المسموحة: صور JPG وPNG وملفات PDF.', size: 'الحد الأقصى لحجم الملف 10 ميغابايت.', count: 'الحد الأقصى 10 ملفات للمشروع.' },
     joinSent: 'وصلنا طلبك. يتواصل معك فريق ترميم لاستكمال التوثيق.', joinSend: 'إرسال الطلب', inbox: 'الوارد', inboxOpen: 'افتح الوارد: المشاريع والطلبات والرسائل ←',
   },
   en: {
@@ -55,8 +57,10 @@ export const PLATFORM_COPY = {
     },
     posted: 'Your project is posted. Tarmem\'s team reviews it and contacts you on your mobile within one working day.',
     postedNoBids: 'We have your project. Tarmem\'s team reviews it and contacts you on your mobile within one working day. Bids from verified contractors will appear here as they arrive.',
-    publish: 'Post project', filesIntro: 'Photos help a lot. Uploading from the site is on its way; our team will ask for them when they contact you.',
+    publish: 'Post project',
     contactSent: 'We have your message. We reply within one working day.', contactFailed: 'The message could not be sent. Please try again.',
+    uploading: 'Uploading files…', uploadFailed: 'This file could not be uploaded. Try again from the Files tab.',
+    fileErr: { type: 'Allowed files: JPG and PNG images, and PDF files.', size: 'A file can be 10 MB at most.', count: 'A project can hold 10 files at most.' },
     joinSent: 'We have your application. Tarmem\'s team will contact you to complete verification.', joinSend: 'Send application', inbox: 'Inbox', inboxOpen: 'Open the inbox: projects, applications, messages →',
   },
 } as const;

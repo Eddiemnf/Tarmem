@@ -44,10 +44,17 @@ await open('post');
 await page.locator('input[name="title"]').fill('تجديد مطبخ، 20 م²');
 await page.locator('textarea[name="desc"]').fill('تغيير الخزائن والرخام، المساحة 4×5 م.');
 await page.locator('button', { hasText: 'التالي' }).first().click();
+check('the budget step shows the suggested range for the trade, as designed', (await page.locator('.sugbox').count()) === 1 && (await page.locator('.sugbox button.sugbtn').count()) === 1);
 await page.locator('input[name="min"]').fill('40000');
 await page.locator('input[name="max"]').fill('60000');
 await page.locator('button', { hasText: 'التالي' }).first().click();
-check('the photo step says uploads are on the way, and offers no picker', (await page.locator('.drop').count()) === 0 && (await page.locator('text=رفع الصور من الموقع').count()) === 1);
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+const picker = page.locator('label.drop input[type="file"]');
+check('the photo step has the design\'s picker and wording', (await picker.count()) === 1 && (await page.locator('text=أضف صورًا واضحة للمكان').count()) === 1);
+await picker.setInputFiles([{ name: 'مطبخ قبل.png', mimeType: 'image/png', buffer: PNG }, { name: 'virus.exe', mimeType: 'application/x-msdownload', buffer: Buffer.from('x') }]);
+await settle(200);
+check('a photo is listed; a file that is not a photo or a PDF is refused with a sentence', (await page.locator('li', { hasText: 'مطبخ قبل.png' }).count()) === 1 && (await page.locator('li', { hasText: 'virus.exe' }).count()) === 0
+  && (await page.locator('text=الملفات المسموحة').count()) === 1);
 await page.locator('button', { hasText: 'التالي' }).first().click();
 await settle(200);
 const publish = page.locator('button', { hasText: 'نشر المشروع' }).first();
@@ -80,6 +87,19 @@ check('…and the project is saved with only the columns a homeowner may set',
   db.refused.join('; ') || JSON.stringify(project || null).slice(0, 160));
 check('…its page opens at its own address', (await pathname()) === '/project/P-2001' && (await page.locator('h1', { hasText: 'تجديد مطبخ، 20 م²' }).count()) === 1, await pathname());
 check('…and nothing was sent to WhatsApp', (await page.evaluate(() => window.__opened.length)) === 0);
+check('…the photo went up with it, into the owner\'s own folder for that project, under a plain-ASCII key',
+  db.files.length === 1 && db.files[0].path.startsWith(`${db.users[0].id}/${project?.id}/`) && db.refused.length === 0, db.files[0]?.path || db.refused.join('; '));
+await page.locator('[role="tab"][data-tab="files"]').click();
+await settle(300);
+check('…and the Files tab lists it under the name its owner gave it', (await page.locator('td', { hasText: 'مطبخ قبل.png' }).count()) === 1);
+await page.locator('label.btn input[type="file"]').setInputFiles({ name: 'plan.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') });
+await settle(600);
+check('the Files tab\'s own upload button really uploads', db.files.length === 2 && (await page.locator('td', { hasText: 'plan.pdf' }).count()) === 1);
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForSelector('header'); await settle(700);
+await page.locator('[role="tab"][data-tab="files"]').click();
+await settle(400);
+check('…and both are still there after a reload (read back from storage)', (await page.locator('td', { hasText: 'مطبخ قبل.png' }).count()) === 1 && (await page.locator('td', { hasText: 'plan.pdf' }).count()) === 1);
 await page.locator('[role="tab"][data-tab="bids"]').click({ timeout: 3000 }).catch(() => undefined);
 await settle(200);
 check('the bids tab says what happens next instead of "no bids"', (await page.locator('text=استلمنا مشروعك').count()) === 1);
@@ -207,6 +227,9 @@ check("the team's own browsing is not counted as traffic", db.visits.length === 
 await page.locator('[data-route="inbox"]').click();
 await settle(700);
 check('the plain contact list is still one click away', (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 3);
+await page.locator('button', { hasText: 'عرض الصور والملفات' }).first().click();
+await settle(600);
+check('…where the team can open a project\'s photos through links that expire', (await page.locator('main a[href*="token="]').count()) === 2);
 db.profiles[0].role = 'homeowner';
 
 check('the site asked the database for nothing the test does not know about', db.unknown.length === 0, db.unknown.join(' · '));

@@ -386,10 +386,14 @@ demo renders exactly as designed. A rule that stops matching fails the run.
 LAUNCH_HIDDEN_CLASSES = {
     "ph-live": "a live-visitor counter that is a random walk, not a measurement",
     "ai2-stats": "headline figures (contractors, projects, satisfaction) that are not real yet",
-    "drop": "a file picker that uploads nothing: the site has nowhere to keep a visitor's photos yet",
-    "ai2-att": "the same, on the home page's description box",
-    "sugbox": "an indicative price range per trade that is the design's placeholder, not market data",
+    "drop": "a file picker that uploads nothing, until photos have somewhere to go (vm.uploads: src/platform/files.ts)",
+    "ai2-att": "the same, on the home page's description box: it feeds the assistant, which is not public",
 }
+# When a marker above is hidden; anything not listed here is hidden on the whole public site.
+LAUNCH_HIDDEN_CONDITIONS = {"drop": "vm.launch && !vm.uploads"}
+# The indicative price range per trade ("sugbox") was hidden at first as the design's placeholder
+# figures. The owner asked for it back on 21 September 2026: the ranges are his to stand behind,
+# and they are edited in the design's data file (BUDGETS in project/tarmem-i18n.js).
 # The testimonials and the partner logos were hidden here at first, because the design's
 # handoff notes call them seed content. The owner confirmed on 21 September 2026 that the
 # quotes are from real customers and that every organisation shown is a signed partner, so
@@ -446,7 +450,7 @@ def launch_hidden(node: "Element") -> str:
     for marker in LAUNCH_HIDDEN_CLASSES:
         if marker in classes:
             _launch_rules_applied.add(marker)
-            return "vm.launch"
+            return LAUNCH_HIDDEN_CONDITIONS.get(marker, "vm.launch")
     if node.tag == "section":
         stack = list(node.children)
         while stack:

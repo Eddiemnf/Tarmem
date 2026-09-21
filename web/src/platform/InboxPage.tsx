@@ -6,10 +6,28 @@
 
 import { useEffect, useState } from 'react';
 import type { VM } from '../state/viewModel';
+import { fileLink, listFiles, type StoredFile } from './files';
 import { loadInbox, type Inbox } from './session';
 
 const when = (iso: unknown) => String(iso || '').slice(0, 16).replace('T', ' ');
 const H = ({ children }: { children: string }) => <h2 style={{ fontSize: '18px', color: '#1B1464', margin: '34px 0 10px' }}>{children}</h2>;
+/** A project's photos and files, fetched when asked for; each link opens the file for the next hour. */
+function ProjectFiles({ ownerId, projectId, ar }: { ownerId: string; projectId: string; ar: boolean }) {
+  const [files, setFiles] = useState<(StoredFile & { url: string | null })[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = async () => {
+    setBusy(true);
+    const found = await listFiles(ownerId, projectId);
+    setFiles(await Promise.all(found.map(async (f) => ({ ...f, url: await fileLink(f.path) }))));
+    setBusy(false);
+  };
+  if (!files) return <button type="button" className="lnkbtn" disabled={busy} onClick={load} style={{ fontSize: '12.5px' }}>{busy ? '…' : ar ? 'عرض الصور والملفات' : 'Show photos and files'}</button>;
+  if (!files.length) return <span className="muted" style={{ fontSize: '12.5px' }}>{ar ? 'لا ملفات.' : 'No files.'}</span>;
+  return <span style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '12.5px' }}>{files.map((f) => (f.url
+    ? <a key={f.path} href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: '#FF5A3C' }}>{f.name}</a>
+    : <span key={f.path} className="muted">{f.name}</span>))}</span>;
+}
+
 const cell = { padding: '10px 12px', borderBottom: '1px solid #EEEDF5', verticalAlign: 'top', fontSize: '13.5px', lineHeight: 1.7 } as const;
 
 export default function InboxPage({ vm }: { vm: VM }) {
@@ -37,7 +55,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
           {inbox.projects.map((p) => (
             <tr key={p.id}>
               <td style={cell} className="num">{p.code}<br /><span className="muted">{when(p.created_at)}</span><br /><span className="tag tag-n">{p.status}</span></td>
-              <td style={cell}><strong style={{ color: '#1B1464' }}>{p.title}</strong><br />{label(vm.trades, p.trade)} · {label(vm.cities, p.city)}{p.district ? ` · ${p.district}` : ''}<br /><span className="num">{p.budget_min.toLocaleString('en-US')} – {p.budget_max.toLocaleString('en-US')} SAR</span> · {p.timing}<br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{p.description}</span></td>
+              <td style={cell}><strong style={{ color: '#1B1464' }}>{p.title}</strong><br />{label(vm.trades, p.trade)} · {label(vm.cities, p.city)}{p.district ? ` · ${p.district}` : ''}<br /><span className="num">{p.budget_min.toLocaleString('en-US')} – {p.budget_max.toLocaleString('en-US')} SAR</span> · {p.timing}<br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{p.description}</span><br /><ProjectFiles ownerId={p.owner_id} projectId={p.id} ar={ar} /></td>
               <td style={cell}>{p.owner?.full_name || '—'}<br /><a className="num" dir="ltr" href={`tel:${p.owner?.mobile || ''}`}>{p.owner?.mobile}</a><br /><a dir="ltr" href={`mailto:${p.owner?.email || ''}`}>{p.owner?.email}</a></td>
             </tr>
           ))}

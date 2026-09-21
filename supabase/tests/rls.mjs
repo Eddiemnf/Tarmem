@@ -50,6 +50,11 @@ check('visitor: cannot read visits', denied(await anon.from('visits').select('*'
 check('visitor: cannot back-date a visit or sign it with a user', Boolean((await anon.from('visits').insert({ ...visit, created_at: '2020-01-01T00:00:00Z' })).error) && Boolean((await anon.from('visits').insert({ ...visit, user_id: '00000000-0000-4000-8000-000000000001' })).error));
 check('visitor: cannot run the analytics', Boolean((await anon.rpc('admin_analytics', { p_range: 'week' })).error));
 check("visitor: cannot read or write the console's lists", denied(await anon.from('admin_state').select('*')) && Boolean((await anon.from('admin_state').insert({ key: 'promos', value: [] })).error));
+// 1c — 003: project photos and files
+const PIXEL = new Blob([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0))], { type: 'image/png' });
+const strangerUpload = await anon.storage.from('project-files').upload('00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002/x.png', PIXEL);
+check('visitor: cannot add a file — and the private bucket exists', Boolean(strangerUpload.error) && !/bucket not found/i.test(strangerUpload.error?.message || ''), strangerUpload.error?.message);
+check('visitor: sees no files', ((await anon.storage.from('project-files').list('')).data || []).length === 0);
 if (process.env.RLS_VISITOR_ONLY) {
   console.log(results.join('\n'));
   const bad = results.filter((r) => r.startsWith('FAIL')).length;
@@ -87,6 +92,15 @@ check('homeowner: cannot read the audit record', denied(await a.c.from('events')
 check('homeowner: cannot read visits, run the analytics, or touch the console\'s lists', denied(await a.c.from('visits').select('*')) && Boolean((await a.c.rpc('admin_analytics', { p_range: 'week' })).error)
   && denied(await a.c.from('admin_state').select('*')) && Boolean((await a.c.from('admin_state').insert({ key: 'promos', value: [] })).error));
 check('homeowner: cannot read contact messages or applications', denied(await a.c.from('contact_messages').select('*')) && denied(await a.c.from('contractor_applications').select('*')));
+const mineKey = `${a.id}/${posted.data?.id}/rls-test.png`;
+const uploaded = await a.c.storage.from('project-files').upload(mineKey, PIXEL);
+check('homeowner: can add a photo to their own project', !uploaded.error, uploaded.error?.message);
+check("homeowner: cannot add a photo under somebody else's id, or to somebody else's project",
+  Boolean((await a.c.storage.from('project-files').upload(`${b.id}/${posted.data?.id}/x.png`, PIXEL)).error) && Boolean((await b.c.storage.from('project-files').upload(`${b.id}/${posted.data?.id}/x.png`, PIXEL)).error));
+check('homeowner: a file that is not an image or a PDF is refused by the storage service', Boolean((await a.c.storage.from('project-files').upload(`${a.id}/${posted.data?.id}/x.html`, new Blob(['<p>x</p>'], { type: 'text/html' }))).error));
+check('homeowner: can list and open their own photo', ((await a.c.storage.from('project-files').list(`${a.id}/${posted.data?.id}`)).data || []).length === 1 && Boolean((await a.c.storage.from('project-files').createSignedUrl(mineKey, 60)).data?.signedUrl));
+check("second homeowner: cannot list or open the first one's photo", ((await b.c.storage.from('project-files').list(`${a.id}/${posted.data?.id}`)).data || []).length === 0 && !(await b.c.storage.from('project-files').createSignedUrl(mineKey, 60)).data?.signedUrl);
+check('homeowner: cannot delete or overwrite a photo from the website', ((await a.c.storage.from('project-files').remove([mineKey])).data || []).length === 0 && Boolean((await a.c.storage.from('project-files').upload(mineKey, PIXEL, { upsert: true })).error));
 const withdrawn = await a.c.from('projects').update({ status: 'withdrawn' }).eq('id', posted.data?.id);
 check('homeowner: can withdraw their own open project', !withdrawn.error && (await a.c.from('projects').select('status').eq('id', posted.data?.id).single()).data?.status === 'withdrawn', withdrawn.error?.message);
 check('homeowner: a withdrawn project cannot be edited or re-opened', (await a.c.from('projects').update({ status: 'open' }).eq('id', posted.data?.id).select('*')).data?.length !== 1);

@@ -10,6 +10,7 @@ import { supabase } from './client';
 import { PLATFORM_COPY } from './copy';
 import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleList, setApplicationStatus, setMessageHandled } from './admin';
 import { runtimeData, setEveryone, toLogicProject } from './data';
+import { forgetHeldFiles, heldFile, listFiles, uploadFile, type StoredFile } from './files';
 import { createProject, currentAccount, onAccountChange, sendContact, withdrawProject } from './session';
 import { trackRoutes } from './track';
 
@@ -37,6 +38,21 @@ export function guardEffects(getHost: () => LogicHost | null): GuardEffects {
   };
 }
 
+const both = (text: string) => ({ en: text, ar: text });
+/** A stored file as a row of the design's Files tab. */
+const fileRow = (file: StoredFile): LogicState => ({ name: file.name, by: 'h', date: both(file.createdAt.slice(0, 10)), path: file.path });
+
+/** The Files tab's own "upload" button: the file goes to storage, then into the project's list. */
+export async function uploadToProject(host: LogicHost, projectCode: string, file: File): Promise<void> {
+  const project = (host.logic.state.projects as LogicState[]).find((p) => p.id === projectCode);
+  const owner = currentAccount()?.profile.id;
+  if (!project?.dbId || !owner) return;
+  const copy = PLATFORM_COPY[langOf(host.logic.state)];
+  const stored = await uploadFile(owner, project.dbId, file, project.files.length);
+  const row = stored ? fileRow(stored) : { name: `⚠ ${file.name} — ${copy.uploadFailed}`, by: 'h', date: both(''), failed: true };
+  host.setLogicState((s) => ({ projects: (s.projects as LogicState[]).map((p) => (p.id === projectCode ? { ...p, files: [...p.files.filter((f: LogicState) => !f.failed), row] } : p)) }));
+}
+
 export function bindPlatform(host: LogicHost, initialPost: LogicState): () => void {
   if (!supabase) return () => undefined;
   const logic = host.logic as unknown as LogicState;
@@ -62,8 +78,23 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
       return;
     }
     const project = toLogicProject(result.ok);
+    // The photos chosen in the form go up now that there is a project to attach them to.
+    const names: string[] = state.post.files || [];
+    if (names.length) {
+      publishing = true;
+      host.setLogicState((s) => ({ post: { ...s.post, error: copy.uploading } }));
+      const owner = currentAccount()?.profile.id || '';
+      const rows = await Promise.all(names.map(async (name, n) => {
+        const file = heldFile(name);
+        const stored = file ? await uploadFile(owner, result.ok.id, file, n) : null;
+        return stored ? fileRow(stored) : { name: `⚠ ${name} — ${copy.uploadFailed}`, by: 'h', date: both(''), failed: true };
+      }));
+      project.files = rows;
+      publishing = false;
+      forgetHeldFiles();
+    }
     host.setLogicState((s) => ({ projects: [project, ...s.projects], post: initialPost, pendingPost: false, justPosted: project.id }));
-    logic.nav('project', { curId: project.id, tab: 'overview' });
+    logic.nav('project', { curId: project.id, tab: project.files.some((f: LogicState) => f.failed) ? 'files' : 'overview' });
   };
 
   /* ---- the admin console (src/platform/admin.ts) ---- */
@@ -130,6 +161,20 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     if (isAdmin() && s.route === 'admin' && s.atab === 'analytics' && !document.hidden) void refreshAnalytics();
   }, 20000);
 
+  // Opening a project loads its real files, for its owner and for the team alike.
+  let filesFor = '';
+  const loadProjectFiles = () => {
+    const s = host.logic.state;
+    const project = s.route === 'project' ? (s.projects as LogicState[]).find((p) => p.id === s.curId) : null;
+    if (!project?.dbId || !currentAccount() || filesFor === project.dbId) return;
+    filesFor = project.dbId;
+    const owner = project.ownerId === 'h1' ? currentAccount()!.profile.id : project.ownerId;
+    void listFiles(owner, project.dbId).then((files) => {
+      if (!files.length) return;
+      put({ projects: (host.logic.state.projects as LogicState[]).map((p) => (p.dbId === project.dbId ? { ...p, files: files.map(fileRow) } : p)) });
+    });
+  };
+
   const apply = () => {
     const account = currentAccount();
     setEveryone(null);
@@ -141,6 +186,8 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   apply();
   const stopAccount = onAccountChange(apply);
   const stopWatching = host.subscribe(onChange);
+  const stopFiles = host.subscribe(loadProjectFiles);
+  loadProjectFiles();
   const stopTracking = trackRoutes(host);
-  return () => { stopAccount(); stopWatching(); stopTracking(); window.clearInterval(live); };
+  return () => { stopAccount(); stopWatching(); stopFiles(); stopTracking(); window.clearInterval(live); };
 }
