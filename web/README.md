@@ -40,10 +40,15 @@ How the public site is made (all in `src/launch/` plus three rule tables in the 
   state it adopts passes through `guard.ts` first: private routes are redirected to the request
   form, the application form or home; nobody can be signed in; the demo's saved state lives
   under a different storage key and cannot follow a visitor across.
-- **Nothing invented is rendered.** `LAUNCH_HIDDEN_*` in the converter wrap the live-visitor
-  counter, the headline figures, the testimonials, the partner logos and the links into the
-  product in `vm.launch ? null : (…)`. The footer's line about a licensed payment partner is
-  blanked until one is signed.
+- **Nothing invented or hollow is rendered.** `LAUNCH_HIDDEN_*` in the converter wrap the
+  live-visitor counter, the headline figures, the placeholder price range, the two photo pickers
+  (the site has nowhere to keep a file yet, so the photo step says to send photos in the chat)
+  and the links into the product in `vm.launch ? null : (…)`. The footer's line about a licensed
+  payment partner is blanked until one is signed. The testimonials and partner logos *are*
+  shown: the owner confirmed on 21 September 2026 that they are genuine.
+- **Two small additions** (`LAUNCH_INSERTS`): the early-access notice directly under the home
+  hero, and a "contractor? join" link under the hero button on phones, where the header's join
+  button does not fit.
 - **Pages have addresses.** `urls.ts` keeps the address bar and the logic's `route` in step:
   `/pricing`, `/how`, `/post`, `/join` and the rest can be linked, shared and indexed
   (`public/sitemap.xml`), Back works, each page has its own tab title, and a visit always opens

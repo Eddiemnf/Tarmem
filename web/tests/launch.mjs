@@ -44,8 +44,11 @@ const waText = (url) => decodeURIComponent(url.split('?text=')[1] || '');
 
 // A — nothing invented on the home page
 await load();
-const invented = await page.evaluate(() => ['.ph-live', '.ai2-stats', '.tsti-wrap', '.prtnrs'].filter((s) => document.querySelector(s)));
-check('home page carries no invented counter, figures, testimonials or partner logos', invented.length === 0, invented.join(' '));
+const invented = await page.evaluate(() => ['.ph-live', '.ai2-stats', '.sugbox', '.ai2-att'].filter((s) => document.querySelector(s)));
+check('home page carries no invented visitor counter or headline figures, and no photo picker that uploads nothing', invented.length === 0, invented.join(' '));
+// the owner confirmed (21 Sep 2026) the testimonials are real customers' and the partners are signed, so both show
+check('testimonials and partners are shown', (await page.locator('.tsti-wrap').count()) === 1 && (await page.locator('.prtnrs').count()) === 1);
+check('the early-access notice sits under the home hero', (await page.locator('[role="note"]').count()) === 1);
 const signIn = await page.locator('header [data-route="auth"]:not([data-signup])').count();
 check('there is no sign-in link', signIn === 0, `found ${signIn}`);
 const dummy = await page.evaluate((n) => [...document.querySelectorAll('a[href*="wa.me"]')].map((a) => a.href).filter((h) => !h.includes('wa.me/' + n)), site.whatsapp);

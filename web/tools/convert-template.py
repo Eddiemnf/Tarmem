@@ -343,6 +343,8 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
             props.append(f"{prop}={{{value}}}")
         else:
             props.append(f'{prop}="{value}"')
+    if node.tag == "img" and "assets/trades/" in (dict(node.attrs).get("src") or ""):
+        props += ['loading="lazy"', 'decoding="async"']
     attr_str = (" " + " ".join(props)) if props else ""
 
     if node.tag == "textarea":
@@ -354,8 +356,8 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
         body = emit_children(node.children, scope, indent)
         out = f"<{tag}{attr_str}>{body}</{tag}>"
     if launch_hidden(node):
-        return "{vm.launch ? null : (" + out + ")}"
-    return out
+        out = "{vm.launch ? null : (" + out + ")}"
+    return out + launch_insert(node)
 
 
 # --------------------------------------------------------------------------- file writing
@@ -383,15 +385,50 @@ demo renders exactly as designed. A rule that stops matching fails the run.
 LAUNCH_HIDDEN_CLASSES = {
     "ph-live": "a live-visitor counter that is a random walk, not a measurement",
     "ai2-stats": "headline figures (contractors, projects, satisfaction) that are not real yet",
+    "drop": "a file picker that uploads nothing: the site has nowhere to keep a visitor's photos yet",
+    "ai2-att": "the same, on the home page's description box",
+    "sugbox": "an indicative price range per trade that is the design's placeholder, not market data",
 }
-LAUNCH_HIDDEN_SECTIONS = {
-    "tsti-wrap": "testimonials written for the design, not said by customers",
-    "prtnrs": "partner logos shown before any partnership is signed",
-}
+# The testimonials and the partner logos were hidden here at first, because the design's
+# handoff notes call them seed content. The owner confirmed on 21 September 2026 that the
+# quotes are from real customers and that every organisation shown is a signed partner, so
+# both sections are public. If either stops being true, add its marker back:
+#   "tsti-wrap": testimonials,  "prtnrs": partner logos
+LAUNCH_HIDDEN_SECTIONS: dict[str, str] = {}
 # Links into parts of the product that do not exist publicly yet. A link that names
 # a sign-up role stays: the launch guard sends it to the matching request form.
 LAUNCH_HIDDEN_ROUTES = {"auth", "contractors", "browse"}
 _launch_rules_applied: set[str] = set()
+
+
+"""What the public site adds to the design's markup, after the element carrying the marker class
+("section:" means after the <section> that contains it). Each component renders nothing
+outside the public site, so the demo stays identical to the design."""
+LAUNCH_INSERTS = {
+    "section:ph": ("<LaunchNotice vm={vm} home />", "import LaunchNotice from '../launch/LaunchNotice';"),
+    "ph-ctas": ("<HeroJoinLink vm={vm} />", "import HeroJoinLink from '../launch/HeroJoinLink';"),
+}
+_launch_inserts_applied: set[str] = set()
+
+
+def launch_insert(node: "Element") -> str:
+    classes = (dict(node.attrs).get("class") or "").split()
+    for marker, (snippet, _imp) in LAUNCH_INSERTS.items():
+        if marker.startswith("section:"):
+            if node.tag != "section":
+                continue
+            wanted, stack = marker.split(":", 1)[1], list(node.children)
+            while stack:
+                current = stack.pop()
+                if isinstance(current, Element):
+                    if wanted in (dict(current.attrs).get("class") or "").split():
+                        _launch_inserts_applied.add(marker)
+                        return snippet
+                    stack.extend(current.children)
+        elif marker in classes:
+            _launch_inserts_applied.add(marker)
+            return snippet
+    return ""
 
 
 def launch_hidden(node: "Element") -> bool:
@@ -456,6 +493,9 @@ def component(name: str, body: str, uses_slot: bool) -> str:
     for _marker, (snippet, extra) in NODE_REPLACEMENTS.items():
         if snippet.split(" ", 1)[0].lstrip("<") in body:
             imports.extend(extra)
+    for _marker, (snippet, extra) in LAUNCH_INSERTS.items():
+        if snippet in body and extra not in imports:
+            imports.append(extra)
     return (
         BANNER
         + "\n".join(imports)
@@ -741,7 +781,7 @@ def main() -> None:
         raise SystemExit(f"the design no longer links to {PLACEHOLDER_WHATSAPP} — check where its WhatsApp links point")
 
     expected = set(LAUNCH_HIDDEN_CLASSES) | set(LAUNCH_HIDDEN_SECTIONS) | {"route:" + r for r in LAUNCH_HIDDEN_ROUTES}
-    unmatched_launch = expected - _launch_rules_applied
+    unmatched_launch = (expected - _launch_rules_applied) | (set(LAUNCH_INSERTS) - _launch_inserts_applied)
     if unmatched_launch:
         raise SystemExit(f"launch rules no longer match the design file: {sorted(unmatched_launch)}")
 

@@ -247,6 +247,9 @@ export default function ProjectPage({ vm }: { vm: VM }) {
                   
           {vm.bidF.noVat ? (<><p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.7', margin: '0' }}>{vm.t.ws.bidNoVat}</p></>) : null}
           
+                  
+          {vm.bidF.overBudget ? (<><p style={{ fontSize: '12px', lineHeight: '1.7', margin: '0', color: '#8A5A00' }}>{vm.t.ws.bidOverBudget}</p></>) : null}
+          
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
@@ -352,7 +355,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
         ))}
         </tbody></table>
           </div>
-          <p className="muted" style={{ fontSize: '12.5px', marginTop: '14px' }}>{vm.t.ws.compareNote}</p>
+          <p className="muted" style={{ fontSize: '12.5px', marginTop: '14px' }}>{vm.pj.compareNote}</p>
         </>) : null}
       
       </>) : null}
@@ -487,7 +490,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
       ))}
       
         </div>
-        <p className="muted" style={{ fontSize: '12.5px', marginTop: '14px' }}>{vm.t.ws.msNote}</p>
+        <p className="muted" style={{ fontSize: '12.5px', marginTop: '14px' }}>{vm.pj.msNote}</p>
       </>) : null}
     
 

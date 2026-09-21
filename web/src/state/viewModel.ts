@@ -63,7 +63,15 @@ function launchVals(vm: LogicVals, state: LogicState): LogicVals {
     launch: true,
     /** The request last written into WhatsApp, for the page that follows it (src/launch/SentPage.tsx). */
     launchLast: state.launchLast,
-    t: { ...vm.t, pages: { ...vm.t.pages, cSent: copy.contactSent }, footer: { ...vm.t.footer, note: '' } },
+    t: {
+      ...vm.t,
+      pages: { ...vm.t.pages, cSent: copy.contactSent },
+      footer: { ...vm.t.footer, note: '' },
+      // the photo step explains where photos go instead of offering a picker that uploads nothing
+      post: { ...vm.t.post, filesIntro: copy.filesIntro, fileTypes: '' },
+    },
+    // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
+    showWaFab: vm.showWaFab && !vm.r?.sent,
     post: vm.post?.step4 ? { ...vm.post, nextLabel: copy.sendWhatsApp } : vm.post,
   };
 }

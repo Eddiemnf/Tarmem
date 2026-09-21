@@ -2367,7 +2367,7 @@
           <table class="table"><thead><tr><th>{{ t.project }}</th><th>{{ t.status }}</th><th>{{ t.bidsWord }}</th><th>{{ t.progress }}</th><th></th></tr></thead>
             <tbody><sc-for list="{{ myProjects }}" as="p" hint-placeholder-count="3">
               <tr class="row-h" style="cursor:pointer" data-route="project" data-id="{{ p.id }}" onClick="{{ go }}">
-                <td><div style="font-weight:600;color:#1B1464">{{ p.title }}</div><div class="muted num" style="font-size:12.5px">{{ p.cityLabel }} · {{ curPre }}{{ p.budgetLabel }}{{ curPost }}</div></td>
+                <td><div style="font-weight:600;color:#1B1464">{{ p.title }}</div><div class="muted num" style="font-size:12.5px">{{ p.cityLabel }} · {{ p.budgetLabel }}</div></td>
                 <td><span class="tag {{ p.tagClass }}">{{ p.statusLabel }}</span></td>
                 <td class="num">{{ p.bidCount }}</td>
                 <td style="min-width:130px"><div style="height:5px;background:#EEEDF5;border-radius:3px"><div style="height:5px;border-radius:3px;background:linear-gradient(90deg,#FF8800,#FF4455);width:{{ p.pct }}%"></div></div><div class="muted num" style="font-size:11.5px;margin-top:4px">{{ p.pct }}%</div></td>
@@ -2686,6 +2686,7 @@
                   <sc-if value="{{ bidF.vatReg }}"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px"><span>{{ t.ws.bidVatOn }}</span><span class="num" style="font-weight:600;color:#1B1464">{{ curPre }}{{ bidF.vat }}{{ curPost }}</span></div></sc-if>
                   <div style="display:flex;justify-content:space-between;gap:10px;font-size:14.5px;border-top:1px solid #E2E0EE;padding-top:8px"><span style="font-weight:600;color:#1B1464">{{ t.ws.bidGross }}</span><span class="num" style="font-weight:600;color:#1B1464">{{ curPre }}{{ bidF.gross }}{{ curPost }}</span></div>
                   <sc-if value="{{ bidF.noVat }}"><p class="muted" style="font-size:11.5px;line-height:1.7;margin:0">{{ t.ws.bidNoVat }}</p></sc-if>
+                  <sc-if value="{{ bidF.overBudget }}"><p style="font-size:12px;line-height:1.7;margin:0;color:#8A5A00">{{ t.ws.bidOverBudget }}</p></sc-if>
                 </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
@@ -2754,7 +2755,7 @@
                 <td style="text-align:end;white-space:nowrap"><sc-if value="{{ b.accepted }}"><span class="tag tag-g">{{ t.ws.accepted }}</span></sc-if><sc-if value="{{ b.canAccept }}"><button class="btn btn-p btn-sm" data-cid="{{ b.cid }}" onClick="{{ acceptBid }}">{{ t.ws.accept }}</button></sc-if></td>
               </tr></sc-for></tbody></table>
           </div>
-          <p class="muted" style="font-size:12.5px;margin-top:14px">{{ t.ws.compareNote }}</p>
+          <p class="muted" style="font-size:12.5px;margin-top:14px">{{ pj.compareNote }}</p>
         </sc-if>
       </sc-if>
 
@@ -2846,7 +2847,7 @@
             </div>
           </sc-for>
         </div>
-        <p class="muted" style="font-size:12.5px;margin-top:14px">{{ t.ws.msNote }}</p>
+        <p class="muted" style="font-size:12.5px;margin-top:14px">{{ pj.msNote }}</p>
       </sc-if>
 
       <sc-if value="{{ tab.messages }}">
@@ -3533,7 +3534,7 @@
       <div style="display:flex;flex-direction:column;gap:8px"><span class="skick" style="font-size:12.5px">{{ t.footer.company }}</span><a class="lnk" style="color:#3A385C" data-route="about" onClick="{{ go }}">{{ t.footer.about }}</a><a class="lnk" style="color:#3A385C" data-route="faq" onClick="{{ go }}">{{ t.nav.faq }}</a><a class="lnk" style="color:#3A385C" data-route="auth" data-role="contractor" onClick="{{ go }}">{{ t.footer.join }}</a></div>
       <div style="display:flex;flex-direction:column;gap:8px"><span class="skick" style="font-size:12.5px">{{ t.footer.legal }}</span><a class="lnk" style="color:#3A385C" data-route="rules" onClick="{{ go }}">{{ t.footer.rules }}</a><a class="lnk" style="color:#3A385C" data-route="terms" onClick="{{ go }}">{{ t.footer.terms }}</a><a class="lnk" style="color:#3A385C" data-route="privacy" onClick="{{ go }}">{{ t.footer.privacy }}</a><a class="lnk" style="color:#3A385C" data-route="help" onClick="{{ go }}">{{ t.footer.help }}</a><a class="lnk" style="color:#3A385C" data-route="contact" onClick="{{ go }}">{{ t.footer.contact }}</a></div>
     </div>
-    <div class="wrap" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;color:#5B5A7A;padding-block:14px 20px;border-top:1px solid rgba(27,20,100,.12)"><span>© 2025 {{ t.brand }}{{ t.footer.rights }}</span><span>{{ t.footer.note }}</span></div>
+    <div class="wrap" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;color:#5B5A7A;padding-block:14px 20px;border-top:1px solid rgba(27,20,100,.12)"><span>© {{ year }} {{ t.brand }}{{ t.footer.rights }}</span><span>{{ t.footer.note }}</span></div>
   </footer>
 </div>
 </x-dc>
@@ -3542,9 +3543,16 @@ const fmt = n => { const v=Number(n)||0;
   return v%1===0 ? v.toLocaleString('en-US') : v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); };
 const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const EN_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const EN_MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const AR_DAYS = {Mon:'الاثنين',Tue:'الثلاثاء',Wed:'الأربعاء',Thu:'الخميس',Fri:'الجمعة',Sat:'السبت',Sun:'الأحد'};
+// seeded message times read 'Mon 09:40'; the Arabic interface gets the Arabic weekday
+const localTime = (str, ar) => ar ? String(str||'').replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/, d => AR_DAYS[d]) : str;
 // '14 Aug' / 'Aug 14' -> '14 أغسطس 2026' (ar) or '14 August 2026' (en)
 const dateLong = (str, ar, year) => {
   const s = String(str||'').trim(); if(!s) return s;
+  // ISO dates come from <input type="date"> and from new Date(): '2026-10-05' -> '5 أكتوبر 2026' / '5 October 2026'
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(iso){ const k = +iso[2]-1; return `${+iso[3]} ${(ar ? AR_MONTHS : EN_MONTHS_FULL)[k] || iso[2]} ${iso[1]}`; }
   const dm = s.match(/(\d{1,2})/), mm = s.match(/[A-Za-z]{3,}/);
   if(!dm || !mm) return s;
   const mi = EN_MONTHS.findIndex(m=>mm[0].toLowerCase().startsWith(m.toLowerCase()));
@@ -3678,7 +3686,8 @@ class Component extends DCLogic {
   fitAi(el){ if(!el) return; el.style.minHeight = '0px'; el.style.minHeight = Math.max(64, el.scrollHeight) + 'px'; }
   // ---- deadlines, strike meter, whatsapp, help, invoices ----
   msDue(pr, i, m, t, lang){
-    if(m === 'released' || !pr.funded) return {l:'', cls:'', diff:99};
+    // once evidence is submitted the clock stops: the stage is waiting on the homeowner, not the contractor
+    if(m === 'released' || m === 'submitted' || !pr.funded) return {l:'', cls:'', diff:99};
     const base = ['2026-09-05','2026-09-12','2026-09-26','2026-10-10','2026-10-24'];
     const dueISO = base[i] || '2026-11-01';
     const today = new Date(2026, 8, 16), d = new Date(dueISO); const diff = Math.round((d - today) / 86400000);
@@ -3698,7 +3707,7 @@ class Component extends DCLogic {
     if(p){ const i = p.ms.findIndex(m => m !== 'released'); if(i >= 0) due = this.msDue(p, i, p.ms[i], t, lang); }
     const titles = ['', S.one, S.two, S.three], subs = [S.none, S.sub1, S.sub2, S.sub3];
     const lateTxt = this._lateTxt(p, t, lang);
-    const subN = worstN ? String(subs[worstN]).replace('{d}', lateTxt) : (p ? S.reset : '');
+    const subN = worstN ? (lateTxt ? String(subs[worstN]).replace('{d}', lateTxt) : (S.subWaiting || '')) : (p ? S.reset : '');
     return { n:String(worstN), title: worstN ? titles[worstN] : S.none, sub: subN, d1: worstN>=1?'on':'', d2: worstN>=2?'on':'', d3: worstN>=3?'on':'',
       hasDue: !!due.l, dueL: (p ? S.nextDue + ' · ' : '') + due.l, dueCls: due.cls, hasProject: !!p, pid: p ? p.id : '', pTitle: p ? this.L(p.title) : '' };
   }
@@ -3709,7 +3718,7 @@ class Component extends DCLogic {
     if(!n) return '';
     return lang==='ar' ? (n===1?'يومًا واحدًا':n===2?'يومين':n+' أيام') : n+' days';
   }
-  bidView(s, t, lang){
+  bidView(s, t, lang, pr){
     const b = s.bidF, W = t.ws, fmt = n => Number(n||0).toLocaleString('en-US');
     const r2 = n => Math.round(n*100)/100;
     const net = +b.price || 0;
@@ -3735,6 +3744,7 @@ class Component extends DCLogic {
     ].filter(Boolean);
     return { ...b, summary, editing: b.step !== 'review', reviewing: b.step === 'review',
       net: fmt(net), vat: fmt(vat), gross: fmt(net + vat), noVat: !b.vatReg,
+      overBudget: !!(pr && pr.max && net > pr.max),
       expectedNet: fmt(r2(net - fee - feeVat)),
       warrantyOpts, validOpts,
       msRows: [1,2,3].map(i => ({name:'ms'+i, value: b['ms'+i], label: (t.ws.ms && t.ws.ms[i-1] ? t.ws.ms[i-1].n : (lang==='ar'?'المرحلة '+i:'Stage '+i))})),
@@ -3745,7 +3755,8 @@ class Component extends DCLogic {
     if(!pr || role !== 'contractor') return {show:false};
     const n = this._strikeCount(s, pr.id); if(!n) return {show:false};
     const S = t.strikes; const titles = ['', S.one, S.two, S.three], subs = ['', S.fee1, S.fee2, S.sub3];
-    return {show:true, n:String(n), title:titles[n], sub:String(subs[n]||'').replace('{d}', this._lateTxt(pr, t, lang))};
+    const lateNow = this._lateTxt(pr, t, lang);
+    return {show:true, n:String(n), title:titles[n], sub: lateNow ? String(subs[n]||'').replace('{d}', lateNow) : (S.subWaiting || '')};
   }
   waView(s, t, lang, role){
     const W = t.wa, SG = s.setg || {};
@@ -4014,7 +4025,7 @@ class Component extends DCLogic {
     this.nav(rl==='homeowner'?'hdash':'cdash');
     if(firstTime) setTimeout(() => this.setState(st => ({gift:{...st.gift, open:true}})), 650); }
   scrub(txt){ const H=this.D.T[this.state.lang].ws.msgHidden;
-    return String(txt).replace(/(\+?\d[\d\s\-()]{6,}\d)/g,H).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g,H).replace(/((https?:\/\/|www\.)\S+)/gi,H).replace(/\b(واتس\S*|whatsapp|تيليجرام|telegram)\b/gi,H); }
+    return String(txt).replace(/(\+?\d[\d\s\-()]{6,}\d)/g,H).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g,H).replace(/((https?:\/\/|www\.)\S+)/gi,H).replace(/(واتس\S*|whats\s?app|تيليجرام|تلي?جرام|تلغرام|telegram)/gi,H); }
   L(o){ return o && typeof o==='object' && !Array.isArray(o) && (o.en!==undefined) ? (o[this.state.lang] ?? o.en) : o; }
   watchScroll(){ if(this._sc) return;
     let raf=0; this._sc=()=>{ if(raf) return; raf=requestAnimationFrame(()=>{ raf=0;
@@ -4298,7 +4309,10 @@ Rules:
           if(lang!=='ar') return `${d}/${n} ${t.ws.next.msDone}`;
           const one = d===0?'لا مراحل':d===1?'مرحلة واحدة':d===2?'مرحلتان':`${d} مراحل`;
           return `${one} من أصل ${n} مراحل مصروفة`; })(), nextStep,
-        bidRows: pr.bids.map(b=>{ const c=this.con(b.cid); return {cid:b.cid,name:c.name[lang],rating:c.rating,done:c.done,verified:c.verified,price:fmt(b.price),days:b.days,note:L(b.note),accepted:pr.contractorId===b.cid,canAccept:isOwner&&pr.status==='open'}; }),
+        msNote: isCo ? (t.ws.msNoteCo || t.ws.msNote) : t.ws.msNote,
+        compareNote: isCo ? (t.ws.compareNoteCo || t.ws.compareNote) : t.ws.compareNote,
+        // a contractor sees their own bid only — never a competitor's name, price or scope
+        bidRows: pr.bids.filter(b => !isCo || b.cid === me).map(b=>{ const c=this.con(b.cid); return {cid:b.cid,name:c.name[lang],rating:c.rating,done:c.done,verified:c.verified,price:fmt(b.price),days:b.days,note:L(b.note),accepted:pr.contractorId===b.cid,canAccept:isOwner&&pr.status==='open'}; }),
         msRows: pr.ms.map((m,i)=>{ const ev=this.ev(pr,i); const unlocked = pr.ms.slice(0,i).every(x=>x==='released');
           const coStage = isCo && pr.funded && m==='pending' && unlocked;
           const due = this.msDue(pr, i, m, t, lang);
@@ -4311,9 +4325,9 @@ Rules:
           canApprove: isOwner && m==='submitted' && ev.o, approveBlocked: isOwner && m==='submitted' && !ev.o,
           lockedNote: isCo && m==='pending' && !unlocked ? t.ws.evLocked : (isCo && m==='pending' && !pr.funded ? t.ws.evFundFirst : ''),
           autoLabel: m==='submitted' ? t.auto.remain + daysN(AUTO_DAYS) : '',
-          autoNote: t.auto.noteA + daysN(AUTO_DAYS) + t.auto.noteB, showAuto: m==='submitted',
+          autoNote: isCo ? ((t.auto.noteCoA || t.auto.noteA) + daysN(AUTO_DAYS) + (t.auto.noteCoB || t.auto.noteB)) : (t.auto.noteA + daysN(AUTO_DAYS) + t.auto.noteB), showAuto: m==='submitted',
           canResolve:(isOwner||role==='admin')&&m==='disputed'}; }),
-        msgRows: pr.msgs.map(m=>{ const mineMsg = (m.from==='h'&&isOwner)||(m.from==='c'&&isCo); const who = m.from==='h'?(isOwner?t.ws.you:uName(pr.ownerId)):(isCo?t.ws.you:cName(pr.contractorId||pr.bids[0]?.cid)); return {who,time:m.time,text:this.scrub(L(m.text)),align:mineMsg?'flex-end':'flex-start',bg:mineMsg?'#1B1464':'#F1F0FA',ink:mineMsg?'#fff':'#14113F'}; }),
+        msgRows: pr.msgs.map(m=>{ const mineMsg = (m.from==='h'&&isOwner)||(m.from==='c'&&isCo); const who = m.from==='h'?(isOwner?t.ws.you:uName(pr.ownerId)):(isCo?t.ws.you:cName(pr.contractorId||pr.bids[0]?.cid)); return {who,time:localTime(m.time, lang==='ar'),text:this.scrub(L(m.text)),align:mineMsg?'flex-end':'flex-start',bg:mineMsg?'#1B1464':'#F1F0FA',ink:mineMsg?'#fff':'#14113F'}; }),
         files: pr.files.map(f=>({...f, date:L(f.date), by: f.by==='h'?uName(pr.ownerId):cName(pr.contractorId)})),
         payStats:[{v:fmt(pr.funded?pr.amount:0),l:t.ws.committed},{v:fmt(relTot),l:t.ws.released},{v:fmt(pr.funded?pr.amount-relTot:0),l:t.ws.remaining}],
         ledger: (()=>{ const r2=n=>Math.round(n*100)/100;
@@ -4335,7 +4349,7 @@ Rules:
               isWorkInv: l.label==='release',
               inv: (l.label==='fee'||l.label==='commission') ? (l.inv||'') : ''};
           }); })()};
-      const counts = {bids:pr.bids.length, milestones:pr.ms.length, messages:pr.msgs.length, files:pr.files.length};
+      const counts = {bids:(isCo ? pr.bids.filter(b => b.cid === me).length : pr.bids.length), milestones:pr.ms.length, messages:pr.msgs.length, files:pr.files.length};
       pTabs = ['overview','bids','milestones','messages','files','payments','changes'].map((id,i)=>({id,label:t.ws.tabs[i],sel:s.tab===id?'true':'false',count:counts[id]||0}));
       counts.changes = (pr.changes||[]).length;
       const crAwarded = !!pr.contractorId && pr.status!=='open';
@@ -4495,7 +4509,7 @@ Rules:
       title: isCoW ? W.coTitle : W.hoTitle, sub: isCoW ? W.coSub : W.hoSub,
       stats: isCoW
         ? [{v:fmt(availableRaw), l:W.available, color:'#15703A'},{v:fmtN(awaiting), l:W.pendingRelease, color:'#1B1464'},{v:fmtN(paidOut), l:W.withdrawn, color:'#1B1464'}]
-        : [{v:fmtN(escrowHeld+depositsIn), l:W.inEscrow, color:'#1B1464'},{v:fmtN(awaiting), l:W.pendingRelease, color:'#B26B00'},{v:fmtN(releasedAll), l:W.releasedTo, color:'#15703A'}],
+        : [{v:fmtN(escrowHeld+depositsIn), l:W.inEscrow, color:'#1B1464'},{v:fmtN(awaiting), l:(W.pendingApprovalHo || W.pendingRelease), color:'#B26B00'},{v:fmtN(releasedAll), l:W.releasedTo, color:'#15703A'}],
       amount: s.wl.amount, error: s.wl.error, notice: s.wl.notice,
       amountDisplay: s.wl.amount ? (Number(String(s.wl.amount).replace(/[^\d.]/g,'')||0).toLocaleString('en-US') + (lang==='ar' ? ' ريال' : ' SAR')) : '',
       amountPh: lang==='ar' ? '10,000 ريال' : '10,000 SAR',
@@ -4511,7 +4525,7 @@ Rules:
       availableRaw, availableNum: fmtN(availableRaw), pendingDeposits: fmtN(depositsPending),
       rows: allRows.map(x=>({ date:x.date, label:x.label, method:x.method,
         amount:(isCoW ? '' : (x.sign>0?'+ ':'− '))+mny(x.amount), color: x.sign>0 ? '#15703A' : '#1B1464',
-        st: W.st[x.st] || x.st, tag: x.st==='processing'||x.st==='pending' ? 'tag-w' : x.st==='escrow' ? 'tag-n' : 'tag-g' })),
+        st: (!isCoW && x.st==='released' && W.stHoReleased) || W.st[x.st] || x.st, tag: x.st==='processing'||x.st==='pending' ? 'tag-w' : x.st==='escrow' ? 'tag-n' : 'tag-g' })),
       noRows: !allRows.length
     };
 
@@ -4602,7 +4616,7 @@ Rules:
                 {k:t.agr.pAmount, v: bid ? mny(bid.price) : ''},
                 {k:t.agr.pDays, v: bid ? daysN(bid.days) : ''},
                 {k:t.agr.pStages, v: arNumerals(3, lang)},
-                {k:t.agr.pDate, v: new Date().toISOString().slice(0,10)}],
+                {k:t.agr.pDate, v: dateLong(new Date().toISOString().slice(0,10), lang==='ar')}],
           secs: (t.agr.secs||[]).map(label=>({label})) }; })(),
       agrPend: (()=>{ if(!pr||!pr.pending) return {show:false, canSign:false, text:''};
         return {show:true, canSign: role==='contractor', text: role==='contractor' ? t.agr.waitCoSelf : t.agr.waitCo}; })(),
@@ -4769,7 +4783,7 @@ Rules:
       openTotal: openProjects.length, openShown: Math.min(s.openShown, openProjects.length),
       openTally: projN(Math.min(s.openShown, openProjects.length), openProjects.length), hasMoreOpen: openProjects.length > s.openShown,
       moreOpenCount: Math.max(0, openProjects.length - s.openShown), openPct: openProjects.length ? Math.round(Math.min(s.openShown, openProjects.length)/openProjects.length*100) : 100,
-      pj, pTabs, tab, canBid, alreadyBid, bidNeedsNafath, fundNeedsNafath, noBids: pr && !pr.bids.length, noBidsHo: pr && !pr.bids.length && role!=='contractor', hasBids: pr && pr.bids.length>0, noMs: pr && !pr.ms.length, canMessage: role==='homeowner'||role==='contractor', bidF:this.bidView(s, t, lang), msgDraft:s.msgDraft, needsFunding, showLedger: pr && pr.ledger.length>0, payIsCard:s.pay==='card', payIsApple:s.pay==='apple', payIsMada:s.pay==='mada', backRoute: role==='contractor'?'cdash': role==='admin'?'admin':'hdash',
+      pj, pTabs, tab, canBid, alreadyBid, bidNeedsNafath, fundNeedsNafath, noBids: pr && !pr.bids.length, noBidsHo: pr && !pr.bids.length && role!=='contractor', hasBids: pr && pr.bids.length>0, noMs: pr && !pr.ms.length, canMessage: role==='homeowner'||role==='contractor', year:String(new Date().getFullYear()), bidF:this.bidView(s, t, lang, pr), msgDraft:s.msgDraft, needsFunding, showLedger: pr && pr.ledger.length>0, payIsCard:s.pay==='card', payIsApple:s.pay==='apple', payIsMada:s.pay==='mada', backRoute: role==='contractor'?'cdash': role==='admin'?'admin':'hdash',
       feeStops: t.pricing2.jStops.map((x,i)=>({...x, paid: i===3 ? 'true':'false', mark: i===3 ? '★' : '✓'})),
       ct: { f:s.contact, sent:s.contact.sent, form:!s.contact.sent, error:s.contact.error },
       setContact: e => { const {name,value}=e.target; this.setState({contact:{...s.contact,[name]:value,error:''}}); },

@@ -40,6 +40,9 @@ Things to watch on that round trip:
   prototype (`LOGIC_PATCHES`, `ASSET_REWRITES` and the launch rules in
   `web/tools/convert-template.py`, plus `web/tools/departures.json`): if the
   design changes underneath one, the run fails and names it.
+- **The repo's design file is currently ahead of Claude Design.** Bug fixes found by using
+  the product were made in `project/` directly; `docs/design-changes-to-mirror.md` is the
+  ready-to-paste list. Mirror it before the next export, or the export undoes them.
 - **Editing copy inline in Claude Design writes one language only.** It replaces
   the bilingual placeholder with that literal text, so the other language stops
   updating. Change wording in both, or say what it should read and have it

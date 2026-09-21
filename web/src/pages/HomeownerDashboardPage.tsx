@@ -53,7 +53,7 @@ export default function HomeownerDashboardPage({ vm }: { vm: VM }) {
     {((vm.myProjects) || []).map((p: any, _i0: number) => (
       <React.Fragment key={_i0}>
               <tr className="row-h" style={{ cursor: 'pointer' }} data-route="project" data-id={p.id} onClick={vm.go}>
-                <td><div style={{ fontWeight: '600', color: '#1B1464' }}>{p.title}</div><div className="muted num" style={{ fontSize: '12.5px' }}>{p.cityLabel} · {vm.curPre}{p.budgetLabel}{vm.curPost}</div></td>
+                <td><div style={{ fontWeight: '600', color: '#1B1464' }}>{p.title}</div><div className="muted num" style={{ fontSize: '12.5px' }}>{p.cityLabel} · {p.budgetLabel}</div></td>
                 <td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td>
                 <td className="num">{p.bidCount}</td>
                 <td style={{ minWidth: '130px' }}><div style={{ height: '5px', background: '#EEEDF5', borderRadius: '3px' }}><div style={{ height: '5px', borderRadius: '3px', background: 'linear-gradient(90deg,#FF8800,#FF4455)', width: `${p.pct}%` }}></div></div><div className="muted num" style={{ fontSize: '11.5px', marginTop: '4px' }}>{p.pct}%</div></td>
