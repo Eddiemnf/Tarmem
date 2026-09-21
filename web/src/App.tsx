@@ -18,6 +18,7 @@ import JoinPage from './launch/JoinPage';
 import LaunchNotice from './launch/LaunchNotice';
 import SentPage from './launch/SentPage';
 import { isLaunch } from './launch/mode';
+import { titleFor } from './launch/urls';
 import { PAGES, type Route } from './routes';
 import { useLogicState, useViewModel, type VM } from './state/viewModel';
 
@@ -31,7 +32,8 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = state.lang;
     document.documentElement.dir = vm.dir;
-  }, [state.lang, vm.dir]);
+    if (isLaunch) document.title = titleFor(vm, state.route);
+  }, [state.lang, state.route, vm]);
 
   // The logic seeds itself when it mounts; until then there is nothing to bind to.
   if (!vm.t) return null;

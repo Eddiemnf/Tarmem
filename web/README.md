@@ -44,6 +44,10 @@ How the public site is made (all in `src/launch/` plus three rule tables in the 
   counter, the headline figures, the testimonials, the partner logos and the links into the
   product in `vm.launch ? null : (…)`. The footer's line about a licensed payment partner is
   blanked until one is signed.
+- **Pages have addresses.** `urls.ts` keeps the address bar and the logic's `route` in step:
+  `/pricing`, `/how`, `/post`, `/join` and the rest can be linked, shared and indexed
+  (`public/sitemap.xml`), Back works, each page has its own tab title, and a visit always opens
+  the page its address names. The design itself keeps the page in state only.
 - **Requests really leave.** Publishing the project form as a guest, sending the contact form,
   and the contractor application each open WhatsApp with the message written out
   (`deliver.ts`), then a page that says plainly nothing is sent until the visitor presses Send,
@@ -172,8 +176,8 @@ Vercel, or any plain static host — just needs `BASE_PATH=/ npm run build`.
 ## Known gaps
 
 - No backend, so no shared state, accounts, uploads or notifications between devices.
-- No routing in the URL: `state.route` drives the page, so pages aren't linkable or
-  bookmarkable yet, and there's no 404. Worth fixing when this goes on a real domain.
+- The public site's pages have real addresses (see above); the demo at `/demo` still keeps its
+  page in state only, as the design does. There is no 404: an unknown address shows the home page.
 - The main bundle is ~810 kB, ~210 kB gzipped (mostly the seeded copy, data and the admin
   console's logic); split it if that matters.
 - Eight strings were typed straight into the design in Arabic only (the home hero's lead and

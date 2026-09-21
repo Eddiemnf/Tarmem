@@ -23,6 +23,7 @@ import { LAUNCH_COPY } from '../launch/copy';
 import { openWhatsApp } from '../launch/deliver';
 import { guardLaunchState, type SentRequest } from '../launch/guard';
 import { isLaunch } from '../launch/mode';
+import { connectUrls } from '../launch/urls';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -72,7 +73,12 @@ export function LogicProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     host.mount();
-    return () => host.unmount();
+    // The logic restores the last page from saved state as it mounts; on the public site the address wins.
+    const disconnect = isLaunch ? connectUrls(host) : undefined;
+    return () => {
+      disconnect?.();
+      host.unmount();
+    };
   }, [host]);
 
   return createElement(HostContext.Provider, { value: host }, children);

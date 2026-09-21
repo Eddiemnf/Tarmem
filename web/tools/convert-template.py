@@ -413,7 +413,8 @@ def launch_hidden(node: "Element") -> bool:
                         return True
                 stack.extend(current.children)
     route = attrs.get("data-route")
-    if node.tag in ("a", "button") and route in LAUNCH_HIDDEN_ROUTES and not attrs.get("data-signup"):
+    names_a_role = attrs.get("data-signup") or attrs.get("data-role")
+    if node.tag in ("a", "button") and route in LAUNCH_HIDDEN_ROUTES and not names_a_role:
         _launch_rules_applied.add("route:" + route)
         return True
     return False

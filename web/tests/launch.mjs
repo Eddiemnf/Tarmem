@@ -31,13 +31,15 @@ const results = [];
 const check = (name, ok, detail = '') => results.push(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
 const opened = async () => page.evaluate(() => window.__opened.splice(0));
 const route = async () => page.evaluate(() => JSON.parse(localStorage.getItem('tarmem-public-v1') || '{}').route);
-const load = async (saved) => {
-  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+/** Open `path` on a clean browser, optionally with something already saved from an earlier visit. */
+const load = async (saved, path = '') => {
+  await page.goto(BASE_URL + path, { waitUntil: 'domcontentloaded' });
   await page.evaluate((s) => { localStorage.clear(); if (s) localStorage.setItem(s.key, JSON.stringify(s.value)); }, saved || null);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('header');
   await page.waitForTimeout(500);
 };
+const pathname = async () => page.evaluate(() => window.location.pathname);
 const waText = (url) => decodeURIComponent(url.split('?text=')[1] || '');
 
 // A — nothing invented on the home page
@@ -49,14 +51,20 @@ check('there is no sign-in link', signIn === 0, `found ${signIn}`);
 const dummy = await page.evaluate((n) => [...document.querySelectorAll('a[href*="wa.me"]')].map((a) => a.href).filter((h) => !h.includes('wa.me/' + n)), site.whatsapp);
 check('every WhatsApp link uses the configured number', dummy.length === 0, dummy.join(' '));
 
+// A2 — the footer still offers the contractor application (its link names a role, so it stays)
+check('the footer keeps "join as a contractor" and drops "browse contractors"',
+  (await page.locator('footer [data-route="auth"][data-role="contractor"]').count()) === 1
+    && (await page.locator('footer [data-route="contractors"]').count()) === 0);
+
 // B — the demo's saved state cannot follow a visitor here, and private pages cannot be opened
 await load({ key: 'tarmem-state-v3', value: { route: 'admin', user: { role: 'admin', name: 'Operations' } } });
 check('a demo sign-in does not carry over to the public site', (await page.locator('text=Operations').count()) === 0 && (await route()) !== 'admin');
 for (const target of ['admin', 'wallet', 'hdash', 'cdash', 'project', 'browse', 'settings']) {
-  await load({ key: 'tarmem-public-v1', value: { route: target, user: { role: 'admin', name: 'x' } } });
+  // neither a saved page nor its address gets a visitor in
+  await load({ key: 'tarmem-public-v1', value: { route: target, user: { role: 'admin', name: 'x' } } }, target);
   const at = await route();
-  if (at !== 'home') { check(`private page "${target}" is unreachable`, false, 'landed on ' + at); break; }
-  if (target === 'settings') check('private pages (admin, wallet, dashboards, projects…) are unreachable', true);
+  if (at !== 'home' || (await pathname()) !== '/') { check(`private page "${target}" is unreachable`, false, `landed on ${at} at ${await pathname()}`); break; }
+  if (target === 'settings') check('private pages (admin, wallet, dashboards, projects…) are unreachable, by saved state or by address', true);
 }
 
 // C — "join as a contractor" is an application, not a dummy account
@@ -115,7 +123,7 @@ check('…the next page shows the message and offers WhatsApp again, or email',
 check('…no account is created and no project is stored', (await route()) === 'sent' && !(await page.evaluate(() => JSON.parse(localStorage.getItem('tarmem-public-v1')).user)));
 
 // F — the contact form really sends
-await load({ key: 'tarmem-public-v1', value: { route: 'contact' } });
+await load(null, 'contact');
 await page.locator('input[name="name"]').fill('سارة');
 await page.locator('input[name="phone"]').fill('0555123456');
 await page.locator('textarea[name="msg"]').fill('هل تغطون جدة؟');
@@ -161,7 +169,22 @@ const arabicLeft = await ep.evaluate(() => [...document.querySelectorAll('main h
 check('the English home page has no Arabic headings or hero copy left', arabicLeft.length === 0, arabicLeft.join(' | ').slice(0, 120));
 await english.close();
 
-// I — ready to open to the public?
+// I — pages have real addresses: deep links, the address bar, Back, and tab titles
+await load(null, 'pricing');
+check('a page opens from its own address, with its own title', (await route()) === 'pricing' && (await page.title()).includes('الأسعار'), await page.title());
+await page.locator('header a[data-route="how"]').first().click();
+await page.waitForTimeout(300);
+const afterClick = await pathname();
+await page.goBack();
+await page.waitForTimeout(400);
+check('navigation updates the address, and Back returns to the previous page',
+  afterClick === '/how' && (await pathname()) === '/pricing' && (await route()) === 'pricing', `${afterClick} → ${await pathname()}`);
+await load({ key: 'tarmem-public-v1', value: { route: 'faq' } });
+check('the site root is always the home page, whatever was open last time', (await route()) === 'home' && (await pathname()) === '/');
+await load(null, 'no-such-page');
+check('an unknown address lands on the home page', (await route()) === 'home' && (await pathname()) === '/');
+
+// J — ready to open to the public?
 const placeholder = site.whatsapp === '966500000000';
 check('site.config.json has a real WhatsApp number (required before publicLaunch)', !(site.publicLaunch && placeholder),
   placeholder ? 'still the design\'s dummy number — fine while publicLaunch is false' : site.whatsapp);
