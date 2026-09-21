@@ -132,7 +132,36 @@ await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(600);
 check('the private demo at /demo still has the full product', (await page.locator('text=تصفّح المنصة بصفتك').count()) === 1 && (await page.locator('[role="note"]').count()) === 0);
 
-// H — ready to open to the public?
+// H — on a phone: no sideways scroll, and the menu button is on the screen, in both languages
+const phoneProblems = [];
+for (const lang of ['ar', 'en']) {
+  for (const width of [360, 390, 430]) {
+    const phone = await browser.newContext({ viewport: { width, height: 800 }, isMobile: true, hasTouch: true });
+    const p = await phone.newPage();
+    await p.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+    await p.evaluate((l) => { localStorage.clear(); localStorage.setItem('tarmem-public-v1', JSON.stringify({ lang: l, route: 'home' })); }, lang);
+    await p.reload({ waitUntil: 'domcontentloaded' });
+    await p.waitForTimeout(900);
+    const r = await p.evaluate(() => {
+      const b = document.querySelector('.hdr .burger').getBoundingClientRect();
+      return { scroll: document.documentElement.scrollWidth, burgerOn: b.width > 0 && b.left >= -0.5 && b.right <= innerWidth + 0.5 };
+    });
+    if (r.scroll > width || !r.burgerOn) phoneProblems.push(`${lang}@${width}px scroll=${r.scroll} burgerOnScreen=${r.burgerOn}`);
+    await phone.close();
+  }
+}
+check('on a phone the home page fits the screen and the menu button is reachable (ar + en, 360–430px)', phoneProblems.length === 0, phoneProblems.join('; '));
+const english = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+const ep = await english.newPage();
+await ep.goto(BASE_URL + '?lang=en', { waitUntil: 'domcontentloaded' });
+await ep.evaluate(() => localStorage.clear());
+await ep.reload({ waitUntil: 'domcontentloaded' });
+await ep.waitForTimeout(1200);
+const arabicLeft = await ep.evaluate(() => [...document.querySelectorAll('main h1, main h2, main .ph-lead, main .ph-b1-t')].map((e) => e.innerText.trim()).filter((t) => /[\u0600-\u06FF]/.test(t)));
+check('the English home page has no Arabic headings or hero copy left', arabicLeft.length === 0, arabicLeft.join(' | ').slice(0, 120));
+await english.close();
+
+// I — ready to open to the public?
 const placeholder = site.whatsapp === '966500000000';
 check('site.config.json has a real WhatsApp number (required before publicLaunch)', !(site.publicLaunch && placeholder),
   placeholder ? 'still the design\'s dummy number — fine while publicLaunch is false' : site.whatsapp);

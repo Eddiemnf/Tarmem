@@ -1,0 +1,20 @@
+{
+  "_": "Small, deliberate corrections to the design file, shared by tools/convert-template.py (which applies them) and tests/parity.mjs (which allows for them). Each is keyed by the design's exact text, so when the design is fixed at source the converter stops and says the entry can go.",
+
+  "styleFixups": {
+    "height: 519px": ["minHeight", "519px"],
+    "height: 51px": ["minHeight", "51px"],
+    "width: 914px": ["maxWidth", "914px"]
+  },
+
+  "literalTranslations": {
+    "كل تجديد جميل يبدأ بخطوة. شاركنا تفاصيل مشروعك،": "Every renovation starts with one step. Share your project details,",
+    "وقارن عروض المقاولين، وابدأ تجديد بيتك بثقة.": "compare contractors' bids, and renovate with confidence.",
+    "ابدأ مشروعك الآن": "Start your project now",
+    "صف لنا مشروعك، ونوصلك بالمقاول": "Describe your project and we'll connect you",
+    "المناسب.": "with the right contractor.",
+    "أربع خطوات من وصف مشروعك إلى استلامه": "Four steps from describing your project to handover",
+    "تراجع ترميم هوية المقاول وسجله وتراخيصه قبل ظهوره هنا.": "Tarmem reviews each contractor's identity, registration and licences before they appear here.",
+    "قارن الخبرات والتقييمات والأعمال السابقة.": "Compare experience, ratings and past work."
+  }
+}

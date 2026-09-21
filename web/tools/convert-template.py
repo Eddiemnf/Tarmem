@@ -179,17 +179,42 @@ def css_prop(name: str) -> str:
     return re.sub(r"-([a-z])", lambda m: m.group(1).upper(), name)
 
 
-"""Deliberate departures from the design file's inline styles.
+"""Deliberate departures from the design file, listed in tools/departures.json.
 
-A fixed height left behind by dragging an element in the visual editor, on a box
-that holds copy. It fits the Arabic text and clips the longer English, so it
-becomes a minimum instead: Arabic renders identically, English stops
-overlapping. Keyed by the exact declaration so a design change surfaces here.
+styleFixups — fixed sizes left behind by dragging an element in the visual
+editor, on boxes that hold copy. A fixed height fits the Arabic text and clips
+the longer English, so it becomes a minimum; a fixed width (the home page's
+"four steps" heading is 914px wide) pushes a phone's page sideways, so it
+becomes a maximum. Desktop Arabic renders identically either way.
+  height: 519px  home, the two audience panels
+  height: 51px / width: 914px  home, the "four steps" heading
+
+literalTranslations — copy typed straight into the design in Arabic only, which
+replaces the bilingual binding, so English visitors got Arabic. The English here
+was written for the site and is not approved wording; move each string into the
+design's string table and delete its entry.
+
+Both are keyed by the design's exact text, so a design change surfaces here.
 """
-STYLE_FIXUPS = {
-    "height: 519px": ("minHeight", "519px"),  # home: the two audience panels
-}
+import json as _departures_json
+
+_DEPARTURES = _departures_json.load(open(os.path.join(HERE, "departures.json"), encoding="utf-8"))
+STYLE_FIXUPS = {decl: tuple(fix) for decl, fix in _DEPARTURES["styleFixups"].items()}
+LITERAL_TRANSLATIONS: dict[str, str] = _DEPARTURES["literalTranslations"]
 _fixups_applied: set[str] = set()
+_literals_applied: set[str] = set()
+
+
+def literal_text(data: str) -> str:
+    """A run of template text: bilingual if the design typed it in Arabic only, else as is."""
+    core = data.strip()
+    if core not in LITERAL_TRANSLATIONS:
+        return jsx_text(data)
+    _literals_applied.add(core)
+    lead = data[:len(data) - len(data.lstrip())]
+    trail = data[len(data.rstrip()):]
+    ar, en = _departures_json.dumps(core, ensure_ascii=False), _departures_json.dumps(LITERAL_TRANSLATIONS[core], ensure_ascii=False)
+    return lead + "{vm.dir === 'ltr' ? " + en + " : " + ar + "}" + trail
 
 """Sections of the design file that a hand-written component renders instead.
 
@@ -266,7 +291,7 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
             if part.startswith("{{"):
                 buf.append("{" + scope.expr(part[2:-2]) + "}")
             elif part:
-                buf.append(jsx_text(part))
+                buf.append(literal_text(part))
         return "".join(buf)
 
     if node.tag == "sc-if":
@@ -697,7 +722,12 @@ def main() -> None:
 
     stale = set(STYLE_FIXUPS) - _fixups_applied
     if stale:
-        raise SystemExit(f"STYLE_FIXUPS no longer match the design file: {sorted(stale)}")
+        raise SystemExit(f"departures.json styleFixups no longer match the design file: {sorted(stale)}")
+
+    fixed = set(LITERAL_TRANSLATIONS) - _literals_applied
+    if fixed:
+        raise SystemExit(f"departures.json literalTranslations no longer match the design file "
+                         f"(fixed at source? then delete them): {sorted(fixed)}")
 
     unmatched = set(NODE_REPLACEMENTS) - _replacements_applied
     if unmatched:

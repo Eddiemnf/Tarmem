@@ -889,6 +889,19 @@
 
 /* ==== app-only styles below — kept by tools/convert-template.py ==== */
 
+/* ---------- phone header ----------
+   Over the hero the design shows "join as a contractor" (min-width 168px) beside the logo,
+   the language button and the menu button. On a phone that row is wider than the screen in
+   both languages, and the menu button — the only way into the navigation — ends up off it.
+   The same link is inside that menu, so below the width where the row stops fitting the
+   button steps aside. English needs more room than Arabic. */
+@media (max-width: 460px){
+  .hdr[data-over="true"] .join-over{display:none}
+}
+@media (max-width: 520px){
+  [dir="ltr"] .hdr[data-over="true"] .join-over{display:none}
+}
+
 /* ---------- private preview password screen ---------- */
 .gate{min-height:100vh;display:grid;place-items:center;padding:24px;
   background:linear-gradient(180deg,#F7F6FC,#fff)}

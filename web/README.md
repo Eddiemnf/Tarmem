@@ -102,7 +102,8 @@ and all fail-loud if the design moves underneath them:
 | `LOGIC_PATCHES` — the data module is imported, not fetched | It is bundled with the app |
 | `LOGIC_PATCHES` — both `componentWillUnmount`s run | The design declares the method twice, which silently drops its first cleanup |
 | `ASSET_REWRITES` — trade photographs are 900px JPEGs | The design's PNG placeholders are 2-3 MB each, 24 MB on the landing page |
-| `STYLE_FIXUPS` — one fixed height becomes a minimum | It fits the Arabic copy and clips the longer English |
+| `tools/departures.json` → `styleFixups` — fixed sizes become limits | Sizes left behind by dragging in the visual editor: a fixed height clips the longer English, and the "four steps" heading's fixed 914px width made the home page scroll sideways on every phone |
+| `tools/departures.json` → `literalTranslations` — English for eight Arabic-only strings | Copy typed straight into the design replaces the bilingual binding, so English visitors got Arabic in the hero and two headings. The English is this implementation's, not approved wording |
 | `LOGIC_PATCHES` — the saved-state key comes from `launch/mode.ts` | The public site and the demo must never share saved state |
 | `LAUNCH_HIDDEN_*` — invented content and links into the product | The public site shows only what is true today (see above) |
 | The WhatsApp links use `site.config.json` | The design points them all at a dummy number |
@@ -175,6 +176,11 @@ Vercel, or any plain static host — just needs `BASE_PATH=/ npm run build`.
   bookmarkable yet, and there's no 404. Worth fixing when this goes on a real domain.
 - The main bundle is ~810 kB, ~210 kB gzipped (mostly the seeded copy, data and the admin
   console's logic); split it if that matters.
-- Seven pieces of copy were typed straight into the design in Arabic only, so they stay
-  Arabic in English: the home hero's lead and button, the assistant and four-steps headings,
-  and the contractors page intro. Fix them in the design's string table, then re-sync.
+- Eight strings were typed straight into the design in Arabic only (the home hero's lead and
+  button, the assistant and four-steps headings, the contractors page intro). The site gives
+  them English from `tools/departures.json`; that wording has not been approved. Move them
+  into the design's string table and the converter will say the entries can go.
+- On a phone the design's header row is wider than the screen over the hero, which put the
+  menu button off it in both languages. An app-only rule at the bottom of `global.css` hides
+  the join button below the width where the row stops fitting (it is the first item in the
+  menu). The design itself still has the problem.

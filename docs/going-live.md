@@ -36,7 +36,13 @@ Worth doing, not blocking:
   accounts and payments are not active yet; once a payment partner is signed, re-read them
   against the real contract.
 - The footer reads "© 2025" — a literal in the design file.
-- Seven strings are typed into the design in Arabic only (see `web/README.md`, Known gaps).
+- The English wording for eight strings the design has in Arabic only (`web/tools/departures.json`)
+  was written for the site. Have it read before English matters commercially.
+- Two phone problems came from the design and are corrected on the site, not in it: a heading
+  with a fixed 914px width made the home page scroll sideways, and the header row pushed the
+  menu button off the screen. Fix both in Claude Design when convenient.
+- The design's English copy still says "Money held in escrow" on the home page, which the
+  handoff brief asks to avoid until a licensed escrow agreement exists.
 - A visitor counter and analytics: add a GA4 measurement ID when you have one.
 - Requests live only in WhatsApp. When volume justifies it, add a record (a sheet or CRM):
   `web/src/launch/deliver.ts` is the one place that changes.

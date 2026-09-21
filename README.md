@@ -37,9 +37,9 @@ Things to watch on that round trip:
 - **The generator stops rather than guess.** A new page needs one line in its
   route map; a new kind of top-level block needs a name. It says which. The
   same goes for the handful of places the site deliberately differs from the
-  prototype (`LOGIC_PATCHES`, `STYLE_FIXUPS`, `ASSET_REWRITES` in
-  `web/tools/convert-template.py`): if the design changes underneath one, the
-  run fails and names it.
+  prototype (`LOGIC_PATCHES`, `ASSET_REWRITES` and the launch rules in
+  `web/tools/convert-template.py`, plus `web/tools/departures.json`): if the
+  design changes underneath one, the run fails and names it.
 - **Editing copy inline in Claude Design writes one language only.** It replaces
   the bilingual placeholder with that literal text, so the other language stops
   updating. Change wording in both, or say what it should read and have it

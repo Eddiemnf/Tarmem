@@ -137,8 +137,20 @@ const snapshot = () => {
   return merged;
 };
 
-const volatile = (line) => line
-  .replace(/;min-height:519px/, '').replace(/;height:519px/, '')
+// tools/departures.json: the fixed sizes that became limits, and the Arabic-only strings given English.
+const departures = JSON.parse(await readFile(new URL('../tools/departures.json', import.meta.url), 'utf8'));
+const kebab = (prop) => prop.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
+const sizeRules = Object.entries(departures.styleFixups).flatMap(([decl, [prop, value]]) =>
+  [decl.replace(/\s*:\s*/, ':'), `${kebab(prop)}:${value}`]);
+const literals = Object.entries(departures.literalTranslations);
+const departed = (line) => {
+  let out = line;
+  if (out.includes('style=')) for (const rule of sizeRules) out = out.replace(new RegExp(`(^|[;=])${rule}(?=;|\\s\\||>|$)`), '$1');
+  for (const [ar, en] of literals) out = out.split(en).join(ar);
+  return out.replace(/=;+/g, '=').replace(/;;+/g, ';');
+};
+
+const volatile = (line) => departed(line)
   .replace(/"[\d,]+\+?"|"\d+%"/g, '"#"')
   .replace(/opacity:[\d.]+/g, 'opacity:#')
   .replace(/transform:[^;|>]+/g, 'transform:#');

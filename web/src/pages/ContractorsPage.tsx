@@ -11,7 +11,7 @@ export default function ContractorsPage({ vm }: { vm: VM }) {
       <div className="wrap fade" style={{ paddingBlock: '56px 36px' }}>
         <span className="kick">{vm.t.search.eyebrow}</span>
         <h1 style={{ fontSize: 'clamp(30px,3.4vw,44px)', color: '#1B1464', margin: '12px 0 12px' }}>{vm.t.search.title}</h1>
-        <p style={{ color: '#5B5A7A', fontSize: '16px', maxWidth: '56ch' }}>تراجع ترميم هوية المقاول وسجله وتراخيصه قبل ظهوره هنا. <br />قارن الخبرات والتقييمات والأعمال السابقة.</p>
+        <p style={{ color: '#5B5A7A', fontSize: '16px', maxWidth: '56ch' }}>{vm.dir === 'ltr' ? "Tarmem reviews each contractor's identity, registration and licences before they appear here." : "تراجع ترميم هوية المقاول وسجله وتراخيصه قبل ظهوره هنا."} <br />{vm.dir === 'ltr' ? "Compare experience, ratings and past work." : "قارن الخبرات والتقييمات والأعمال السابقة."}</p>
       </div>
     </section>
     <section className="wrap" style={{ paddingBlock: '8px 80px' }}>

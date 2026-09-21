@@ -19,10 +19,10 @@ export default function HomePage({ vm }: { vm: VM }) {
             <h1 className="ph-h1"><span>{vm.t.hero2.l1}</span><span>{vm.t.hero2.l2}</span></h1>
           </div>
           <div>
-            <p className="ph-lead">كل تجديد جميل يبدأ بخطوة. شاركنا تفاصيل مشروعك، <br />وقارن عروض المقاولين، وابدأ تجديد بيتك بثقة.</p>
+            <p className="ph-lead">{vm.dir === 'ltr' ? "Every renovation starts with one step. Share your project details," : "كل تجديد جميل يبدأ بخطوة. شاركنا تفاصيل مشروعك،"} <br />{vm.dir === 'ltr' ? "compare contractors' bids, and renovate with confidence." : "وقارن عروض المقاولين، وابدأ تجديد بيتك بثقة."}</p>
             <div className="ph-ctas">
               <button className="ph-b1" type="button" data-route="post" onClick={vm.go}>
-                <span className="ph-b1-t">ابدأ مشروعك الآن</span>
+                <span className="ph-b1-t">{vm.dir === 'ltr' ? "Start your project now" : "ابدأ مشروعك الآن"}</span>
                 <i aria-hidden="true"><span className="ph-b1-a a1"><svg className="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></span><span className="ph-b1-a a2"><svg className="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></span></i>
               </button>
               <span className="ph-foot">{vm.t.hero2.foot}</span>
@@ -53,7 +53,7 @@ export default function HomePage({ vm }: { vm: VM }) {
         <div className="ai2-side">
         <div className="ai2-head">
           <label className="skick" htmlFor="v-ai-in"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.ai.label}</label>
-          <h2 className="sh2 ai2-h">صف لنا مشروعك، ونوصلك بالمقاول <br />المناسب.</h2>
+          <h2 className="sh2 ai2-h">{vm.dir === 'ltr' ? "Describe your project and we'll connect you" : "صف لنا مشروعك، ونوصلك بالمقاول"} <br />{vm.dir === 'ltr' ? "with the right contractor." : "المناسب."}</h2>
         </div>
         {vm.launch ? null : (<div className="ai2-stats">
           <div className="ai2-stat"><span className="ai2-sv">{vm.hsA.v}</span><span className="ai2-sl">{vm.hsA.l}</span></div>
@@ -92,7 +92,7 @@ export default function HomePage({ vm }: { vm: VM }) {
 
 
     <section className="wrap" style={{ paddingBlock: 'clamp(26px,3.2vw,46px) 0' }}>
-      <div style={{ maxWidth: '560px', marginBottom: '40px' }}><span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.stepsKicker}</span><h2 className="sh2" style={{ height: '51px', width: '914px' }}>أربع خطوات من وصف مشروعك إلى استلامه</h2></div>
+      <div style={{ maxWidth: '560px', marginBottom: '40px' }}><span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.stepsKicker}</span><h2 className="sh2" style={{ minHeight: '51px', maxWidth: '914px' }}>{vm.dir === 'ltr' ? "Four steps from describing your project to handover" : "أربع خطوات من وصف مشروعك إلى استلامه"}</h2></div>
       <div className="hw-grid hw-relay">
         
     {((vm.homePhases) || []).map((p: any, _i0: number) => (
