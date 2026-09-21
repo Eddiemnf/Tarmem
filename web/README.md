@@ -8,12 +8,50 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # type-check, then bundle to dist/
 npm run preview    # serve the production bundle
-npm run test:flows  # smoke-test the core flows against a running dev server
-npm run test:parity # prove the app renders exactly what the design prototype renders
+npm run test:launch # the public site: nothing invented, nothing private, requests really leave
+npm run test:flows  # the demo: smoke-test the core flows against a running dev server
+npm run test:parity # the demo: prove it renders exactly what the design prototype renders
 ```
 
 Both tests drive a real browser with Playwright; on a fresh machine run
 `npx playwright install chromium` once first.
+
+## Two sites in one build
+
+| Address | What it is |
+| --- | --- |
+| `/` | **The public early-access site.** Only what is true today: the marketing pages, a project request, a contractor application and the contact form. Each of those writes a WhatsApp message to the Tarmem team, which the visitor sends themselves. No accounts, no payments, nothing stored. |
+| `/demo` | **The full product design**, walkable on invented data — every dashboard, wallet and admin screen. A sales tool, always behind the preview password. |
+
+`site.config.json` holds the facts the design only has placeholders for:
+
+```json
+{ "whatsapp": "9665XXXXXXXX", "email": "support@tarmem.sa", "publicLaunch": false }
+```
+
+`publicLaunch` is the switch that opens `/` to the world. While it is `false` the public site
+sits behind the preview password too, so it can be reviewed on the real domain first.
+**Do not switch it on while `whatsapp` is still the design's dummy number** — requests would
+go to a stranger; `npm run test:launch` fails in that case.
+
+How the public site is made (all in `src/launch/` plus three rule tables in the converter):
+
+- **Nothing private can become the current page.** The design's logic runs unchanged, but every
+  state it adopts passes through `guard.ts` first: private routes are redirected to the request
+  form, the application form or home; nobody can be signed in; the demo's saved state lives
+  under a different storage key and cannot follow a visitor across.
+- **Nothing invented is rendered.** `LAUNCH_HIDDEN_*` in the converter wrap the live-visitor
+  counter, the headline figures, the testimonials, the partner logos and the links into the
+  product in `vm.launch ? null : (…)`. The footer's line about a licensed payment partner is
+  blanked until one is signed.
+- **Requests really leave.** Publishing the project form as a guest, sending the contact form,
+  and the contractor application each open WhatsApp with the message written out
+  (`deliver.ts`), then a page that says plainly nothing is sent until the visitor presses Send,
+  with the same message by email as the fallback. When a backend exists, `deliver.ts` is the
+  file that changes.
+
+The early-access copy is in `src/launch/copy.ts`. It is this implementation's wording, not
+approved design copy: it makes no promise about reply times, fees or payments.
 
 ## What's here
 
@@ -29,7 +67,10 @@ Both tests drive a real browser with Playwright; on a fresh machine run
 | `src/styles/global.css` | The design's stylesheet, verbatim, then app-only rules below a marker |
 | `tools/convert-template.py` | Regenerates all of the above from the design file |
 | `tools/optimize-assets.sh` | Makes the lighter copies of the design's trade photographs |
-| `tests/flows.mjs` | Browser smoke test for agreement signing, funding, milestones and fees, posting |
+| `src/launch/` | The public early-access site: mode, state guard, WhatsApp delivery, its two pages and copy |
+| `site.config.json` | WhatsApp number, mailbox, and the `publicLaunch` switch |
+| `tests/launch.mjs` | The public site: nothing invented or private is reachable, and every request produces a real message |
+| `tests/flows.mjs` | The demo: browser smoke test for agreement signing, funding, milestones and fees, posting |
 | `tests/parity.mjs` | Renders 45 states in the app and in the prototype and compares the DOM |
 
 ## How the port works
@@ -62,14 +103,17 @@ and all fail-loud if the design moves underneath them:
 | `LOGIC_PATCHES` — both `componentWillUnmount`s run | The design declares the method twice, which silently drops its first cleanup |
 | `ASSET_REWRITES` — trade photographs are 900px JPEGs | The design's PNG placeholders are 2-3 MB each, 24 MB on the landing page |
 | `STYLE_FIXUPS` — one fixed height becomes a minimum | It fits the Arabic copy and clips the longer English |
+| `LOGIC_PATCHES` — the saved-state key comes from `launch/mode.ts` | The public site and the demo must never share saved state |
+| `LAUNCH_HIDDEN_*` — invented content and links into the product | The public site shows only what is true today (see above) |
+| The WhatsApp links use `site.config.json` | The design points them all at a dummy number |
 
 Because everything in `src/pages/`, `src/components/{Header,Footer,…}`, `src/state/designLogic.generated.ts`,
 `src/data/tarmem-data.ts` and the top of `global.css` is generated, change the design file and
 re-run the converter rather than editing them — the next sync would overwrite a hand edit.
 
-`?lang=en` and `?role=homeowner|contractor|admin` in the URL open a fresh visit in that
-language or role — the prototype's two editor props. They never override a returning
-visitor's saved state.
+`?lang=en` opens a fresh visit in English, and on the demo `?role=homeowner|contractor|admin`
+opens one in that role — the prototype's two editor props. They never override a returning
+visitor's saved state, and the public site ignores `role` entirely.
 
 ## Data, money and identity
 

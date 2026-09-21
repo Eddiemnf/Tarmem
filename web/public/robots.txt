@@ -1,0 +1,4 @@
+# The public early-access site may be indexed. The demo is a sales tool on invented data.
+User-agent: *
+Allow: /
+Disallow: /demo
