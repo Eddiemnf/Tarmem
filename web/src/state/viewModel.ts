@@ -29,7 +29,7 @@ import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { acceptFiles, holdFiles } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { chooseBid, refreshAccount } from '../platform/session';
+import { refreshAccount } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -116,41 +116,26 @@ function contractorVals(vm: LogicVals, state: LogicState): LogicVals {
   if (state.user?.role !== 'contractor' || !vm.t?.auth) return vm;
   const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   // Verified: the design's own bid form, saved for real (src/platform/bind.ts). If the homeowner chose their bid, say what happens next.
-  if (state.user.nafath) {
-    const project = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
-    const chosen = project?.bids?.some((b: LogicState) => b.cid === 'c1' && b.chosen);
-    return chosen ? { ...vm, agrPend: { show: true, canSign: false, text: copy.chosenNote } } : vm;
-  }
+  if (state.user.nafath) return vm;
   return {
     ...vm,
     bidNeedsNafath: true, canBid: false,
     startNafath: () => { void refreshAccount(); },
-    t: { ...vm.t, auth: { ...vm.t.auth, gateCoTitle: copy.coPendingTitle, gateCoNote: copy.coPendingNote, nafathVerify: copy.coRefresh } },
+    t: { ...vm.t, auth: { ...vm.t.auth, nafath: '', gateCoTitle: copy.coPendingTitle, gateCoNote: copy.coPendingNote, nafathVerify: copy.coRefresh } },
   };
 }
 
-/** A homeowner accepting a bid. The design goes on to an agreement both sides sign and then to payment; until those are
-    real, accepting records the choice, and the team completes the agreement with both sides. */
-function homeownerVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
-  if (state.user?.role !== 'homeowner' || !platformOn) return vm;
+/** After both signatures the design asks the homeowner to verify through Nafath and then pay by card. Neither is connected
+    yet, so that step says so, and nothing pretends to take a payment; stages wait for the first payment. */
+function awardedVals(vm: LogicVals, state: LogicState): LogicVals {
+  const role = state.user?.role;
+  if (!platformOn || (role !== 'homeowner' && role !== 'contractor') || !vm.t?.auth) return vm;
   const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
-  const project = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
-  const chosen = project?.bids?.find((b: LogicState) => b.chosen);
-  const company = chosen ? (state.contractors as LogicState[]).find((c) => c.id === chosen.cid)?.name?.ar || '' : '';
   return {
     ...vm,
-    acceptBid: (e: { currentTarget: HTMLElement }) => {
-      const cid = e.currentTarget.dataset.cid;
-      const bid = project?.bids?.find((b: LogicState) => b.cid === cid);
-      if (!project?.dbId || !bid?.dbId) return;
-      void chooseBid(project.dbId, bid.dbId).then((result) => {
-        if (!result.ok) return;
-        host.setLogicState((s) => ({ tab: 'overview', projects: (s.projects as LogicState[]).map((p) => (p.id !== project.id ? p
-          : { ...p, bids: (p.bids as LogicState[]).map((b) => ({ ...b, chosen: b.cid === cid })) })) }));
-        window.scrollTo(0, 0);
-      });
-    },
-    ...(chosen ? { agrPend: { show: true, canSign: false, text: copy.choseNote.replace('{co}', company) } } : {}),
+    ...(role === 'homeowner' ? { fundNeedsNafath: Boolean(vm.fundNeedsNafath || vm.needsFunding), needsFunding: false, startNafath: () => { void refreshAccount(); } } : {}),
+    t: { ...vm.t, ws: { ...vm.t.ws, noMs: copy.stagesSoon },
+      ...(role === 'homeowner' ? { auth: { ...vm.t.auth, nafath: '', gateHoTitle: copy.paySoonTitle, gateHoNote: copy.paySoonNote, nafathVerify: copy.refresh } } : {}) },
   };
 }
 
@@ -158,7 +143,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
-  return homeownerVals(contractorVals(adminVals({
+  return awardedVals(contractorVals(adminVals({
     ...vm,
     launch: true,
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
@@ -181,7 +166,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
     showWaFab: vm.showWaFab && !vm.r?.sent,
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state), state), state, host);
+  }, state), state), state);
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

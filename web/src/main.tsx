@@ -25,7 +25,9 @@ const gated = !isLaunch || !site.publicLaunch;
 if (isLaunch) {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (saved?.user) { delete saved.user; localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); }
+    // (even a saved "nobody": restored over a session that arrived with the page — a reset-password link — it would
+    //  read as the person having just signed out, and end that session)
+    if (saved && 'user' in saved) { delete saved.user; localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); }
   } catch { /* storage unavailable or not JSON: nothing to clean */ }
 }
 

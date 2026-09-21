@@ -49,7 +49,7 @@ export default function App() {
   const Page = (isLaunch && LAUNCH_PAGES[state.route]) || PAGES[state.route as Route] || PAGES.home;
 
   return (
-    <div dir={vm.dir} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div dir={vm.dir} data-launch={isLaunch ? '' : undefined} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header vm={vm} />
       <ShellBlocks vm={vm} />
       <main style={{ flex: 1 }}>

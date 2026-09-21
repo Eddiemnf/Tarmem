@@ -11,12 +11,15 @@ import { runtimeData, type Application, type Profile, type ProjectRow } from './
 import { setTrackContext, track } from './track';
 
 export interface BidRow { id: string; project_id: string; contractor_id: string; price: number; days: number; note: string | null; details: Record<string, unknown>; status: 'submitted' | 'withdrawn' | 'chosen'; created_at: string }
+export interface AgreementRow { project_id: string; bid_id: string; homeowner_id: string; contractor_id: string; amount: number; days: number; homeowner_name: string; homeowner_signed_at: string; contractor_name: string | null; contractor_signed_at: string | null }
 export interface Bidder { user_id: string; company: string; city: string; trades: string[]; since: string }
 
 export interface Account {
   /** A contractor's own bids; for a homeowner, the bids on their projects and who made them (company and city only). */
   bids: BidRow[];
   bidders: Bidder[];
+  /** Agreements this person is a party to: signed by the homeowner, then by the contractor. */
+  agreements: AgreementRow[];
   profile: Profile;
   projects: ProjectRow[];
   /** The `user` object the design's logic sees. One identity per sign-in, so state comparisons stay cheap. */
@@ -28,6 +31,10 @@ export interface Account {
 export type Result<T = true> = { ok: T; error?: undefined } | { ok?: undefined; error: PlatformError };
 
 let account: Account | null = null;
+/* A "reset your password" link opens the site signed in, for the single purpose of choosing a new password.
+   The address is read before the sign-in library consumes it. */
+let recovering = typeof window !== 'undefined' && /type=recovery/.test(window.location.hash + window.location.search);
+export const isRecovering = (): boolean => recovering;
 const listeners = new Set<() => void>();
 
 export const currentAccount = (): Account | null => account;
@@ -97,7 +104,7 @@ async function loadAccount(user: User): Promise<Account | null> {
     const open = verified ? await supabase.from('projects').select('*').in('status', ['open', 'active', 'completed']).order('created_at', { ascending: false }).limit(200) : null;
     const mine = verified ? await supabase.from('bids').select('*').neq('status', 'withdrawn') : null;
     return {
-      profile, application, projects: (open?.data as ProjectRow[]) || [], bids: (mine?.data as BidRow[]) || [], bidders: [],
+      profile, application, projects: (open?.data as ProjectRow[]) || [], bids: (mine?.data as BidRow[]) || [], bidders: [], agreements: await loadAgreements(),
       // the design's "verified through Nafath" flag stands for Tarmem's own verification until Nafath is connected
       logicUser: { role: 'contractor', name: application?.company || profile.company || profile.full_name, nafath: verified, admin: false },
     };
@@ -107,7 +114,7 @@ async function loadAccount(user: User): Promise<Account | null> {
   const bids = (received?.data as BidRow[]) || [];
   const who = bids.length ? await supabase.from('verified_contractors').select('*') : null;
   return {
-    profile, application: null, projects: (rows.data as ProjectRow[]) || [], bids,
+    profile, application: null, projects: (rows.data as ProjectRow[]) || [], bids, agreements: await loadAgreements(),
     bidders: ((who?.data as Bidder[]) || []).filter((b) => bids.some((x) => x.contractor_id === b.user_id)),
     // An account the owner marked admin in the database gets the design's admin role, and with it the console.
     logicUser: { role: profile.role === 'admin' ? 'admin' : 'homeowner', name: profile.full_name, nafath: false, admin: profile.role === 'admin' },
@@ -119,15 +126,16 @@ async function loadAccount(user: User): Promise<Account | null> {
 export async function initSession(timeoutMs = 4000): Promise<void> {
   if (!supabase) return;
   const client = supabase;
+  client.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') { recovering = true; for (const listener of listeners) listener(); }
+    // another tab signed out, or the session could not be renewed
+    if (event === 'SIGNED_OUT' && account) setAccount(null);
+  });
   const restore = (async () => {
     const { data } = await client.auth.getSession();
     if (data.session?.user) setAccount(await loadAccount(data.session.user));
   })().catch(() => undefined);
   await Promise.race([restore, new Promise((resolve) => window.setTimeout(resolve, timeoutMs))]);
-  client.auth.onAuthStateChange((event) => {
-    // another tab signed out, or the session could not be renewed
-    if (event === 'SIGNED_OUT' && account) setAccount(null);
-  });
 }
 
 export interface SignUpFields { email: string; password: string; name: string; mobile: string; city: string; lang: 'ar' | 'en' }
@@ -189,6 +197,27 @@ export async function signUpContractor(f: ContractorSignUp): Promise<Result<true
   } catch (e) { return { error: failure(e as Error) }; }
 }
 
+/** Email a link for choosing a new password. Says nothing about whether the address has an account. */
+export async function requestPasswordReset(email: string): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/signin` });
+    return error && failure(error) === 'rate' ? { error: 'rate' } : { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** The new password, for someone who arrived through a reset link. */
+export async function setNewPassword(password: string): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { data, error } = await supabase.auth.updateUser({ password });
+    if (error || !data.user) return { error: failure(error) };
+    recovering = false;
+    setAccount(await loadAccount(data.user));
+    return { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
 export function signOut(): void {
   setAccount(null);
   void supabase?.auth.signOut().catch(() => undefined);
@@ -217,6 +246,25 @@ export async function withdrawProject(dbId: string): Promise<Result> {
   if (error) return { error: failure(error) };
   account = { ...account, projects: account.projects.filter((p) => p.id !== dbId) };
   return { ok: true };
+}
+
+/** The database returns only agreements this person is a party to (or all of them, to an admin); none until 006 has been run. */
+async function loadAgreements(): Promise<AgreementRow[]> {
+  if (!supabase) return [];
+  const { data } = await supabase.from('agreements').select('*');
+  return (data as AgreementRow[]) || [];
+}
+
+/** A signature is written by the database, which checks who is signing; the website only asks for it. */
+export async function signAgreement(as: 'homeowner' | 'contractor', id: string): Promise<Result<AgreementRow>> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { data, error } = as === 'homeowner'
+      ? await supabase.rpc('sign_agreement_homeowner', { p_bid: id })
+      : await supabase.rpc('sign_agreement_contractor', { p_project: id });
+    if (error || !data) return { error: failure(error) };
+    return { ok: data as AgreementRow };
+  } catch (e) { return { error: failure(e as Error) }; }
 }
 
 /** A contractor's bid, exactly as the design's form built it; the database stamps whose it is. */

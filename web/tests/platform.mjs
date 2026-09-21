@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { installSupabaseMock } from './supabase-mock.mjs';
+import { installSupabaseMock, recoveryFragment } from './supabase-mock.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:5173/').replace(/demo\/?$/, '');
 const site = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
@@ -105,7 +105,7 @@ await settle(400);
 check('…and both are still there after a reload (read back from storage)', (await page.locator('td', { hasText: 'مطبخ قبل.png' }).count()) === 1 && (await page.locator('td', { hasText: 'plan.pdf' }).count()) === 1);
 await page.locator('[role="tab"][data-tab="bids"]').click({ timeout: 3000 }).catch(() => undefined);
 await settle(200);
-check('the bids tab says what happens next instead of "no bids"', (await page.locator('text=استلمنا مشروعك').count()) === 1);
+check('the bids tab says what happens next instead of "no bids"', (await page.locator('text=نُشر مشروعك ويراه المقاولون الموثّقون').count()) === 1);
 
 // C — the dashboard, and what is left out of it for now
 await page.locator('header [data-route="hdash"]').first().click({ timeout: 3000 }).catch(() => undefined);
@@ -305,8 +305,80 @@ await settle(400);
 const bidsText = await page.locator('main').innerText();
 check('the homeowner sees the bid with the contractor\'s company, not their mobile or email', bidsText.includes('مؤسسة البناء المتقن') && bidsText.includes('24,000') && !bidsText.includes('0501112223') && !bidsText.includes('khalid@'));
 await page.locator('button[data-cid]', { hasText: 'قبول العرض' }).first().click();
-await settle(800);
-check('accepting records the choice in the database, and says the team completes the agreement', db.bids[0].status === 'chosen' && (await page.locator('text=يتواصل فريق ترميم معك ومع المقاول').count()) === 1, db.bids[0].status);
+await settle(400);
+const signBtn = page.locator('button', { hasText: 'أوافق وأوقّع' }).first();
+check('accepting opens the agreement, which cannot be signed before it is read to the end', await signBtn.isDisabled());
+await page.locator('.agrbody').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+await settle(300);
+await signBtn.click();
+await settle(900);
+check("the homeowner's signature is written by the database: the bid is chosen, the agreement awaits the contractor, the project stays open",
+  db.agreements.length === 1 && db.agreements[0].homeowner_name === 'سارة العتيبي' && db.agreements[0].amount === 24000 && !db.agreements[0].contractor_signed_at && db.bids[0].status === 'chosen' && db.projects.find((p) => p.code === 'P-9001').status === 'open' && db.refused.length === 0,
+  db.refused.join('; ') || JSON.stringify(db.agreements[0] || null).slice(0, 140));
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForSelector('header'); await settle(800);
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(300);
+check('…and after a reload the project still says it awaits the contractor\'s signature', (await page.locator('text=وبانتظار توقيع المقاول').count()) === 1);
+
+// J — the contractor counter-signs, and the project is awarded
+await page.locator('button.acct').click();
+await page.locator('.acctmenu .acctitem').last().click();
+await settle();
+await open('signin');
+await page.locator('#au-email').fill('khalid@build.example');
+await page.locator('#au-password').fill('contractor-pass-1');
+await submit.click();
+await settle(900);
+await open('project/P-9001');
+await page.locator('button', { hasText: 'راجع الاتفاقية' }).first().click();
+await settle(400);
+await page.locator('.agrbody').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+await settle(300);
+await page.locator('button', { hasText: 'أوافق وأوقّع' }).first().click();
+await settle(900);
+const awarded = db.projects.find((p) => p.code === 'P-9001');
+check("the contractor's signature awards the project: active, theirs, at the agreed amount, both signatures kept",
+  awarded.status === 'active' && awarded.contractor_id === coUser?.id && awarded.amount === 24000 && Boolean(db.agreements[0].contractor_signed_at) && db.agreements[0].contractor_name === 'مؤسسة البناء المتقن' && db.refused.length === 0, db.refused.join('; ') || awarded.status);
+await page.locator('button.acct').click();
+await page.locator('.acctmenu .acctitem').last().click();
+await settle();
+await open('signin');
+await page.locator('#au-email').fill('sara@example.com');
+await page.locator('#au-password').fill('long-enough-1');
+await submit.click();
+await settle(900);
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(300);
+check('the signed agreement shows both parties and both dates', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: 'سارة العتيبي' }).count()) === 1);
+await page.locator('[role="tab"][data-tab="payments"]').click();
+await settle(400);
+check('the homeowner is told plainly that payment on the site is not live yet — no card form, no Nafath theatre', (await page.locator('main .card h3', { hasText: 'الدفع عبر الموقع قيد التفعيل' }).count()) === 1 && (await page.locator('main .nafmark:visible').count()) === 0 && (await page.locator('input[name="card"], input[autocomplete="cc-number"]').count()) === 0
+  && (await page.locator('text=يلزم التحقق عبر نفاذ').count()) === 0);
+await page.locator('[role="tab"][data-tab="milestones"]').click();
+await settle(300);
+check('…and that stages start with the first payment', (await page.locator('text=تبدأ المراحل بعد ترتيب الدفعة الأولى').count()) === 1);
+
+// K — a forgotten password
+await page.locator('button.acct').click();
+await page.locator('.acctmenu .acctitem').last().click();
+await settle();
+await open('signin');
+await page.locator('a', { hasText: 'أعد تعيينها' }).click();
+await page.locator('#au-email').fill('sara@example.com');
+await page.locator('form.authcard button[type="submit"]').click();
+await settle(600);
+check('"forgot your password" emails a reset link that returns to the sign-in page, without saying whether the address exists',
+  db.recoveries?.length === 1 && db.recoveries[0].email === 'sara@example.com' && String(db.recoveries[0].redirect).endsWith('/signin') && (await page.locator('text=إذا كان هذا البريد مسجّلًا').count()) === 1);
+await page.goto('about:blank'); // an email link is a fresh page load, not a change of fragment on an open page
+await page.goto(BASE_URL + 'signin' + recoveryFragment(db.users[0].id), { waitUntil: 'domcontentloaded' });
+await page.waitForSelector('header'); await settle(900);
+check('the link opens a "choose a new password" form, and nothing else until it is done', (await page.locator('text=اختر كلمة مرور جديدة').count()) === 1 && (await page.locator('#au-email').count()) === 0);
+await page.locator('#au-password').fill('a-brand-new-pass-2');
+await page.locator('form.authcard button[type="submit"]').click();
+await page.waitForFunction(() => window.location.pathname === '/dashboard', null, { timeout: 8000 }).catch(() => undefined);
+check('…saving it signs them in to their dashboard', db.users[0].password === 'a-brand-new-pass-2' && (await pathname()) === '/dashboard', `${await pathname()} pw=${db.users[0].password} err=${(await page.locator('.autherr').allInnerTexts()).join('/')} refused=${db.refused.slice(-1)} unknown=${db.unknown.slice(-1)}`);
 
 check('the site asked the database for nothing the test does not know about', db.unknown.length === 0, db.unknown.join(' · '));
 console.log(results.join('\n'));

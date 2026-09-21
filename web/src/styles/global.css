@@ -944,3 +944,16 @@
   box-shadow:0 8px 22px rgba(255,90,60,.26);transition:box-shadow .2s}
 .gate-btn:hover:not(:disabled){box-shadow:0 12px 28px rgba(255,90,60,.36)}
 .gate-btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+
+/* A signed-in header on a phone: logo, "post a project", the bell and the account chip do not fit 390px with the
+   person's name spelled out — the chip ran off the screen's edge. The initial in its circle is enough there. */
+@media (max-width: 560px) {
+  .hdr .acct > span:nth-child(2) { display: none; }
+  .hdr .acct { padding-inline: 6px; }
+}
+
+/* The design gates bidding and payment on Nafath, and brands those cards with its mark. On the public site the same
+   cards carry Tarmem's own messages (an account being verified, payment being set up) until Nafath is connected:
+   they must not look like a Nafath prompt. */
+[data-launch] .nafmark { display: none; }
+[data-launch] .card > div:has(> .nafmark) { display: none; }

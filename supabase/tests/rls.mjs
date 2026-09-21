@@ -63,6 +63,10 @@ check('004 is installed: the contractor check exists, and is closed to visitors'
 const bidsProbe = await anon.from('bids').select('id').limit(1);
 check('005 is installed: bids exist, and are closed to visitors', Boolean(bidsProbe.error) && !/PGRST205|could not find/i.test(`${bidsProbe.error?.code} ${bidsProbe.error?.message}`), `${bidsProbe.error?.code} ${bidsProbe.error?.message}`);
 check('visitor: cannot see the list of verified contractors', denied(await anon.from('verified_contractors').select('*')));
+// 1f — 006: agreements
+const signProbe = await anon.rpc('sign_agreement_contractor', { p_project: '00000000-0000-4000-8000-000000000001' });
+check('006 is installed: signing exists, and is closed to visitors', Boolean(signProbe.error) && !/PGRST202|could not find/i.test(`${signProbe.error?.code} ${signProbe.error?.message}`), `${signProbe.error?.code} ${signProbe.error?.message}`);
+check('visitor: cannot read agreements', denied(await anon.from('agreements').select('*')));
 if (process.env.RLS_VISITOR_ONLY) {
   console.log(results.join('\n'));
   const bad = results.filter((r) => r.startsWith('FAIL')).length;

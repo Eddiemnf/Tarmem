@@ -191,3 +191,31 @@ their account on the join page.
 `supabase/cleanup_test_rows.sql` removes what the security tests left behind, and only that. After it has
 been run, check the database with `RLS_VISITOR_ONLY=1 RLS_NO_WRITES=1 node ../supabase/tests/rls.mjs`, which
 writes nothing.
+
+## The agreement, password reset, freshness and alerts — 21 September 2026
+
+- **The two-party agreement** (`supabase/006_agreements.sql`, `signAgreement` in `web/src/platform/session.ts`). Accept opens the
+  design's own agreement; it cannot be signed before it is read to the end. The homeowner's signature is written by a database
+  function that checks who is calling, keeps a copy of the bid as signed, and marks the bid chosen; the homeowner may still switch
+  to another bid until the contractor counter-signs. The contractor's signature awards the project (active, theirs, at the agreed
+  amount). Both names and both times show on the project, as designed. Nothing about a signed agreement can be changed from the site.
+- **Payment and stages are honest about not being live.** After both signatures the design asks for Nafath and a card. Until a
+  payment partner is connected that card says "payment on the site is being set up" and that the team arranges the first payment;
+  the stages tab says stages start with the first payment. No fake card form, no Nafath theatre, no Nafath branding on Tarmem's
+  own messages.
+- **Forgotten password**: a reset link by email, then a "choose a new password" form, then their dashboard. It never says whether an
+  address has an account. **Owner step, once**: Supabase → Authentication → URL Configuration → Site URL = `https://www.tarmem.sa`,
+  and add `https://www.tarmem.sa/**` under Redirect URLs — otherwise the emailed link points at `localhost`. Supabase's built-in
+  mailer sends only a few emails an hour; connect a real sender (Authentication → Emails → SMTP) before real volume.
+- **Freshness**: every signed-in page re-reads its data once a minute while it is in front, and when the tab comes back to the
+  front — new bids, signatures and status changes appear without a reload (the design's bell counts them).
+- **Alerts for the team**: while the admin console is open in a tab, new projects, applications, messages and bids put a count in
+  the tab's title and, if the browser was allowed, a desktop notification. Alerts with no tab open (email / WhatsApp) need a sender.
+- **Phone check**: `npm run test:sweep` opens every signed-in page for a customer, a contractor and the team, in Arabic and
+  English at 360 and 390 px (140 page views), and fails on a page error, a page wider than the screen, or an empty page.
+  It found the signed-in header running off a phone's edge (fixed: the account chip shows the initial only on phones).
+- A bug the tests caught before any customer did: a reset-password link was signed out the moment it opened, because the page
+  restored a saved "nobody is signed in" over the session the link had just created.
+
+Still to build: stages with photo/video evidence and approvals (they go live with payment), settings / profile pages, reviews,
+alerts with no tab open, automatic WhatsApp on approval (needs the WhatsApp Business API), Nafath, payment.

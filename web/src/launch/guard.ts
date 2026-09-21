@@ -13,7 +13,7 @@
 
 import * as D from '../data/tarmem-data';
 import { platformOn } from '../platform/client';
-import { currentAccount, signOut } from '../platform/session';
+import { currentAccount, isRecovering, signOut } from '../platform/session';
 import type { LogicState } from '../state/designRuntime';
 import { LAUNCH_COPY } from './copy';
 import { openWhatsApp } from './deliver';
@@ -123,6 +123,9 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
       patch({ launchLast: message });
     }
   }
+
+  // Somebody who opened a "reset your password" link chooses the new password before anything else.
+  if (platformOn && isRecovering() && user) return state.route === 'auth' ? state : { ...state, route: 'auth' };
 
   const wantsContractorSignup = state.route === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor';
   const allowed = PUBLIC_ROUTES.has(state.route) || (platformOn && !wantsContractorSignup && (

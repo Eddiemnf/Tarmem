@@ -4,7 +4,7 @@
 
 export const PLATFORM_COPY = {
   ar: {
-    notice: 'إطلاق مبكر: انشر مشروعك من الموقع ويتواصل معك فريق ترميم مباشرة. عروض المقاولين والدفع عبر الموقع قيد الإعداد.',
+    notice: 'إطلاق مبكر: انشر مشروعك، واستقبل عروض مقاولين موثّقين، ووقّع الاتفاقية عبر الموقع. الدفع عبر الموقع قيد التفعيل.',
     signInTitle: 'سجّل دخولك', signUpTitle: 'أنشئ حسابك',
     signInLede: 'ادخل ببريدك الإلكتروني وكلمة المرور لمتابعة مشاريعك.',
     signUpLede: 'حساب واحد لنشر مشاريعك ومتابعتها. يستغرق دقيقة.',
@@ -14,7 +14,9 @@ export const PLATFORM_COPY = {
     agree: 'أوافق على', terms: 'الشروط والأحكام', and: 'و', privacy: 'سياسة الخصوصية',
     signIn: 'تسجيل الدخول', signUp: 'إنشاء الحساب', working: 'لحظة…',
     contractorNote: 'مقاول؟ التسجيل للمقاولين يتم عبر', contractorLink: 'طلب الانضمام',
-    forgot: 'نسيت كلمة المرور؟', forgotLink: 'راسلنا ونساعدك',
+    forgot: 'نسيت كلمة المرور؟', forgotLink: 'أعد تعيينها', forgotTitle: 'إعادة تعيين كلمة المرور', forgotLede: 'اكتب بريدك الإلكتروني ونرسل لك رابطًا لاختيار كلمة مرور جديدة.', forgotSend: 'أرسل الرابط',
+    forgotSent: 'إذا كان هذا البريد مسجّلًا لدينا فستصلك رسالة خلال دقائق فيها رابط لاختيار كلمة مرور جديدة. تحقق من البريد غير المرغوب أيضًا.', backToSignIn: 'العودة لتسجيل الدخول',
+    newPassTitle: 'اختر كلمة مرور جديدة', newPassLede: 'اكتب كلمة المرور الجديدة لحسابك.', newPassSave: 'حفظ كلمة المرور',
     confirmSent: 'أرسلنا رسالة تأكيد إلى بريدك. افتح الرابط الذي فيها ثم سجّل دخولك.',
     err: {
       email: 'اكتب بريدًا إلكترونيًا صحيحًا.', password: 'كلمة المرور 8 أحرف على الأقل.',
@@ -26,7 +28,7 @@ export const PLATFORM_COPY = {
       title: 'اكتب عنوانًا للمشروع (3 أحرف على الأقل).', desc: 'صف المشروع بجملة على الأقل.', budget: 'اكتب ميزانية صحيحة: الحد الأدنى لا يتجاوز الأعلى، والأعلى لا يتجاوز 1,000,000 ريال.',
     },
     posted: 'نُشر مشروعك. يراجعه فريق ترميم ويتواصل معك على جوالك خلال يوم عمل.',
-    postedNoBids: 'استلمنا مشروعك. يراجعه فريق ترميم ويتواصل معك على جوالك خلال يوم عمل. ستظهر عروض المقاولين الموثّقين هنا فور وصولها.',
+    postedNoBids: 'نُشر مشروعك ويراه المقاولون الموثّقون الآن. تظهر عروضهم هنا فور وصولها، ويصلك تنبيه عند الجرس أعلى الصفحة.',
     publish: 'نشر المشروع',
     contactSent: 'وصلتنا رسالتك. نرد عليك خلال يوم عمل.', contactFailed: 'تعذّر إرسال الرسالة. حاول مجددًا.',
     verifiedMessage: (person: string, company: string, link: string, hasAccount: boolean) => hasAccount
@@ -34,6 +36,8 @@ export const PLATFORM_COPY = {
       : `مرحبًا ${person}، معك فريق ترميم.\nتم قبول طلب «${company}». لإكمال التسجيل أنشئ حسابك من صفحة انضمام المقاولين:\n${link.replace('/signin', '/join')}`,
     coPendingTitle: 'حسابك قيد التوثيق', coPendingNote: 'استلمنا طلبك وأنشأنا حسابك. يراجع فريق ترميم بياناتك ويتواصل معك على جوالك، وتصلك رسالة واتساب فور تفعيل الحساب. بعدها تظهر لك المشاريع المفتوحة هنا.',
     choseNote: 'اخترت عرض «{co}». يتواصل فريق ترميم معك ومع المقاول لإتمام الاتفاقية وبدء العمل.', chosenNote: 'اختار صاحب المنزل عرضك. يتواصل معك فريق ترميم لإتمام الاتفاقية وبدء العمل.',
+    paySoonTitle: 'الدفع عبر الموقع قيد التفعيل', paySoonNote: 'وقّع الطرفان الاتفاقية، وهي محفوظة باسميكما وتاريخ التوقيع. يتواصل فريق ترميم معكما لترتيب الدفعة الأولى وبدء العمل. عند تفعيل الدفع عبر الموقع تُودَع الدفعات هنا وتُصرف مع اعتماد كل مرحلة.', refresh: 'تحديث',
+    stagesSoon: 'تبدأ المراحل بعد ترتيب الدفعة الأولى. اعتماد المراحل وصرف دفعاتها عبر الموقع يُفعَّل مع الدفع.',
     coRefresh: 'تحديث الحالة', bidsSoonTitle: 'تقديم العروض يفتح قريبًا', bidsSoonNote: 'حسابك موثّق ويمكنك تصفّح المشاريع المفتوحة. تقديم العروض من الموقع قيد الإطلاق؛ إلى ذلك الحين راسل فريق ترميم بشأن المشروع الذي يهمّك.',
     coPassword: 'اختر كلمة مرور لحسابك', coEmailNeeded: 'اكتب بريدك الإلكتروني: به تسجّل دخولك بعد التوثيق.', coCreate: 'إرسال الطلب وإنشاء الحساب',
     uploading: 'جارٍ رفع الملفات…', uploadFailed: 'تعذّر رفع هذا الملف. حاول مجددًا من تبويب الملفات.',
@@ -41,7 +45,7 @@ export const PLATFORM_COPY = {
     joinSent: 'وصلنا طلبك. يتواصل معك فريق ترميم لاستكمال التوثيق.', joinSend: 'إرسال الطلب', inbox: 'الوارد', inboxOpen: 'افتح الوارد: المشاريع والطلبات والرسائل ←',
   },
   en: {
-    notice: 'Early access: post your project here and the Tarmem team contacts you directly. Contractor bids and payments on the site are on the way.',
+    notice: 'Early access: post your project, receive bids from verified contractors, and sign the agreement on the site. Payment on the site is being set up.',
     signInTitle: 'Sign in', signUpTitle: 'Create your account',
     signInLede: 'Use your email and password to follow your projects.',
     signUpLede: 'One account to post and follow your projects. It takes a minute.',
@@ -51,7 +55,9 @@ export const PLATFORM_COPY = {
     agree: 'I agree to the', terms: 'Terms', and: 'and', privacy: 'Privacy Policy',
     signIn: 'Sign in', signUp: 'Create account', working: 'One moment…',
     contractorNote: 'A contractor? Contractors join through the', contractorLink: 'application form',
-    forgot: 'Forgot your password?', forgotLink: 'Message us and we will help',
+    forgot: 'Forgot your password?', forgotLink: 'Reset it', forgotTitle: 'Reset your password', forgotLede: 'Enter your email and we will send you a link to choose a new password.', forgotSend: 'Send the link',
+    forgotSent: 'If this email has an account, a message with a link to choose a new password arrives within minutes. Check your spam folder too.', backToSignIn: 'Back to sign in',
+    newPassTitle: 'Choose a new password', newPassLede: 'Enter the new password for your account.', newPassSave: 'Save password',
     confirmSent: 'We sent a confirmation email. Open the link in it, then sign in.',
     err: {
       email: 'Enter a valid email address.', password: 'The password needs at least 8 characters.',
@@ -63,7 +69,7 @@ export const PLATFORM_COPY = {
       title: 'Give the project a title (at least 3 characters).', desc: 'Describe the project in at least a sentence.', budget: 'Enter a valid budget: the minimum cannot exceed the maximum, and the maximum cannot exceed SAR 1,000,000.',
     },
     posted: 'Your project is posted. Tarmem\'s team reviews it and contacts you on your mobile within one working day.',
-    postedNoBids: 'We have your project. Tarmem\'s team reviews it and contacts you on your mobile within one working day. Bids from verified contractors will appear here as they arrive.',
+    postedNoBids: 'Your project is posted and verified contractors can see it now. Their bids appear here as they arrive, and the bell at the top of the page tells you.',
     publish: 'Post project',
     contactSent: 'We have your message. We reply within one working day.', contactFailed: 'The message could not be sent. Please try again.',
     verifiedMessage: (person: string, company: string, link: string, hasAccount: boolean) => hasAccount
@@ -71,6 +77,8 @@ export const PLATFORM_COPY = {
       : `Hello ${person}, this is the Tarmem team.\n${company}'s application is accepted. To finish, create your account on the contractor page:\n${link.replace('/signin', '/join')}`,
     coPendingTitle: 'Your account is being verified', coPendingNote: 'We have your application and your account is created. The Tarmem team reviews your details and contacts you on your mobile; you get a WhatsApp message the moment the account is live. Open projects then appear here.',
     choseNote: 'You chose the bid from {co}. The Tarmem team will contact you and the contractor to complete the agreement and start the work.', chosenNote: 'The homeowner chose your bid. The Tarmem team will contact you to complete the agreement and start the work.',
+    paySoonTitle: 'Payment on the site is being set up', paySoonNote: 'Both sides have signed the agreement; it is saved with your names and the time of each signature. The Tarmem team will contact you both to arrange the first payment and start the work. Once payment on the site is live, payments are made here and released as each stage is approved.', refresh: 'Refresh',
+    stagesSoon: 'Stages start once the first payment is arranged. Approving stages and releasing their payments on the site goes live together with payment.',
     coRefresh: 'Check again', bidsSoonTitle: 'Bidding opens soon', bidsSoonNote: 'Your account is verified and you can browse open projects. Bidding on the site is about to launch; until then, message the Tarmem team about a project you want.',
     coPassword: 'Choose a password for your account', coEmailNeeded: 'Enter your email: you sign in with it once verified.', coCreate: 'Send application and create account',
     uploading: 'Uploading files…', uploadFailed: 'This file could not be uploaded. Try again from the Files tab.',

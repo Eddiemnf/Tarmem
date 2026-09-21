@@ -11,8 +11,11 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const jwt = (sub) => `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.test`;
 const subOf = (header) => { try { return JSON.parse(Buffer.from(String(header || '').split('.')[1], 'base64url').toString()).sub || null; } catch { return null; } };
 
+/** A signed-in session for `userId`, as the fragment a "reset your password" email link carries. */
+export const recoveryFragment = (userId) => `#access_token=${jwt(userId)}&refresh_token=refresh-${userId}&expires_in=3600&token_type=bearer&type=recovery`;
+
 export async function installSupabaseMock(context, supabaseUrl) {
-  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], refused: [], unknown: [] };
+  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], agreements: [], refused: [], unknown: [] };
   let nextCode = 2001;
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
   const send = (route, status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
@@ -47,6 +50,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
       return user ? send(route, 200, session(user)) : send(route, 400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
     }
     if (path === '/auth/v1/logout') return route.fulfill({ status: 204, headers: cors });
+    if (path === '/auth/v1/recover' && method === 'POST') { (db.recoveries ||= []).push({ email: body.email, redirect: url.searchParams.get('redirect_to') }); return send(route, 200, {}); }
+    if (path === '/auth/v1/user' && method === 'PUT') { const user = db.users.find((u) => u.id === me); if (!user) return send(route, 401, { msg: 'no session' }); if (body.password) user.password = body.password; return send(route, 200, publicUser(user)); }
     if (path === '/auth/v1/user') { const user = db.users.find((u) => u.id === me); return user ? send(route, 200, publicUser(user)) : send(route, 401, { msg: 'no session' }); }
 
     const admin = db.profiles.some((p) => p.id === me && p.role === 'admin');
@@ -95,6 +100,24 @@ export async function installSupabaseMock(context, supabaseUrl) {
       }
     }
     const isVerified = (id) => db.profiles.some((p) => p.id === id && p.role === 'contractor') && db.applications.some((a) => a.user_id === id && a.status === 'verified');
+    if (path === '/rest/v1/agreements') return rows(db.agreements.filter((a) => admin || a.homeowner_id === me || a.contractor_id === me));
+    if (path === '/rest/v1/rpc/sign_agreement_homeowner' && method === 'POST') {
+      const bid = db.bids.find((b) => b.id === body.p_bid && b.status !== 'withdrawn');
+      const project = bid && db.projects.find((p) => p.id === bid.project_id && p.owner_id === me && p.status === 'open');
+      if (!project || db.agreements.some((a) => a.project_id === project.id && a.contractor_signed_at)) return refuse(route, 'agreement: not yours to sign');
+      for (const b of db.bids) if (b.project_id === project.id) b.status = b.id === bid.id ? 'chosen' : b.status === 'chosen' ? 'submitted' : b.status;
+      db.agreements = db.agreements.filter((a) => a.project_id !== project.id);
+      const row = { project_id: project.id, bid_id: bid.id, homeowner_id: me, contractor_id: bid.contractor_id, amount: bid.price, days: bid.days, homeowner_name: db.profiles.find((p) => p.id === me).full_name, homeowner_signed_at: new Date().toISOString(), contractor_name: null, contractor_signed_at: null };
+      db.agreements.push(row);
+      return send(route, 200, row);
+    }
+    if (path === '/rest/v1/rpc/sign_agreement_contractor' && method === 'POST') {
+      const row = db.agreements.find((a) => a.project_id === body.p_project && a.contractor_id === me);
+      if (!row) return refuse(route, 'agreement: nothing here for you to sign');
+      Object.assign(row, { contractor_name: db.applications.find((a) => a.user_id === me)?.company || '', contractor_signed_at: new Date().toISOString() });
+      Object.assign(db.projects.find((p) => p.id === row.project_id), { status: 'active', contractor_id: me, amount: row.amount });
+      return send(route, 200, row);
+    }
     if (path === '/rest/v1/verified_contractors') return rows(me ? db.applications.filter((a) => a.status === 'verified' && a.user_id).map((a) => ({ user_id: a.user_id, company: a.company, city: a.city, trades: a.trades, since: '2026-09-21' })) : []);
     if (path === '/rest/v1/bids') {
       const mayRead = (b) => admin || b.contractor_id === me || db.projects.some((p) => p.id === b.project_id && p.owner_id === me);
