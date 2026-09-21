@@ -9,6 +9,7 @@ import PlanPage from './pages/PlanPage';
 import HowPage from './pages/HowPage';
 import PricingPage from './pages/PricingPage';
 import AboutPage from './pages/AboutPage';
+import HelpPage from './pages/HelpPage';
 import FaqPage from './pages/FaqPage';
 import AuthPage from './pages/AuthPage';
 import ContractorsPage from './pages/ContractorsPage';
@@ -33,6 +34,7 @@ export type Route =
   | 'how'
   | 'pricing'
   | 'about'
+  | 'help'
   | 'faq'
   | 'auth'
   | 'contractors'
@@ -57,6 +59,7 @@ export const PAGES: Record<Route, ComponentType<{ vm: VM }>> = {
   how: HowPage,
   pricing: PricingPage,
   about: AboutPage,
+  help: HelpPage,
   faq: FaqPage,
   auth: AuthPage,
   contractors: ContractorsPage,

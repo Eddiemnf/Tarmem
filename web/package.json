@@ -10,7 +10,8 @@
     "lint": "oxlint",
     "typecheck": "tsc -b --noEmit false --pretty",
     "sync:template": "python3 tools/convert-template.py",
-    "test:flows": "node tests/flows.mjs"
+    "test:flows": "node tests/flows.mjs",
+    "test:parity": "node tests/parity.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

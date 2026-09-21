@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
-"""Convert the Claude Design prototype template into React components.
+"""Regenerate the app from the Claude Design prototype.
 
-The prototype (../project/Tarmem.dc.html) renders through Claude Design's own
-runtime: `<sc-if>` / `<sc-for>` elements and `{{ expr }}` bindings against the
-object returned by `renderVals()`. That object is ported by hand to
-`src/state/viewModel.ts`; this script ports the *markup* mechanically so no
-class, inline style or attribute drifts during transcription.
+The prototype (../project/Tarmem.dc.html) is one file: a stylesheet, a template
+of `<sc-if>` / `<sc-for>` elements with `{{ expr }}` bindings, and one logic
+class whose `renderVals()` returns the object those bindings resolve against.
+Everything the design owns is carried over mechanically, so nothing drifts in
+transcription:
 
-Run from web/:  python3 tools/convert-template.py
+  template   -> src/pages/*, src/components/{Header,Footer,...}.tsx, src/routes.ts
+  <style>    -> src/styles/global.css   (app-only rules below the marker are kept)
+  logic      -> src/state/designLogic.generated.ts
+  i18n/data  -> src/data/tarmem-data.ts (from ../project/tarmem-i18n.js)
+  photo drops-> src/data/image-slots.generated.ts + public/assets/slots/
+
+The logic class runs on the small host in `src/state/designRuntime.ts`, which
+mirrors the prototype runtime's contract (props, state, setState, lifecycle).
+The few places where a deployed site must differ from the prototype are the
+named LOGIC_PATCHES below; each must match or the run fails loudly.
+
+Run from web/:  python3 tools/convert-template.py   (npm run sync:template)
 """
 from __future__ import annotations
 
@@ -17,9 +28,11 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB = os.path.dirname(HERE)
-DESIGN = os.path.join(os.path.dirname(WEB), "project", "Tarmem.dc.html")
+PROJECT = os.path.join(os.path.dirname(WEB), "project")
+DESIGN = os.path.join(PROJECT, "Tarmem.dc.html")
+I18N = os.path.join(PROJECT, "tarmem-i18n.js")
 
-VOID = {"img", "input", "br", "hr", "path", "circle", "rect", "source", "col", "meta", "link"}
+VOID = {"img", "input", "br", "hr", "path", "circle", "rect", "source", "col", "meta", "link", "stop", "line", "polyline", "ellipse"}
 # Attributes React spells differently from HTML.
 ATTR_MAP = {
     "class": "className",
@@ -30,13 +43,28 @@ ATTR_MAP = {
     "stroke-dasharray": "strokeDasharray",
     "fill-rule": "fillRule",
     "clip-rule": "clipRule",
+    "stop-color": "stopColor",
+    "stop-opacity": "stopOpacity",
+    "stroke-dashoffset": "strokeDashoffset",
+    "stroke-miterlimit": "strokeMiterlimit",
+    "stroke-opacity": "strokeOpacity",
+    "fill-opacity": "fillOpacity",
+    "tabindex": "tabIndex",
+    "inputmode": "inputMode",
+    "readonly": "readOnly",
+    "maxlength": "maxLength",
+    "minlength": "minLength",
+    "autocomplete": "autoComplete",
+    "colspan": "colSpan",
+    "rowspan": "rowSpan",
     "credit-href": "creditHref",
 }
 DROP_ATTRS = {"hint-placeholder-count", "hint-placeholder-val"}
 # React types these as numbers, so a literal must not be emitted as a string.
-NUMERIC_ATTRS = {"maxLength", "minLength", "rows", "cols", "size", "span", "tabIndex"}
+NUMERIC_ATTRS = {"maxLength", "minLength", "rows", "cols", "size", "span", "tabIndex", "colSpan", "rowSpan"}
 # `multiple=""` in HTML means true; React wants the bare prop.
-BOOLEAN_ATTRS = {"multiple", "disabled", "checked", "readOnly", "required", "hidden", "autoFocus"}
+BOOLEAN_ATTRS = {"multiple", "disabled", "checked", "readOnly", "required", "hidden", "autoFocus",
+                 "autoPlay", "muted", "loop", "playsInline", "controls"}
 IDENT = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
 LITERALS = {"true", "false", "null", "undefined"}
 
@@ -153,34 +181,25 @@ def css_prop(name: str) -> str:
 
 """Deliberate departures from the design file's inline styles.
 
-Both are fixed heights left behind by dragging elements in the visual editor, on
-boxes that hold copy. They fit the Arabic text and clip the longer English, so
-each becomes a minimum instead: Arabic renders identically, English stops
+A fixed height left behind by dragging an element in the visual editor, on a box
+that holds copy. It fits the Arabic text and clips the longer English, so it
+becomes a minimum instead: Arabic renders identically, English stops
 overlapping. Keyed by the exact declaration so a design change surfaces here.
 """
 STYLE_FIXUPS = {
     "height: 519px": ("minHeight", "519px"),  # home: the two audience panels
-    "height: 73px": ("minHeight", "73px"),    # home: the contractor panel heading
 }
 _fixups_applied: set[str] = set()
 
-"""Sections of the design file that a hand-written component now renders.
+"""Sections of the design file that a hand-written component renders instead.
 
-The landing page's hero comes from a separate approved export (the Saudi villa
-construction film) that never existed in the Claude Design file, so the
-generator swaps the old hero section for that component. The assistant bar used
-to live inside that section and is kept alongside it, otherwise the planning
-workspace would lose its only entry point.
-
-Matched on a descendant's class so this survives edits to the section itself.
+Empty today. Until the September 2026 design the landing-page hero (the villa
+construction film) lived outside the design file and was swapped in here; the
+design now carries that hero itself, so nothing is replaced. The mechanism stays
+for the next section that has to be hand-built: map a marker class on one of the
+section's descendants to (JSX, [import lines]).
 """
-NODE_REPLACEMENTS = {
-    "v-hero-g": (
-        "<TarmemHero vm={vm} />\n    <AssistantBar vm={vm} />",
-        ["import AssistantBar from '../components/AssistantBar';",
-         "import TarmemHero from '../components/TarmemHero/TarmemHeroSection';"],
-    ),
-}
+NODE_REPLACEMENTS: dict[str, tuple[str, list[str]]] = {}
 _replacements_applied: set[str] = set()
 
 
@@ -287,13 +306,15 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
         if name in DROP_ATTRS:
             continue
         prop = ATTR_MAP.get(name, name)
-        if value is None or (prop in BOOLEAN_ATTRS and value == ""):
+        if value is None or (prop in BOOLEAN_ATTRS and value in ("", "true", name)):
             props.append(f"{prop}")
+        elif prop in BOOLEAN_ATTRS and value == "false":
+            props.append(f"{prop}={{false}}")
         elif prop == "style":
             props.append(f"style={style_object(scope, value)}")
         elif "{{" in value:
             props.append(f"{prop}={{{interpolate(scope, value)}}}")
-        elif prop in NUMERIC_ATTRS and re.fullmatch(r"\d+", value):
+        elif prop in NUMERIC_ATTRS and re.fullmatch(r"-?\d+", value):
             props.append(f"{prop}={{{value}}}")
         else:
             props.append(f'{prop}="{value}"')
@@ -309,6 +330,25 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
 
 
 # --------------------------------------------------------------------------- file writing
+
+"""Assets the site serves in a lighter form than the design carries them.
+
+The design's ten trade photographs are 2-3 MB PNG placeholders (24 MB on the
+landing page). `public/assets/trades/NN.jpg` holds 900px JPEG copies made by
+tools/optimize-assets.sh, so references are pointed at those. Applied to the
+generated pages here and to the logic's computed paths via LOGIC_PATCHES.
+"""
+ASSET_REWRITES = [(re.compile(r"(assets/trades/\d\d)\.png"), r"\1.jpg")]
+_asset_rewrites_applied = 0
+
+
+def rewrite_assets(code: str) -> str:
+    global _asset_rewrites_applied
+    for pattern, replacement in ASSET_REWRITES:
+        code, n = pattern.subn(replacement, code)
+        _asset_rewrites_applied += n
+    return code
+
 
 BANNER = """/* Generated from ../../project/Tarmem.dc.html by tools/convert-template.py.
    Edit the design file and re-run the converter, or edit here and keep both in
@@ -340,8 +380,161 @@ def render(nodes: list[Node]) -> str:
     return emit_children(nodes, Scope(), 2)
 
 
+# --------------------------------------------------------------------------- stylesheet, data, logic
+
+GENERATED = "Generated from ../../project/{name} by tools/convert-template.py — do not edit by hand."
+
+CSS_KEEP_MARKER = "/* ==== app-only styles below — kept by tools/convert-template.py ==== */"
+
+
+def sync_css(src: str) -> str:
+    """The design's <style> block, verbatim, plus whatever app-only rules follow the marker."""
+    helmet = src[src.index("<helmet>"):src.index("</helmet>")]
+    css = helmet[helmet.index("<style>") + len("<style>"):helmet.index("</style>")].strip("\n")
+    path = os.path.join(WEB, "src", "styles", "global.css")
+    old = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+    tail = old[old.index(CSS_KEEP_MARKER) + len(CSS_KEEP_MARKER):] if CSS_KEEP_MARKER in old else "\n"
+    out = (
+        "/* Tarmem global stylesheet.\n"
+        "   " + GENERATED.format(name="Tarmem.dc.html") + "\n"
+        "   Everything above the app-only marker is the design's <style> block, verbatim. */\n\n"
+        + css + "\n\n" + CSS_KEEP_MARKER + tail
+    )
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(out)
+    return "styles/global.css"
+
+
+def sync_data() -> str:
+    """The design's string table and seed data, verbatim, as the app's data module."""
+    body = open(I18N, encoding="utf-8").read()
+    if "export const T" not in body:
+        raise SystemExit("tarmem-i18n.js no longer exports T — check the design export")
+    out = (
+        "// @ts-nocheck — a verbatim copy of the design's data module; the design file is its source of truth.\n"
+        "/* " + GENERATED.format(name="tarmem-i18n.js") + "\n"
+        "   Seed data and all approved Arabic/English copy. Change wording in the design's\n"
+        "   string table (both languages), then re-run the converter. */\n\n"
+        + body
+    )
+    with open(os.path.join(WEB, "src", "data", "tarmem-data.ts"), "w", encoding="utf-8") as fh:
+        fh.write(out)
+    return "data/tarmem-data.ts"
+
+
+"""Where the deployed site has to differ from the prototype's logic.
+
+Each entry is (why, exact text in the design's script, replacement, expected
+count). A patch that stops matching means the design changed underneath it, so
+the run fails rather than silently shipping the prototype behaviour.
+"""
+LOGIC_PATCHES = [
+    ("the data module is bundled, not fetched at runtime",
+     "const m = await import('./tarmem-i18n.js');",
+     "const m = D;", 1),
+    ("the assistant talks to VITE_AI_ENDPOINT — no model key may sit in client code",
+     "window.claude.complete(",
+     "claude.complete(", 2),
+    ("say plainly when no assistant endpoint is configured, instead of a generic failure",
+     "error:T.ai.err}",
+     "error:aiErrorText(e, this.state.lang, T.ai.err)}", 2),
+    ("the design declares componentWillUnmount twice, so its first one (timers, video and\n"
+     "     parallax listeners) is silently overridden; React does unmount here, so run both",
+     "  componentWillUnmount(){ clearInterval(this._live);",
+     "  _unmountTimers(){ clearInterval(this._live);", 1),
+    ("... and call the renamed cleanup from the surviving componentWillUnmount",
+     "  componentWillUnmount(){ clearTimeout(this._onl);",
+     "  componentWillUnmount(){ this._unmountTimers(); clearTimeout(this._onl);", 1),
+    ("trade photographs are served as optimised JPEGs (see ASSET_REWRITES)",
+     ".padStart(2,'0')+'.png'",
+     ".padStart(2,'0')+'.jpg'", 2),
+]
+
+
+def sync_logic(src: str) -> str:
+    """The design's logic class, verbatim apart from LOGIC_PATCHES, as an ES module."""
+    start = src.index("<script", src.index("</x-dc>"))
+    body = src[src.index(">", start) + 1:src.rindex("</script>")]
+    if "class Component extends DCLogic" not in body:
+        raise SystemExit("the design's script no longer defines `class Component extends DCLogic`")
+    for why, old, new, count in LOGIC_PATCHES:
+        found = body.count(old)
+        if found != count:
+            raise SystemExit(f"LOGIC_PATCHES no longer match the design file ({found}/{count}): {why}")
+        body = body.replace(old, new)
+    out = (
+        "// @ts-nocheck — the design's own logic class, carried over verbatim; see tools/convert-template.py.\n"
+        "/* " + GENERATED.format(name="Tarmem.dc.html") + "\n"
+        "   Behaviour changes belong in the design file. The deliberate differences from the\n"
+        "   prototype are the LOGIC_PATCHES listed in the converter. */\n"
+        "/* oxlint-disable */\n"
+        "import * as D from '../data/tarmem-data';\n"
+        "import { DCLogic, aiErrorText, claude } from './designRuntime';\n"
+        + body.rstrip() + "\n\nexport default Component;\n"
+    )
+    with open(os.path.join(WEB, "src", "state", "designLogic.generated.ts"), "w", encoding="utf-8") as fh:
+        fh.write(out)
+    return "state/designLogic.generated.ts"
+
+
+"""Image slots the designer filled by dropping a photo onto them.
+
+Claude Design keeps those in a sidecar next to the design file. Only slots the
+current template can still produce are carried over — contractor cards, whose id
+is `img-<contractor id>` — so stale drops from earlier designs stay out of the
+site. A visitor's own drop (kept in their browser) still wins over these.
+"""
+SLOT_SIDECAR = os.path.join(PROJECT, ".image-slots.state.json")
+SLOT_PREFIXES = ("img-",)
+SLOT_TYPES = {"image/webp": "webp", "image/png": "png", "image/jpeg": "jpg"}
+
+
+def sync_image_slots() -> str:
+    import base64
+    import json
+    slots = json.load(open(SLOT_SIDECAR, encoding="utf-8")) if os.path.exists(SLOT_SIDECAR) else {}
+    out_dir = os.path.join(WEB, "public", "assets", "slots")
+    os.makedirs(out_dir, exist_ok=True)
+    for stale in os.listdir(out_dir):
+        os.remove(os.path.join(out_dir, stale))
+    entries = []
+    for slot_id in sorted(slots):
+        if not slot_id.startswith(SLOT_PREFIXES):
+            continue
+        match = re.match(r"data:([\w/+.-]+);base64,(.*)$", slots[slot_id].get("u") or "", re.S)
+        if not match or match.group(1) not in SLOT_TYPES:
+            continue
+        name = f"{slot_id}.{SLOT_TYPES[match.group(1)]}"
+        with open(os.path.join(out_dir, name), "wb") as fh:
+            fh.write(base64.b64decode(match.group(2)))
+        entries.append(f"  '{slot_id}': 'assets/slots/{name}',")
+    body = (
+        "/* " + GENERATED.format(name=".image-slots.state.json") + "\n"
+        "   Photographs the designer dropped onto image slots; ImageSlot shows them until a\n"
+        "   visitor drops their own. The files live in public/assets/slots/. */\n\n"
+        "export const FILLED_SLOTS: Record<string, string> = {\n" + "\n".join(entries) + "\n};\n"
+    )
+    with open(os.path.join(WEB, "src", "data", "image-slots.generated.ts"), "w", encoding="utf-8") as fh:
+        fh.write(body)
+    return "data/image-slots.generated.ts"
+
+
+def sync_fonts(src: str) -> None:
+    """index.html must load the same font families the design's <helmet> asks for."""
+    helmet = src[src.index("<helmet>"):src.index("</helmet>")]
+    wanted = sorted(set(re.findall(r"family=([A-Za-z+]+)", helmet)))
+    index = open(os.path.join(WEB, "index.html"), encoding="utf-8").read()
+    missing = [f for f in wanted if f"family={f}" not in index]
+    if missing:
+        raise SystemExit(f"index.html does not load fonts the design uses: {missing}")
+
+
+# --------------------------------------------------------------------------- main
+
 def main() -> None:
     src = open(DESIGN, encoding="utf-8").read()
+    if "omelette-injected" in src:
+        raise SystemExit("project/Tarmem.dc.html carries Claude Design's preview script — export the clean file")
     tpl = src[src.index("</helmet>") + len("</helmet>"):src.index("</x-dc>")]
     tree = parse(tpl)
     root = next(n for n in tree if isinstance(n, Element) and n.tag == "div")
@@ -354,7 +547,7 @@ def main() -> None:
 
     def write(path: str, name: str, nodes: list[Node]) -> None:
         body = render(nodes)
-        code = component(name, body, "<ImageSlot" in body)
+        code = rewrite_assets(component(name, body, "<ImageSlot" in body))
         full = os.path.join(WEB, "src", path)
         os.makedirs(os.path.dirname(full), exist_ok=True)
         with open(full, "w", encoding="utf-8") as fh:
@@ -364,22 +557,39 @@ def main() -> None:
     write("components/Header.tsx", "Header", [header])
     write("components/Footer.tsx", "Footer", [footer])
 
+    # Whatever else sits beside <header>, <main> and <footer> (the fixed-header spacer,
+    # the WhatsApp button). Each keeps its own condition; App.tsx renders them between
+    # the header and <main>, where the design has them.
+    elements = [n for n in root.children if isinstance(n, Element)]
+    between = elements[elements.index(header) + 1:elements.index(main_el)]
+    stray = [n for n in elements if n not in between and n not in (header, main_el, footer)]
+    if stray:
+        raise SystemExit(f"root-level blocks outside header..main: {[n.tag for n in stray]}")
+    write("components/ShellBlocks.tsx", "ShellBlocks", between)
+
     routes: dict[str, str] = {
         "home": "HomePage", "plan": "PlanPage", "how": "HowPage", "pricing": "PricingPage",
-        "about": "AboutPage", "faq": "FaqPage", "auth": "AuthPage", "contractors": "ContractorsPage",
+        "about": "AboutPage", "help": "HelpPage", "faq": "FaqPage", "auth": "AuthPage",
+        "contractors": "ContractorsPage",
         "settings": "SettingsPage", "wallet": "WalletPage", "homeowner": "HomeownerProfilePage",
         "contractor": "ContractorProfilePage", "post": "PostProjectPage", "hdash": "HomeownerDashboardPage",
         "cdash": "ContractorDashboardPage", "browse": "BrowseProjectsPage", "project": "ProjectPage",
         "admin": "AdminPage", "rules": "RulesPage", "terms": "TermsPage", "privacy": "PrivacyPage",
         "contact": "ContactPage",
     }
+    # Blocks inside <main> that are not pages. App.tsx renders each one; the component
+    # carries its own condition, so the shell never restates the design's logic.
     extras = {"hed.open": ("components/HomeownerEditModal.tsx", "HomeownerEditModal"),
               "ed.open": ("components/ContractorEditModal.tsx", "ContractorEditModal"),
+              "giftOpen": ("components/GiftModal.tsx", "GiftModal"),
               "showBack": ("components/BackLink.tsx", "BackLink")}
 
     seen_routes = []
+    seen_extras = []
     for child in main_el.children:
         if not isinstance(child, Element) or child.tag != "sc-if":
+            if isinstance(child, Element):
+                raise SystemExit(f"unexpected <{child.tag}> directly inside <main>")
             continue
         cond = dict(child.attrs)["value"]
         key = re.sub(r"[{}\s]", "", cond)
@@ -391,13 +601,17 @@ def main() -> None:
             seen_routes.append(route)
         elif key in extras:
             path, name = extras[key]
-            write(path, name, child.children)
+            write(path, name, [child])
+            seen_extras.append(key)
         else:
             raise SystemExit(f"unmapped top-level block: {key}")
 
     missing = set(routes) - set(seen_routes)
     if missing:
         raise SystemExit(f"routes in the map that the template never defines: {missing}")
+    missing_extras = set(extras) - set(seen_extras)
+    if missing_extras:
+        raise SystemExit(f"blocks in the map that the template never defines: {missing_extras}")
 
     # A routing table so App.tsx stays declarative.
     lines = [BANNER, "import type { ComponentType } from 'react';",
@@ -419,6 +633,15 @@ def main() -> None:
     unmatched = set(NODE_REPLACEMENTS) - _replacements_applied
     if unmatched:
         raise SystemExit(f"NODE_REPLACEMENTS no longer match the design file: {sorted(unmatched)}")
+
+    if not _asset_rewrites_applied:
+        raise SystemExit("ASSET_REWRITES matched nothing — the design no longer references assets/trades/NN.png")
+
+    written.append(sync_css(src))
+    written.append(sync_data())
+    written.append(sync_logic(src))
+    written.append(sync_image_slots())
+    sync_fonts(src)
 
     print(f"wrote {len(written) + 1} files:")
     for path in written:

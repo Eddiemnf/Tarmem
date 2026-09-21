@@ -5,10 +5,13 @@
    here so contractor cards, portfolios and the About page can be filled with
    real imagery: click or drop a file, and it persists per browser.
 
-   When real photography ships, point `src` at the asset and the slot renders
-   it directly — the drop behaviour is then just an editing convenience. */
+   A slot the designer already filled in Claude Design shows that photograph
+   (see data/image-slots.generated.ts). When real photography ships, point `src`
+   at the asset and the slot renders it directly — the drop behaviour is then
+   just an editing convenience. */
 
 import { useCallback, useRef, useState, type CSSProperties } from 'react';
+import { FILLED_SLOTS } from '../data/image-slots.generated';
 
 const STORAGE_PREFIX = 'tarmem-image-slot:';
 
@@ -61,7 +64,8 @@ export function ImageSlot({
     reader.readAsDataURL(file);
   }, [id]);
 
-  const image = stored || src;
+  // A visitor's own drop first, then an explicit src, then the photo the designer dropped in.
+  const image = stored || src || FILLED_SLOTS[id];
   const borderRadius = radius !== undefined ? `${radius}px` : RADII[shape];
 
   return (
@@ -78,6 +82,7 @@ export function ImageSlot({
         accept(e.dataTransfer.files?.[0]);
       }}
       title={placeholder}
+      data-image-slot={id}
       style={{
         position: 'relative', overflow: 'hidden', borderRadius, cursor: 'pointer',
         background: image ? 'transparent' : 'rgba(127,127,127,.08)',

@@ -5,17 +5,18 @@ import React from 'react';
 import type { VM } from '../state/viewModel';
 
 export default function Header({ vm }: { vm: VM }) {
-  return (<><header style={{ position: 'sticky', top: '0', zIndex: '20', background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #EEEDF5' }}>
+  return (<><header className="hdr" data-over={vm.overNav}>
     <div className="wrap" style={{ display: 'flex', alignItems: 'center', gap: '20px', minHeight: '72px', paddingBlock: '10px' }}>
-      <div className="brand" data-route="home" onClick={vm.go} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', marginInlineEnd: '14px' }}><img src="assets/tarmem-logo.png" alt="Tarmem" style={{ height: '40px', width: 'auto' }} /></div>
+      <div className="brand" data-route="home" onClick={vm.go} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', marginInlineEnd: '14px' }}><img className="lg-dark" src="assets/tarmem-logo.png" alt="Tarmem" style={{ height: '40px', width: 'auto' }} /><img className="lg-light" src="assets/tarmem-logo-white.png" alt="Tarmem" style={{ height: '40px', width: 'auto' }} /></div>
       <button className="burger" aria-expanded={vm.navOpenAttr} onClick={vm.toggleNav} aria-label="Menu"><span></span><span></span><span></span></button>
       
     {vm.isGuest ? (<>
-        <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: '24px', alignItems: 'center', marginInlineEnd: 'auto' }}>
+        <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: 'clamp(20px,2.4vw,40px)', alignItems: 'center', marginInline: 'auto' }}>
           <a className="lnk" data-route="how" aria-current={vm.cur.how} onClick={vm.go}>{vm.t.nav.how}</a>
           <a className="lnk" data-route="pricing" aria-current={vm.cur.pricing} onClick={vm.go}>{vm.t.nav.pricing}</a>
           <a className="lnk" data-route="faq" aria-current={vm.cur.faq} onClick={vm.go}>{vm.t.nav.faq}</a>
           <a className="lnk" data-route="about" aria-current={vm.cur.about} onClick={vm.go}>{vm.t.nav.about}</a>
+          <a className="lnk hide-over" data-route="help" aria-current={vm.cur.help} onClick={vm.go}>{vm.t.footer.help}</a>
           <span className="mobonly" style={{ width: '100%', height: '1px', background: '#EEEDF5' }}></span>
           <a className="lnk mobonly" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}</a>
           <a className="lnk mobonly" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>
@@ -47,10 +48,10 @@ export default function Header({ vm }: { vm: VM }) {
       <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
         
     {vm.isGuest ? (<>
-          <a className="ulnk deskonly" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>
-          <button className="langbtn" onClick={vm.toggleLang}>{vm.t.langSwitch}</button>
-          <button className="btn btn-s btn-sm deskonly" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}</button>
-          <button className="btn btn-p btn-sm" data-route="post" onClick={vm.go}>{vm.t.nav.post}</button>
+          <a className="ulnk deskonly hide-over" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>
+          <button className="langbtn hide-over" onClick={vm.toggleLang}>{vm.t.langSwitch}</button>
+          <button className="btn btn-s btn-sm deskonly join-over" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}<svg className="ph-ar join-ar" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></button>
+          <button className="btn btn-p btn-sm hide-over" data-route="post" onClick={vm.go}>{vm.t.nav.post}</button>
         </>) : null}
     
         
