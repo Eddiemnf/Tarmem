@@ -66,9 +66,12 @@ behind the same buttons.
 
 ## Where it stands — slice 1 (accounts and posting), 21 September 2026
 
-Built on the branch `platform-accounts-and-posting`, **not yet live**. It goes live only after the
-two owner steps below are done and the security test passes, because a site that offers sign-up
-before its database exists would fail for every visitor.
+**Live on www.tarmem.sa since 21 September 2026.** The owner ran the SQL and turned off "Confirm
+email"; the security test (`supabase/tests/rls.mjs`, 25 rules) passed against the real database before
+anything was published; after publishing, `test:platform` (26) and `test:launch` (20) passed against
+the live site. The security test left two accounts named `rls-test-…@tarmem.sa`, one withdrawn
+"RLS TEST" project, one message and one application in the database; delete them whenever convenient
+(Supabase → Authentication → Users, and the Table editor).
 
 What slice 1 does on the public site:
 
@@ -95,7 +98,7 @@ Tests: `npm run test:platform` (26 checks, in a browser, against a stand-in data
 nothing real), and `node ../supabase/tests/rls.mjs`, which proves the rules against the real database
 using only the public key.
 
-### Owner steps before it can go live
+### Owner steps (1 and 2 are done; 3 is still to do)
 
 1. Supabase → **SQL Editor** → paste `supabase/001_accounts_projects_forms.sql` → **Run**.
 2. Supabase → **Authentication → Sign In / Providers → Email** → turn **off** "Confirm email" → Save.
