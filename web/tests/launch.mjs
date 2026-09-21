@@ -138,7 +138,10 @@ await page.goto(BASE_URL + 'demo', { waitUntil: 'domcontentloaded' });
 await page.evaluate(() => localStorage.setItem('tarmem-state-v3', JSON.stringify({ route: 'auth' })));
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(600);
-check('the private demo at /demo still has the full product', (await page.locator('text=تصفّح المنصة بصفتك').count()) === 1 && (await page.locator('[role="note"]').count()) === 0);
+// Where a preview password is set (the live site) a stranger must meet the password screen instead.
+const demoLocked = (await page.locator('.gate').count()) === 1;
+const demoWhole = (await page.locator('text=تصفّح المنصة بصفتك').count()) === 1 && (await page.locator('[role="note"]').count()) === 0;
+check('the private demo at /demo still has the full product — or is locked behind the preview password', demoLocked || demoWhole, demoLocked ? 'locked' : 'open (no password set in this build)');
 
 // H — on a phone: no sideways scroll, and the menu button is on the screen, in both languages
 const phoneProblems = [];
