@@ -26,30 +26,40 @@ Layout and visual changes belong in Claude Design, not in the code:
 1. Open the project at claude.ai/design and make the changes there.
 2. Export the bundle, the same way the one in `project/` was produced.
 3. Replace `project/` with the new export.
-4. Run `npm run sync:template` in `web/`, then `npm run build` and check the site.
-5. Merge to `main`, which publishes it.
+4. Run `npm run sync:template` in `web/`. It regenerates the pages, the
+   stylesheet, the copy and the logic from the design file in one pass.
+5. `npm run build`, then with `npm run dev` running: `npm run test:parity` (the
+   app must render exactly what the design renders) and `npm run test:flows`.
+6. Merge to `main`, which publishes it.
 
-Two things to watch on that round trip:
+Things to watch on that round trip:
 
-- **The landing-page hero is not in the design file.** It comes from a separate
-  export and the generator substitutes it for the design's old hero section
-  (`NODE_REPLACEMENTS` in `web/tools/convert-template.py`). If a redesign renames
-  or removes that section the generator stops with an error rather than silently
-  dropping something — resolve it by deciding which hero should win.
+- **The generator stops rather than guess.** A new page needs one line in its
+  route map; a new kind of top-level block needs a name. It says which. The
+  same goes for the handful of places the site deliberately differs from the
+  prototype (`LOGIC_PATCHES`, `STYLE_FIXUPS`, `ASSET_REWRITES` in
+  `web/tools/convert-template.py`): if the design changes underneath one, the
+  run fails and names it.
 - **Editing copy inline in Claude Design writes one language only.** It replaces
   the bilingual placeholder with that literal text, so the other language stops
   updating. Change wording in both, or say what it should read and have it
   changed in the string file.
-
-Anything genuinely new — a section with behaviour, a new page — also needs
-wiring in `web/src/state/viewModel.ts`; the generator only carries markup.
+- **Export the file itself, not the preview of it.** Claude Design's preview
+  injects a script into the HTML it serves; the generator refuses a design file
+  that still carries it. Large files also exceed the design API's 256 KiB read
+  limit, so use the handoff download.
+- **New trade photographs need `web/tools/optimize-assets.sh`.** The design's
+  PNGs are 2-3 MB each; the site serves 900px JPEG copies.
 
 ## How the two relate
 
 `project/Tarmem.dc.html` is the approved design: every page, all Arabic and English copy, the
 fee structure, and the flows the business depends on. `web/` recreates it as a real app —
-markup generated from the design file, logic ported by hand, styling carried over verbatim.
+markup, styling, copy and logic all generated from the design file, so the two cannot drift.
 When the design changes, re-run `npm run sync:template` in `web/` and reconcile.
+
+`project/design_handoff_tarmem/README.md` is the designer's brief for whoever builds this
+for real: design tokens, the fee and escrow rules, terminology, and every screen.
 
 `project/` also carries two documents produced alongside the design: `Tarmem Launch Plan.dc.html`
 (what launching actually requires — payment licensing first) and `Tarmem UX Audit.dc.html`.

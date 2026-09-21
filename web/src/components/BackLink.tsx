@@ -5,6 +5,8 @@ import type { VM } from '../state/viewModel';
 
 export default function BackLink({ vm }: { vm: VM }) {
   return (<>
+    {vm.showBack ? (<>
     <div className="wrap" style={{ paddingBlock: '20px 0' }}><a className="lnk" onClick={vm.back} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12.5px', color: '#FF5A3C', cursor: 'pointer' }}><span aria-hidden="true" style={{ fontSize: '12px', lineHeight: '1' }}>{vm.backArrow}</span>{vm.backWord}</a></div>
-  </>);
+  </>) : null}
+    </>);
 }

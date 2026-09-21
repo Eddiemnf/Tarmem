@@ -17,7 +17,13 @@ export default function HomeownerProfilePage({ vm }: { vm: VM }) {
             
     {vm.hp.nafath ? (<><span className="tag tag-v">✓ {vm.t.hprofile.nafath}</span></>) : null}
     
+            
+    {vm.hp.hoMasked ? (<><span className="tag tag-n">{vm.t.hprofile.maskedAlt}</span></>) : null}
+    
           </div>
+          
+    {vm.hp.hoMasked ? (<><p className="muted" style={{ marginTop: '8px', fontSize: '12.5px', lineHeight: '1.7', maxWidth: '56ch' }}>{vm.hp.hoMaskNote}</p></>) : null}
+    
           <p className="muted num" style={{ marginTop: '10px', fontSize: '14px' }}>{vm.hp.city} · ★ {vm.hp.rating} ({vm.hp.reviews}) · {vm.hp.done} {vm.t.projectsWord} · {vm.t.hprofile.memberSince} {vm.hp.joined}</p>
         </div>
         
@@ -67,6 +73,9 @@ export default function HomeownerProfilePage({ vm }: { vm: VM }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: '600', color: '#1B1464', fontSize: '14.5px' }}>{rv.who}</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><span style={{ color: '#FF8800', letterSpacing: '1px' }}>{rv.stars}</span><span className="muted num" style={{ fontSize: '12px' }}>{rv.when}</span></span>
+            </div>
+            <div>
+              <span className="tag tag-v" style={{ fontSize: '10.5px', padding: '2px 8px' }}>✓ {rv.badge}</span>
             </div>
             <p style={{ fontSize: '14.5px', color: '#5B5A7A', lineHeight: '1.8' }}>{rv.text}</p>
           </div>

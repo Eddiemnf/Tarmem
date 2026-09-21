@@ -41,7 +41,44 @@ export default function RulesPage({ vm }: { vm: VM }) {
     
       </div>
     </section>
-    <section className="wrap" style={{ paddingBlock: '0 80px', maxWidth: '900px' }}>
+    <section className="wrap" style={{ paddingBlock: '24px 8px', maxWidth: '900px' }}>
+      <span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.pen.kicker}</span>
+      <h2 style={{ fontSize: 'clamp(24px,2.8vw,34px)', color: '#1B1464', margin: '12px 0 12px', textWrap: 'balance', lineHeight: '1.3' }}>{vm.t.pen.title}</h2>
+      <p style={{ fontSize: '15.5px', color: '#5B5A7A', lineHeight: '1.8', maxWidth: '62ch' }}>{vm.t.pen.intro}</p>
+      <div style={{ marginTop: '34px' }}>
+        <h3 style={{ fontSize: '19px', color: '#1B1464' }}>{vm.t.pen.ladderTitle}</h3>
+        <p className="muted" style={{ fontSize: '13px', margin: '6px 0 16px', lineHeight: '1.7' }}>{vm.t.pen.ladderSub}</p>
+        <div className="ladder">
+          
+    {((vm.t.pen.ladder) || []).map((L: any, _i0: number) => (
+      <React.Fragment key={_i0}>
+            <div><span className="ladder-n num">{L.n}</span><span className="ladder-fee num">{L.fee}</span><b style={{ fontSize: '14.5px', color: '#1B1464' }}>{L.t}</b><p style={{ fontSize: '13.5px', color: '#5B5A7A', lineHeight: '1.7' }}>{L.d}</p></div>
+          </React.Fragment>
+    ))}
+    
+        </div>
+        <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', background: '#F7F6FC', borderRadius: '14px', padding: '16px 18px' }}>
+          <span style={{ fontSize: '13px', fontWeight: '600', color: '#1B1464' }}>{vm.t.pen.graceTitle}</span>
+          
+    {((vm.t.pen.grace) || []).map((g: any, _i0: number) => (
+      <React.Fragment key={_i0}><div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13.5px', color: '#5B5A7A', lineHeight: '1.65' }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#FF8800', marginTop: '9px', flex: 'none' }}></span>{g}</div></React.Fragment>
+    ))}
+    
+        </div>
+      </div>
+      <div style={{ marginTop: '40px' }}>
+        <h3 style={{ fontSize: '19px', color: '#1B1464' }}>{vm.t.pen.refundTitle}</h3>
+        <p className="muted" style={{ fontSize: '13px', margin: '6px 0 16px', lineHeight: '1.7' }}>{vm.t.pen.refundSub}</p>
+        <div className="rgrid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
+          
+    {((vm.t.pen.refunds) || []).map((rf: any, _i0: number) => (
+      <React.Fragment key={_i0}><div className="ritem"><h4 style={{ fontSize: '15px', color: '#1B1464', lineHeight: '1.45', marginBottom: '7px' }}>{rf.h}</h4><p style={{ fontSize: '13.5px', color: '#5B5A7A', lineHeight: '1.75' }}>{rf.p}</p></div></React.Fragment>
+    ))}
+    
+        </div>
+      </div>
+    </section>
+    <section className="wrap" style={{ paddingBlock: '40px 80px', maxWidth: '900px' }}>
       <div style={{ borderRadius: '24px', padding: '40px', background: '#16114F', color: '#fff', position: 'relative', overflow: 'hidden' }}>
         <span style={{ position: 'absolute', insetInlineEnd: '-10%', top: '-50%', width: '46%', aspectRatio: '1', borderRadius: '50%', background: 'radial-gradient(circle,rgba(255,120,34,.3),transparent 68%)', pointerEvents: 'none' }}></span>
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '22px' }}>

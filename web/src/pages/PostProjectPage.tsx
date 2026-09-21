@@ -12,14 +12,14 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
       <ol style={{ display: 'flex', gap: '20px', listStyle: 'none', padding: '0', margin: '24px 0 28px', fontSize: '13px', fontWeight: '500', flexWrap: 'wrap' }}>
         
     {((vm.postSteps) || []).map((s: any, _i0: number) => (
-      <React.Fragment key={_i0}><li style={{ display: 'flex', alignItems: 'center', gap: '8px', color: s.color }}><span className="num" style={{ width: '26px', height: '26px', borderRadius: '50%', border: '1.5px solid currentColor', display: 'grid', placeItems: 'center', fontSize: '12px' }}>{s.n}</span>{s.label}</li></React.Fragment>
+      <React.Fragment key={_i0}><li style={{ display: 'flex', alignItems: 'center', gap: '8px', color: s.color, fontWeight: s.weight }}><span className="num" style={{ width: '26px', height: '26px', borderRadius: '50%', border: `1.5px solid ${s.ring}`, background: s.fill, color: s.ink, display: 'grid', placeItems: 'center', fontSize: '12px', boxShadow: s.glow }}>{s.n}</span>{s.label}</li></React.Fragment>
     ))}
     
       </ol>
       <div className="card" style={{ padding: '32px', gap: '18px' }}>
         
     {vm.post.step1 ? (<>
-          <div><label className="lbl">{vm.t.post.ptitle}</label><input className="input" name="title" value={vm.post.f.title} onChange={vm.setPostField} placeholder={vm.t.post.ptitlePh} /></div>
+          <div><label className="lbl">{vm.t.post.ptitle}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" name="title" value={vm.post.f.title} onChange={vm.setPostField} placeholder={vm.t.post.ptitlePh} /></div>
           <div><label className="lbl">{vm.t.post.category}</label><select className="input" name="trade" value={vm.post.f.trade} onChange={vm.setPostField}>
       {((vm.tradeGroups) || []).map((g: any, _i0: number) => (
         <React.Fragment key={_i0}><optgroup label={g.label}>
@@ -29,7 +29,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
         </optgroup></React.Fragment>
       ))}
       </select></div>
-          <div><label className="lbl">{vm.t.post.desc}</label><textarea className="input" name="desc" value={vm.post.f.desc} onChange={vm.setPostField} placeholder={vm.t.post.descPh} /></div>
+          <div><label className="lbl">{vm.t.post.desc}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" value={vm.post.f.desc} onChange={vm.setPostField} placeholder={vm.t.post.descPh} /></div>
         </>) : null}
     
         
@@ -41,8 +41,8 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
       </select></div>
           <div><label className="lbl">{vm.t.post.address}</label><input className="input" name="address" value={vm.post.f.address} onChange={vm.setPostField} /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div><label className="lbl">{vm.t.post.budgetMin}</label><input className="input" type="number" name="min" value={vm.post.f.min} onChange={vm.setPostField} placeholder="20000" /></div>
-            <div><label className="lbl">{vm.t.post.budgetMax}</label><input className="input" type="number" name="max" max="1000000" value={vm.post.f.max} onChange={vm.setPostField} placeholder="60000" /></div>
+            <div><label className="lbl">{vm.t.post.budgetMin}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="min" value={vm.post.f.min} onChange={vm.setPostField} placeholder="20000" /></div>
+            <div><label className="lbl">{vm.t.post.budgetMax}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="max" max="1000000" value={vm.post.f.max} onChange={vm.setPostField} placeholder="60000" /></div>
           </div>
           <div className="sugbox">
             <span className="evlbl">{vm.t.post.sugTitle}</span>
@@ -70,6 +70,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
     {vm.post.step3 ? (<>
           <p style={{ fontSize: '13.5px', color: '#5B5A7A' }}>{vm.t.post.filesIntro}</p>
           <label className="drop" style={{ padding: '36px' }}><input type="file" multiple style={{ display: 'none' }} onChange={vm.postUpload} />{vm.t.post.drop}</label>
+          <p className="muted" style={{ fontSize: '12px', lineHeight: '1.7', margin: '0' }}>{vm.t.post.fileTypes}</p>
           
       {vm.post.hasFiles ? (<><ul style={{ margin: '0', padding: '0', listStyle: 'none', fontSize: '13.5px' }}>
         {((vm.post.files) || []).map((f: any, _i0: number) => (
@@ -81,18 +82,35 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
     
         
     {vm.post.step4 ? (<>
-          <table className="table"><tbody>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingBottom: '6px' }}>
+            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.post.secDetails}</span>
+            <button className="lnkbtn" data-step="1" onClick={vm.postGoStep}>{vm.t.post.edit}</button>
+          </div>
+          <table className="table" style={{ marginBottom: '22px' }}><tbody>
             <tr><td className="muted">{vm.t.post.ptitle}</td><td style={{ fontWeight: '600', color: '#1B1464' }}>{vm.post.f.title}</td></tr>
-            <tr><td className="muted">{vm.t.post.desc}</td><td style={{ color: '#5B5A7A' }}>{vm.post.f.desc}</td></tr>
             <tr><td className="muted">{vm.t.post.category}</td><td>{vm.post.tradeLabel}</td></tr>
+            <tr><td className="muted">{vm.t.post.desc}</td><td style={{ color: '#5B5A7A' }}>{vm.post.f.desc}</td></tr>
+          </tbody></table>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingBottom: '6px' }}>
+            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.post.secLocation}</span>
+            <button className="lnkbtn" data-step="2" onClick={vm.postGoStep}>{vm.t.post.edit}</button>
+          </div>
+          <table className="table" style={{ marginBottom: '22px' }}><tbody>
             <tr><td className="muted">{vm.t.auth.city}</td><td>{vm.post.cityLabel}</td></tr>
+            <tr><td className="muted">{vm.t.post.address}</td><td>{vm.post.addressLabel}</td></tr>
             <tr><td className="muted">{vm.t.post.budget}</td><td className="num">{vm.post.budgetLine}</td></tr>
             <tr><td className="muted">{vm.t.post.timing}</td><td>{vm.post.timingLabel}</td></tr>
+          </tbody></table>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingBottom: '6px' }}>
+            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.post.secFiles}</span>
+            <button className="lnkbtn" data-step="3" onClick={vm.postGoStep}>{vm.t.post.edit}</button>
+          </div>
+          <table className="table"><tbody>
             <tr><td className="muted">{vm.t.post.files}</td><td className="num">{vm.post.fileCount}</td></tr>
           </tbody></table>
           <p className="muted" style={{ fontSize: '12.5px' }}>{vm.post.feeReminder}</p>
           <div className="pledge">
-            <span className="evlbl">{vm.t.post.pledgeTitle}</span>
+            <span className="evlbl">{vm.t.post.pledgeTitle}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></span>
             <label className="radio" style={{ alignItems: 'flex-start', gap: '10px' }}><input type="checkbox" checked={vm.post.pledge} onChange={vm.togglePledge} /><span className="dot" style={{ borderRadius: '5px', marginTop: '3px' }}></span><span style={{ fontSize: '13.5px', lineHeight: '1.7', color: '#1B1464' }}>{vm.t.post.pledgeText}</span></label>
             <p className="muted" style={{ fontSize: '11.5px' }}>{vm.t.post.pledgeNote}</p>
           </div>
@@ -105,7 +123,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
           
     {vm.post.canBack ? (<><button className="btn btn-s" onClick={vm.postBack}>{vm.t.back}</button></>) : null}
     
-          <button className="btn btn-p" onClick={vm.postNext}>{vm.post.nextLabel}</button>
+          <button className="btn btn-p" disabled={vm.post.nextDisabled} onClick={vm.postNext}>{vm.post.nextLabel}</button>
         </div>
       </div>
     </section>

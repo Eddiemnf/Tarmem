@@ -11,7 +11,7 @@ export default function ContractorsPage({ vm }: { vm: VM }) {
       <div className="wrap fade" style={{ paddingBlock: '56px 36px' }}>
         <span className="kick">{vm.t.search.eyebrow}</span>
         <h1 style={{ fontSize: 'clamp(30px,3.4vw,44px)', color: '#1B1464', margin: '12px 0 12px' }}>{vm.t.search.title}</h1>
-        <p style={{ color: '#5B5A7A', fontSize: '16px', maxWidth: '56ch' }}>{vm.t.search.sub}</p>
+        <p style={{ color: '#5B5A7A', fontSize: '16px', maxWidth: '56ch' }}>تراجع ترميم هوية المقاول وسجله وتراخيصه قبل ظهوره هنا. <br />قارن الخبرات والتقييمات والأعمال السابقة.</p>
       </div>
     </section>
     <section className="wrap" style={{ paddingBlock: '8px 80px' }}>
@@ -38,7 +38,6 @@ export default function ContractorsPage({ vm }: { vm: VM }) {
       </optgroup></React.Fragment>
     ))}
     </select></div>
-          <div className="fgrp"><label className="radio"><input type="checkbox" name="verified" checked={vm.filt.verified} onChange={vm.setFilter} /><span className="dot" style={{ borderRadius: '5px' }}></span>{vm.t.search.verifiedOnly}</label></div>
         </aside>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', paddingBottom: '18px', borderBottom: '1px solid #EEEDF5' }}>
@@ -58,9 +57,12 @@ export default function ContractorsPage({ vm }: { vm: VM }) {
                 </div>
                 <div className="cbody">
                   <div className="cinfo">
-                  <h3 className="cname" data-route="contractor" data-id={c.id} onClick={vm.go}>{c.name}
-      {c.verified ? (<><span className="cvcheck" title={vm.t.verified}>✓</span></>) : null}
+                  <h3 className="cname"><span data-route="contractor" data-id={c.id} onClick={vm.go} style={{ cursor: 'pointer' }}>{c.name}</span>
+      {c.verified ? (<><button type="button" className="cvcheck" data-id={c.id} onClick={vm.toggleVNote} aria-label={vm.t.verified} style={{ border: '0', cursor: 'pointer', font: 'inherit' }}>✓</button></>) : null}
       </h3>
+                  
+      {c.vNoteOpen ? (<><p style={{ fontSize: '12px', lineHeight: '1.75', color: '#15703A', background: '#F1FBF5', border: '1px solid #CFE8D9', borderRadius: '10px', padding: '10px 12px', margin: '8px 0 0', maxWidth: '62ch' }}>{vm.t.search.vNote}</p></>) : null}
+      
                   <div className="cmeta num">
                     <span className="crate">★ {c.rating}</span>
                     
