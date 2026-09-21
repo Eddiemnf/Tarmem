@@ -12,17 +12,18 @@ out the full road to a marketplace that can hold money; this file is the short v
   invented figures, testimonials or partner logos.
 - **`/demo` is the full product**, walkable on invented data — the sales tool. It always sits
   behind the preview password.
-- **Both are still behind the preview password.** Opening `/` to the world is one line:
-  `"publicLaunch": true` in `web/site.config.json`.
+- **`/` opened to the public on 21 September 2026** (`"publicLaunch": true` in
+  `web/site.config.json`), with the real WhatsApp number in place. Setting it back to `false`
+  and publishing puts the public site behind the preview password again.
 
-## Before opening the early-access site
+## Still open after opening
 
-Every item here is something only the business can decide or supply. None needs an engineer
-beyond a one-line change.
+Item 1 is done. The rest went live as they stood, by the owner's decision on the day; each is
+still something only the business can settle, and none needs an engineer beyond a small change.
 
 | # | What | Why it blocks |
 | --- | --- | --- |
-| 1 | **The real WhatsApp Business number** → `web/site.config.json` | It is still the design's dummy, `966500000000`. Every request, and the floating WhatsApp button, would go to a stranger. `npm run test:launch` refuses a public launch with the dummy number. |
+| 1 | ~~The real WhatsApp Business number~~ — done, +966 53 037 3026 | `npm run test:launch` refuses a public launch with the design's dummy number. |
 | 2 | **Confirm `support@tarmem.sa` is a monitored mailbox** | It is the fallback on every request and is printed in the footer. |
 | 3 | **Someone answers.** Decide who watches that WhatsApp, and when | The contact page (approved design copy) says Sunday–Thursday 9–6 and "usually within one business day". Either make that true or change the wording. |
 | 4 | **What does early access cost a customer?** | The request form's last step still carries the platform's terms: a 1% service fee added to each milestone payment, and an undertaking not to take the project off-platform. With no payments on the site yet, say what actually applies during early access — or confirm these terms stand. |
@@ -47,8 +48,7 @@ Worth doing, not blocking:
 - Requests live only in WhatsApp. When volume justifies it, add a record (a sheet or CRM):
   `web/src/launch/deliver.ts` is the one place that changes.
 
-**To open it:** put the real number in `site.config.json`, set `publicLaunch` to `true`, run
-`npm run test:launch`, publish.
+**To close it again:** set `publicLaunch` to `false` in `site.config.json` and publish.
 
 ## After that: the real platform
 
