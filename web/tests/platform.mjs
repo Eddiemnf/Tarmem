@@ -45,6 +45,9 @@ await page.locator('input[name="title"]').fill('تجديد مطبخ، 20 م²');
 await page.locator('textarea[name="desc"]').fill('تغيير الخزائن والرخام، المساحة 4×5 م.');
 await page.locator('button', { hasText: 'التالي' }).first().click();
 check('the budget step shows the suggested range for the trade, as designed', (await page.locator('.sugbox').count()) === 1 && (await page.locator('.sugbox button.sugbtn').count()) === 1);
+check('…worked out from the size in the description (a 4×5 kitchen: 16 linear metres of cabinets at published Saudi rates)',
+  (await page.locator('.sugbox .num').first().innerText()).includes('14,500 – 32,000') && (await page.locator('.sugbox p').first().innerText()).includes('الأمتار الطولية: 16'),
+  await page.locator('.sugbox .num').first().innerText());
 await page.locator('input[name="min"]').fill('40000');
 await page.locator('input[name="max"]').fill('60000');
 await page.locator('button', { hasText: 'التالي' }).first().click();

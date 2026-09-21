@@ -53,7 +53,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
                 <button className="sugbtn" onClick={vm.useSuggestion}>{vm.t.post.sugUse}</button>
               </div>
               <div className="sugbar"><span className="sugbar-fill" style={{ insetInlineStart: `${vm.post.sug.left}%`, width: `${vm.post.sug.width}%` }}></span></div>
-              <p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.7', margin: '0' }}>{vm.t.post.sugNote}</p>
+              <p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.7', margin: '0' }}>{vm.post.sug.note}</p>
             </>) : null}
       
             

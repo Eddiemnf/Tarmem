@@ -145,10 +145,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
       pages: { ...vm.t.pages, cSent: real ? real.contactSent : copy.contactSent },
       footer: { ...vm.t.footer, note: '' },
       // Without storage the photo step explains where photos go instead of offering a picker that uploads nothing.
-      // The English note under the suggested range claimed "the average actually paid on similar projects here",
-      // which nothing supports yet; it now says what the Arabic always said.
-      post: { ...vm.t.post, ...(real ? {} : { filesIntro: copy.filesIntro, fileTypes: '' }),
-        ...(vm.dir === 'ltr' ? { sugNote: 'An indicative estimate based on the type and scope of work. Contractors\' bids may differ with the details and materials.' } : {}) },
+      post: { ...vm.t.post, ...(real ? {} : { filesIntro: copy.filesIntro, fileTypes: '' }) },
       // an open project with no bids yet: say what actually happens next
       ...(real ? { ws: { ...vm.t.ws, noBids: real.postedNoBids } } : {}),
     },

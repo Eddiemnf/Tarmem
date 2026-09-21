@@ -591,6 +591,36 @@ Rules:
     return Math.round(done/tot*100); }
   statusOf(p){ if(p.status==='active' && !p.funded) return 'funding'; return p.status; }
 
+  // Suggested budget: a published Saudi unit rate (PRICE_GUIDE) × the size the homeowner described, or a typical size when they gave none.
+  sugFor(f){
+    const G=(this.D.PRICE_GUIDE||{})[f.trade];
+    if(!G){ const B=(this.D.BUDGETS||{})[f.trade]; return B ? {lo:B[0], hi:B[1], q:0, u:'job', typ:true, c:'l'} : null; }
+    const txt=(String(f.title||'')+' '+String(f.desc||'')).replace(/[٠-٩]/g, d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g,'.');
+    const num=v=>parseFloat(String(v).replace(',','.'));
+    const dm=txt.match(/(\d+(?:[.,]\d+)?)\s*(?:م|m|متر)?\s*(?:[x×*]|في)\s*(\d+(?:[.,]\d+)?)/i);
+    const sq=txt.match(/(\d+(?:[.,]\d+)?)\s*(?:م²|م2|م\s*مربع|متر\s*مربع|مترًا\s*مربعًا|مترا\s*مربعا|m²|m2|sqm|sq\.?\s*m|square\s*met)/i);
+    const loose=!sq && !dm && txt.match(/(\d{2,4})\s*(?:مترًا|مترا|متر|م)(?!\s*(?:طولي|ط))(?![\u0600-\u06FF²2])/);
+    const a=dm?num(dm[1]):0, b=dm?num(dm[2]):0, dims = a>=1&&a<=60&&b>=1&&b<=60;
+    let area = sq ? num(sq[1]) : dims ? a*b : loose ? num(loose[1]) : 0; if(!(area>=2&&area<=5000)) area=0;
+    const COUNT={bath:/(\d+)\s*(?:حمام|دورات?\s*مياه|bath)/i, wet:/(\d+)\s*(?:حمام|دورات?\s*مياه|مطبخ|مطابخ|bath|kitchen)/i, door:/(\d+)\s*(?:باب|[أا]بواب|door)/i, ac:/(\d+)\s*(?:مكيف|وحد|unit|split)/i, heater:/(\d+)\s*(?:سخان|heater)/i, camera:/(\d+)\s*(?:كامير|camera)/i};
+    let q=0;
+    if(G.u==='m2'){ if(area && G.k) q=area*G.k; }
+    else if(G.u==='lm'){ const m=txt.match(/(\d+(?:[.,]\d+)?)\s*(?:متر\s*طولي|م\.?\s*ط(?![\u0600-\u06FF])|lm\b|linear)/i);
+      if(m) q=num(m[1]);
+      // a kitchen's cabinets run along two walls (an L), and the market counts upper and lower cabinets separately
+      else if(f.trade==='kitchen' && (dims||area)) q=2*Math.min(14, Math.max(3, dims ? a+b-1 : 2*Math.sqrt(area)-1)); }
+    else if(G.u==='point'){ const m=txt.match(/(\d+)\s*(?:نقطة|نقاط|point)/i); if(m) q=+m[1]; else if(area&&G.p) q=Math.round(area*G.p); }
+    else if(G.u==='kw'){ const m=txt.match(/(\d+(?:[.,]\d+)?)\s*(?:كيلو\s*واط|kw|kilowatt)/i); if(m) q=num(m[1]); }
+    else if(G.u==='unit' && G.n){ const m=txt.match(COUNT[G.n]); if(m) q=+m[1];
+      else if(G.n==='bath'||G.n==='wet'){ if(/حمامين|حمامان/.test(txt)) q=2; else if(G.n==='bath' && /حمام(?!ات)|bathroom(?!s)/i.test(txt)) q=1; } }
+    const typ=!(q>0); if(typ) q=G.q||1;
+    const step=v=>v>=50000?1000:500, rnd=v=>Math.max(step(v), Math.round(v/step(v))*step(v));
+    const floor=Math.max(1000, rnd(G.lo*(G.q||1)*0.1)); // unit rates do not scale down to very small jobs
+    let lo=Math.max(floor, rnd(G.lo*q)), hi=Math.max(lo+step(lo), rnd(G.hi*q));
+    if(hi>1000000){ hi=1000000; lo=Math.min(lo, 900000); } // the platform's ceiling for one project
+    return {lo, hi, q:Math.round(q*10)/10, u:G.u, typ, c:G.c};
+  }
+
   publishPost(){
     const {post} = this.state; const f=post.f;
     const id = 'P-'+(1060+this.state.projects.filter(p=>p.ownerId==='h1').length);
@@ -713,11 +743,15 @@ Rules:
       secDetails:String(t.post.steps[0]||'').split(' · ')[0],
       secLocation:String(t.post.steps[1]||'').split(' · ')[0],
       secFiles:String(t.post.steps[2]||'').split(' · ')[0],tradeLabel:tradeL(p.f.trade),cityLabel:cityL(p.f.city),timingLabel:t.post[p.f.timing],pledge:p.pledge,
-      sug: (() => { const B=(this.D.BUDGETS||{})[p.f.trade]; if(!B) return {has:false, none:true};
-        const [lo,hi]=B, top=Math.log10(1000);
-        return {has:true, none:false, range: lang==='ar' ? fmt(lo)+' – '+fmt(hi)+' ريال' : 'SAR '+fmt(lo)+' – '+fmt(hi),
-          left:(Math.log10(lo/1000)/top*100).toFixed(1),
-          width:((Math.log10(hi/1000)-Math.log10(lo/1000))/top*100).toFixed(1)}; })(),
+      sug: (() => { const S=this.sugFor(p.f); if(!S) return {has:false, none:true};
+        const {lo,hi}=S, top=Math.log10(1000), P=(this.D.PRICE_TEXT||{})[lang]||{per:{}};
+        const G=(this.D.PRICE_GUIDE||{})[p.f.trade]||{}, key = S.u==='unit' ? G.n : (S.u==='m2' && G.k>1 ? 'walls' : S.u);
+        const x = P.per[key] ? P.per[key].replace('{q}', fmt(S.q)) : '';
+        const note = [x && (S.typ ? P.typical : P.fromText).replace('{x}', x), P.basis, S.c==='l' && P.wide, P.vary].filter(Boolean).join(' ') || t.post.sugNote;
+        const left = Math.max(0, Math.log10(lo/1000)/top*100);
+        return {has:true, none:false, note, range: lang==='ar' ? fmt(lo)+' – '+fmt(hi)+' ريال' : 'SAR '+fmt(lo)+' – '+fmt(hi),
+          left:left.toFixed(1),
+          width:Math.max(2, Math.min(100-left, (Math.log10(hi/1000)-Math.log10(lo/1000))/top*100)).toFixed(1)}; })(),
       budgetLine: (()=>{ const g=v=>(+v||0).toLocaleString('en-US');
         return lang==='ar' ? 'من '+g(p.f.min)+' إلى '+g(p.f.max)+' ريال' : 'SAR '+g(p.f.min)+' – '+g(p.f.max); })(),
       overCap: (+p.f.max||0) > 1000000, canBack:p.step>1,nextLabel:p.step===4?t.post.publish:(t.post.next+': '+String(t.post.steps[p.step]||'').split(' · ')[0]),error:p.error,feeReminder:t.post.feeNext};
@@ -1346,10 +1380,10 @@ Rules:
       toggleFaq: e => { const i=+e.currentTarget.dataset.i; this.setState({openFaq: s.openFaq===i?-1:i}); },
       setPostField: e => { const {name,value}=e.target; this.setState({post:{...s.post,f:{...s.post.f,[name]:value},error:''}}); },
       postUpload: e => { const names=[...(e.target.files||[])].map(f=>f.name); this.setState({post:{...s.post,files:[...s.post.files,...(names.length?names:['photo-'+(s.post.files.length+1)+'.jpg'])]}}); },
-      useSuggestion: () => { const B=(this.D.BUDGETS||{})[s.post.f.trade]; if(!B) return;
-        this.setState({post:{...s.post, f:{...s.post.f, min:String(B[0]), max:String(B[1])}, error:''}}); },
-      useSuggestion: () => { const B=(this.D.BUDGETS||{})[s.post.f.trade]; if(!B) return;
-        this.setState({post:{...s.post, f:{...s.post.f, min:String(B[0]), max:String(B[1])}, error:''}}); },
+      useSuggestion: () => { const S=this.sugFor(s.post.f); if(!S) return;
+        this.setState({post:{...s.post, f:{...s.post.f, min:String(S.lo), max:String(S.hi)}, error:''}}); },
+      useSuggestion: () => { const S=this.sugFor(s.post.f); if(!S) return;
+        this.setState({post:{...s.post, f:{...s.post.f, min:String(S.lo), max:String(S.hi)}, error:''}}); },
       postBack: () => this.setState({post:{...s.post,step:s.post.step-1,error:''}}),
       postGoStep: e => this.setState({post:{...s.post,step:+e.currentTarget.dataset.step,error:''}}),
       togglePledge: e => this.setState({post:{...s.post,pledge:e.target.checked,error:''}}),

@@ -80,3 +80,17 @@ none has been patched in code.
 | F | The welcome gift is **500 riyals off Tarmem's fee** — which is the *entire* 1% fee on any project up to 50,000. | Whether that is intended. |
 | G | The request form lists **43 trades**. | The launch plan says start with the ten you can supply. |
 | H | The owner's real name is the seeded demo homeowner, and the demo data ships inside the public site's code. | Use an invented name in the seed data. |
+
+
+## Added 21 September 2026 — the suggested budget now comes from real rates and the described size
+
+Paste-ready for Claude Design:
+
+> In `tarmem-i18n.js` add the two exports `PRICE_GUIDE` and `PRICE_TEXT` exactly as they are in the repository's
+> `project/tarmem-i18n.js` (just above `CITIES`). In the logic, add the method `sugFor(f)` above `publishPost()`,
+> make `post.sug` and both `useSuggestion` handlers use it, and in the project form's budget step show
+> `{{ post.sug.note }}` where `{{ t.post.sugNote }}` was. Copy all three from `project/Tarmem.dc.html`.
+> The old `BUDGETS` table stays as a fallback for a trade with no rate.
+
+Why: the ranges were placeholders, and the English note claimed they were "the average actually paid on similar
+projects here". Sources and method: `docs/price-guide.md`.
