@@ -12,7 +12,8 @@ import { setTrackContext, track } from './track';
 
 export interface BidRow { id: string; project_id: string; contractor_id: string; price: number; days: number; note: string | null; details: Record<string, unknown>; status: 'submitted' | 'withdrawn' | 'chosen'; created_at: string }
 export interface AgreementRow { project_id: string; bid_id: string; homeowner_id: string; contractor_id: string; amount: number; days: number; homeowner_name: string; homeowner_signed_at: string; contractor_name: string | null; contractor_signed_at: string | null }
-export interface Bidder { user_id: string; company: string; city: string; trades: string[]; since: string }
+export interface StageRow { project_id: string; idx: number; status: 'pending' | 'submitted' | 'released' | 'disputed' }
+export interface Bidder { user_id: string; company: string; city: string; trades: string[]; since: string; rating?: number | null; reviews?: number | null; done?: number | null }
 
 export interface Account {
   /** A contractor's own bids; for a homeowner, the bids on their projects and who made them (company and city only). */
@@ -20,6 +21,11 @@ export interface Account {
   bidders: Bidder[];
   /** Agreements this person is a party to: signed by the homeowner, then by the contractor. */
   agreements: AgreementRow[];
+  /** Stages exist for every awarded project, but nothing moves until the owner switches payments on in the database. */
+  stages: StageRow[];
+  paymentsLive: boolean;
+  /** Reviews this person wrote (a homeowner) or received (a contractor). */
+  reviews: ReviewRow[];
   profile: Profile;
   projects: ProjectRow[];
   /** The `user` object the design's logic sees. One identity per sign-in, so state comparisons stay cheap. */
@@ -104,7 +110,7 @@ async function loadAccount(user: User): Promise<Account | null> {
     const open = verified ? await supabase.from('projects').select('*').in('status', ['open', 'active', 'completed']).order('created_at', { ascending: false }).limit(200) : null;
     const mine = verified ? await supabase.from('bids').select('*').neq('status', 'withdrawn') : null;
     return {
-      profile, application, projects: (open?.data as ProjectRow[]) || [], bids: (mine?.data as BidRow[]) || [], bidders: [], agreements: await loadAgreements(),
+      profile, application, projects: (open?.data as ProjectRow[]) || [], bids: (mine?.data as BidRow[]) || [], bidders: [], agreements: await loadAgreements(), ...(await loadStages()),
       // the design's "verified through Nafath" flag stands for Tarmem's own verification until Nafath is connected
       logicUser: { role: 'contractor', name: application?.company || profile.company || profile.full_name, nafath: verified, admin: false },
     };
@@ -114,7 +120,7 @@ async function loadAccount(user: User): Promise<Account | null> {
   const bids = (received?.data as BidRow[]) || [];
   const who = bids.length ? await supabase.from('verified_contractors').select('*') : null;
   return {
-    profile, application: null, projects: (rows.data as ProjectRow[]) || [], bids, agreements: await loadAgreements(),
+    profile, application: null, projects: (rows.data as ProjectRow[]) || [], bids, agreements: await loadAgreements(), ...(await loadStages()),
     bidders: ((who?.data as Bidder[]) || []).filter((b) => bids.some((x) => x.contractor_id === b.user_id)),
     // An account the owner marked admin in the database gets the design's admin role, and with it the console.
     logicUser: { role: profile.role === 'admin' ? 'admin' : 'homeowner', name: profile.full_name, nafath: false, admin: profile.role === 'admin' },
@@ -166,6 +172,17 @@ export async function signIn(email: string, password: string): Promise<Result> {
     const loaded = await loadAccount(data.user);
     if (!loaded) return { error: 'generic' };
     setAccount(loaded);
+    return { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** Save the parts of their own profile a person may change (the database refuses anything else, such as the role). */
+export async function updateProfile(patch: Partial<Pick<Profile, 'full_name' | 'mobile' | 'city' | 'lang' | 'prefs' | 'about'>>): Promise<Result> {
+  if (!supabase || !account) return { error: 'generic' };
+  try {
+    const { error } = await supabase.from('profiles').update(patch).eq('id', account.profile.id);
+    if (error) return { error: failure(error) };
+    await refreshAccount();
     return { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }
@@ -253,6 +270,48 @@ async function loadAgreements(): Promise<AgreementRow[]> {
   if (!supabase) return [];
   const { data } = await supabase.from('agreements').select('*');
   return (data as AgreementRow[]) || [];
+}
+
+/** (empty, and off, until 007 has been run) */
+async function loadStages(): Promise<{ stages: StageRow[]; paymentsLive: boolean; reviews: ReviewRow[] }> {
+  if (!supabase) return { stages: [], paymentsLive: false, reviews: [] };
+  const [flag, rows] = await Promise.all([
+    supabase.from('platform_flags').select('enabled').eq('key', 'payments_live').maybeSingle(),
+    supabase.from('stages').select('project_id, idx, status').order('idx', { ascending: true }),
+  ]);
+  const { data: who } = await supabase.auth.getUser();
+  const mine = who.user ? await supabase.from('reviews').select('*').or(`homeowner_id.eq.${who.user.id},contractor_id.eq.${who.user.id}`) : null;
+  return { stages: (rows.data as StageRow[]) || [], paymentsLive: Boolean(flag.data?.enabled), reviews: (mine?.data as ReviewRow[]) || [] };
+}
+
+export interface ReviewRow { project_id: string; contractor_id: string; stars: number; body: string; created_at: string }
+
+/** A homeowner's review of their finished project. The database allows one, and only for the contractor who did the work. */
+export async function saveReview(projectId: string, contractorId: string, stars: number, body: string): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.from('reviews').insert({ project_id: projectId, contractor_id: contractorId, stars, body });
+    return error ? { error: failure(error) } : { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** An admin records that a project's payment is in (until a payment provider reports it by itself). Refused unless payments are live. */
+export async function markFunded(projectId: string): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.rpc('mark_funded', { p_project: projectId });
+    return error ? { error: failure(error) } : { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** Submit, approve or dispute a stage. The database checks who is asking, the order of stages, and that the evidence is in storage. */
+export async function stageStep(projectId: string, idx: number, action: 'submit' | 'approve' | 'dispute', reason = ''): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.rpc('stage_step', { p_project: projectId, p_idx: idx, p_action: action, p_reason: reason || null });
+    await refreshAccount();
+    return error ? { error: failure(error) } : { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
 }
 
 /** A signature is written by the database, which checks who is signing; the website only asks for it. */

@@ -19,6 +19,9 @@ export interface Profile {
   company: string | null;
   lang: 'ar' | 'en';
   created_at: string;
+  /** Notification choices from the settings page, and the profile's "about" line (supabase/007). */
+  prefs?: Record<string, boolean> | null;
+  about?: string | null;
 }
 
 export interface ProjectRow {
@@ -35,6 +38,8 @@ export interface ProjectRow {
   timing: 'asap' | 'month' | 'flexible';
   status: 'open' | 'active' | 'completed' | 'withdrawn';
   created_at: string;
+  /** When the project's first payment was confirmed (supabase/007). Stages wait for it. */
+  funded_at?: string | null;
 }
 
 const both = (text: string) => ({ en: text, ar: text });
@@ -47,7 +52,7 @@ export function homeownerRecord(profile: Profile | null) {
     ...both(name), city: profile?.city || 'riyadh', nafath: false,
     joined: { en: `Joined ${year}`, ar: `انضم في ${year}` },
     rating: 0, reviews: 0, done: 0, onTimeApproval: '—', avgApproval: both('—'), disputes: 0,
-    about: both(''), revs: [],
+    about: both(profile?.about || ''), revs: [],
   };
 }
 
@@ -88,12 +93,12 @@ export function runtimeData(profile: Profile | null = activeProfile): typeof D {
 export function toLogicProject(row: ProjectRow, ownerId = 'h1'): LogicState {
   const day = row.created_at.slice(0, 10);
   return {
-    id: row.code, dbId: row.id,
+    id: row.code, dbId: row.id, ownerDbId: row.owner_id,
     title: both(row.title), desc: both(row.description),
     trade: row.trade, city: row.city, address: row.district || '',
     min: row.budget_min, max: row.budget_max, timing: row.timing,
     status: row.status === 'withdrawn' ? 'open' : row.status,
-    ownerId, contractorId: null, amount: 0, funded: false,
+    ownerId, contractorId: null, amount: 0, funded: Boolean(row.funded_at),
     posted: both(day), bids: [], ms: [], msgs: [], files: [], ledger: [],
   };
 }

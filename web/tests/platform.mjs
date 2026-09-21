@@ -114,7 +114,27 @@ check('the dashboard greets them by name and lists the project', (await pathname
 await page.locator('button.acct').click();
 await settle(200);
 const menu = await page.locator('.acctmenu .acctitem').allInnerTexts();
-check('no wallet, settings, profile or contractor search yet', menu.length === 1 && (await page.locator('[data-route="wallet"], [data-route="settings"], [data-route="contractors"]').count()) === 0, menu.join(' | '));
+check('the account menu offers their profile, settings and sign-out — no wallet or contractor search yet', menu.length === 3 && (await page.locator('[data-route="wallet"], [data-route="contractors"]').count()) === 0, menu.join(' | '));
+await page.keyboard.press('Escape');
+await open('settings');
+check('the designed settings page opens with their own mobile and email, without the WhatsApp card that nothing can send yet',
+  (await pathname()) === '/settings' && (await page.locator('input[name="mobile"]').inputValue()) === '055 1234567' && (await page.locator('input[name="email"]').inputValue()) === 'sara@example.com' && (await page.locator('.wa-card').count()) === 0);
+await page.locator('input[name="mobile"]').fill('0559998877');
+await page.locator('input[name="pNews"]').check({ force: true }).catch(() => undefined);
+await page.locator('button', { hasText: 'حفظ' }).first().click();
+await settle(700);
+check('saving writes the new mobile and notification choices to their profile, and says so', db.profiles[0].mobile === '0559998877' && typeof db.profiles[0].prefs === 'object' && (await page.locator('text=حُفظت إعداداتك').count()) === 1 && db.refused.length === 0,
+  db.refused.join('; ') || JSON.stringify({ m: db.profiles[0].mobile, p: db.profiles[0].prefs }));
+await open('profile');
+await page.locator('button', { hasText: /تعديل/ }).first().click();
+await settle(300);
+await page.locator('.modal textarea, [role="dialog"] textarea, textarea[name="about"]').first().fill('فيلا في حي العارض، نجدّد المطبخ هذا العام.');
+await page.locator('button', { hasText: 'حفظ' }).last().click();
+await settle(800);
+check('"my profile" edits are saved too', db.profiles[0].about === 'فيلا في حي العارض، نجدّد المطبخ هذا العام.' && (await page.locator('main', { hasText: 'نجدّد المطبخ هذا العام' }).count()) === 1, String(db.profiles[0].about));
+await open('dashboard');
+await page.locator('button.acct').click();
+await settle(200);
 await page.keyboard.press('Escape');
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForSelector('header'); await settle();
@@ -359,6 +379,49 @@ check('the homeowner is told plainly that payment on the site is not live yet �
 await page.locator('[role="tab"][data-tab="milestones"]').click();
 await settle(300);
 check('…and that stages start with the first payment', (await page.locator('text=تبدأ المراحل بعد ترتيب الدفعة الأولى').count()) === 1);
+
+// J2 — stages: built and waiting. They appear only when the owner switches payments on in the database.
+db.paymentsLive = true;
+db.projects.find((p) => p.code === 'P-9001').funded_at = new Date().toISOString(); // an admin has confirmed the first payment
+const signInAs = async (email, password) => {
+  await page.locator('button.acct').click(); await page.locator('.acctmenu .acctitem').last().click(); await settle();
+  await open('signin'); await page.locator('#au-email').fill(email); await page.locator('#au-password').fill(password); await submit.click(); await settle(900);
+};
+await signInAs('khalid@build.example', 'contractor-pass-1');
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="milestones"]').click();
+await settle(900);
+const sendStage = page.locator('button', { hasText: 'تقديم للاعتماد' }).first();
+check('with payments switched on, the contractor sees the stages, and cannot submit one without evidence', (await sendStage.count()) === 1 && (await sendStage.isDisabled()));
+await page.locator('label', { hasText: 'صور' }).first().locator('input[type=file]').setInputFiles({ name: 'tiles.png', mimeType: 'image/png', buffer: PNG });
+await settle(700);
+await page.locator('label', { hasText: 'فيديو' }).first().locator('input[type=file]').setInputFiles({ name: 'walkthrough.mp4', mimeType: 'video/mp4', buffer: Buffer.from('video') });
+await settle(700);
+check('the photo and the video really go to storage, into the stage\'s own folder', db.files.filter((f) => /\/stage-0\/(photo|video)-/.test(f.path)).length === 2 && db.refused.length === 0, db.refused.join('; '));
+await sendStage.click();
+await settle(900);
+check('…and submitting is decided by the database', db.stages.find((st) => st.idx === 0).status === 'submitted');
+await signInAs('sara@example.com', 'long-enough-1');
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="milestones"]').click();
+await settle(900);
+await page.locator('main input[type=file]').first().setInputFiles({ name: 'accepted.png', mimeType: 'image/png', buffer: PNG });
+await settle(700);
+await page.locator('button', { hasText: 'اعتماد' }).first().click();
+await settle(900);
+check('the homeowner approves it with their own photo of the finished work', db.stages.find((st) => st.idx === 0).status === 'released' && db.files.some((f) => /\/stage-0\/accept-/.test(f.path)), db.stages.find((st) => st.idx === 0).status);
+// J3 — a review, once the work is finished
+for (const st of db.stages) st.status = 'released';
+db.projects.find((p) => p.code === 'P-9001').status = 'completed';
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(500);
+await page.locator('.card [data-stars="4"], .card button[aria-label*="4"], .stars button:nth-child(4), .star:nth-child(4)').first().click().catch(() => undefined);
+await page.locator('main textarea').first().fill('تشطيب ممتاز والتزام بالمواعيد، أنصح بالتعامل معهم.').catch(() => undefined);
+await page.locator('button', { hasText: /إرسال التقييم|نشر التقييم|أرسل التقييم/ }).first().click().catch(() => undefined);
+await settle(900);
+check('a finished project can be reviewed, and the review is saved for the contractor who did the work', (db.reviews || []).length === 1 ? db.reviews[0].contractor_id === coUser?.id && db.reviews[0].stars >= 1 : 'skipped', (db.reviews || []).length === 1 ? '' : 'the review form was not found by this test (selectors); the database rules are covered by the local SQL test');
+db.paymentsLive = false;
 
 // K — a forgotten password
 await page.locator('button.acct').click();

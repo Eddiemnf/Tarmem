@@ -19,7 +19,7 @@ import { LAUNCH_COPY } from './copy';
 import { openWhatsApp } from './deliver';
 
 /** Pages that need a real, signed-in account. They exist only once the database is connected. */
-const ACCOUNT_ROUTES = new Set(['hdash', 'cdash', 'browse', 'project', 'admin', 'inbox']);
+const ACCOUNT_ROUTES = new Set(['hdash', 'cdash', 'browse', 'project', 'admin', 'inbox', 'settings', 'homeowner']);
 
 /** Work the guard starts but cannot finish inside a click: it needs the network (src/platform/bind.ts). */
 export interface GuardEffects {
@@ -132,6 +132,9 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
     (state.route === 'auth' && !user)
     || (state.route === 'hdash' && user?.role === 'homeowner')
     // a contractor has their dashboard from the moment they apply; the open projects once an admin has verified them
+    || (state.route === 'settings' && (user?.role === 'homeowner' || user?.role === 'contractor'))
+    // "my profile": a homeowner's own. Other people's profiles wait for reviews to exist.
+    || (state.route === 'homeowner' && user?.role === 'homeowner' && (!state.curId || state.curId === 'h1'))
     || (state.route === 'cdash' && user?.role === 'contractor')
     || (state.route === 'browse' && user?.role === 'contractor' && Boolean(user.nafath))
     || (state.route === 'project' && Boolean(user) && state.projects?.some((p: LogicState) => p.id === state.curId))

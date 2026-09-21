@@ -26,10 +26,10 @@ import { isLaunch } from '../launch/mode';
 import { connectUrls } from '../launch/urls';
 import { EMPTY_ANALYTICS, analyticsVals } from '../platform/admin';
 import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
-import { acceptFiles, holdFiles } from '../platform/files';
+import { VIDEO_MAX_BYTES, VIDEO_TYPES, acceptFiles, holdFiles, uploadFile } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { refreshAccount } from '../platform/session';
+import { currentAccount, normalizeMobile, refreshAccount, sendContact, stageStep, updateProfile, validMobile } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -139,11 +139,64 @@ function awardedVals(vm: LogicVals, state: LogicState): LogicVals {
   };
 }
 
+/** Stages, once the owner has switched payments on (supabase/007): the design's own buttons, but every step is asked of the
+    database, and the evidence is really uploaded. Until then an awarded project shows no stages, so none of this is reachable. */
+function stageVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
+  const account = platformOn ? currentAccount() : null;
+  const project = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
+  if (!account?.paymentsLive || !project?.dbId || !project.ms?.length) return vm;
+  const step = (action: 'submit' | 'approve' | 'dispute') => (e: { currentTarget: HTMLElement }) => { void stageStep(project.dbId, Number(e.currentTarget.dataset.i), action); };
+  return {
+    ...vm, submitMs: step('submit'), approveMs: step('approve'), disputeMs: step('dispute'),
+    addEv: (e: { currentTarget: HTMLInputElement }) => {
+      const input = e.currentTarget, i = Number(input.dataset.i), kind = input.dataset.k as 'p' | 'v' | 'o', file = input.files?.[0];
+      input.value = '';
+      if (!file) return;
+      const video = kind === 'v';
+      if (video ? !VIDEO_TYPES.includes(file.type) || file.size > VIDEO_MAX_BYTES : !acceptFiles([file], 0).ok.length) return;
+      const owner = project.ownerDbId || account.profile.id;
+      void uploadFile(owner, project.dbId, file, 0, `stage-${i}/${kind === 'p' ? 'photo' : video ? 'video' : 'accept'}-`).then((stored) => {
+        if (stored) (host.logic as unknown as { setEv: (pid: string, i: number, k: string) => void }).setEv(project.id, i, kind);
+      });
+    },
+  };
+}
+
+/** The designed settings page and "my profile" page, saved to the person's own profile row. The sign-in email is shown
+    but cannot be changed here; closing an account is a request to the team, exactly as the design words it. */
+function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
+  const account = platformOn ? currentAccount() : null;
+  if (!account || !vm.t?.settings) return vm;
+  const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const note = (notice: string) => host.setLogicState((s) => ({ setg: { ...s.setg, email: account.profile.email || '', notice } }));
+  return {
+    ...vm,
+    saveSettings: () => {
+      const mobile = normalizeMobile(state.setg?.mobile);
+      if (!validMobile(mobile)) return note(copy.err.mobile);
+      const changedEmail = String(state.setg?.email || '').trim().toLowerCase() !== String(account.profile.email || '').toLowerCase();
+      void updateProfile({ mobile, prefs: state.setg?.prefs || {}, lang: state.lang === 'en' ? 'en' : 'ar' })
+        .then((result) => note(result.ok ? (changedEmail ? `${copy.settingsSaved} ${copy.emailLocked}` : copy.settingsSaved) : copy.err[result.error]));
+    },
+    confirmClose: () => {
+      void sendContact({ name: account.profile.full_name, email: account.profile.email || '', mobile: account.profile.mobile, topic: copy.closeTopic, message: copy.closeBody, lang: state.lang === 'en' ? 'en' : 'ar' })
+        .then((result) => host.setLogicState((s) => ({ closeAsk: false, setg: { ...s.setg, notice: result.ok ? vm.t.settings.closeSent : copy.err[result.error || 'generic'] } })));
+    },
+    saveHoEdit: () => {
+      const d = state.hedit;
+      if (!d) return;
+      if (String(d.name || '').trim().length < 2) return host.setLogicState({ hedit: { ...d, error: vm.t.hprofile.errName } });
+      void updateProfile({ full_name: String(d.name).trim(), city: d.city, about: String(d.about || '').slice(0, 600) })
+        .then((result) => host.setLogicState(result.ok ? { hedit: null } : { hedit: { ...d, error: copy.err[result.error] } }));
+    },
+  };
+}
+
 function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
-  return awardedVals(contractorVals(adminVals({
+  return stageVals(accountPages(awardedVals(contractorVals(adminVals({
     ...vm,
     launch: true,
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
@@ -166,7 +219,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
     showWaFab: vm.showWaFab && !vm.r?.sent,
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state), state), state);
+  }, state), state), state), state, host), state, host);
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

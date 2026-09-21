@@ -9,6 +9,8 @@
 import { supabase } from './client';
 
 const BUCKET = 'project-files';
+export const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+export const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 export const FILE_RULES = { maxFiles: 10, maxBytes: 10 * 1024 * 1024, types: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf'] };
 export interface StoredFile { name: string; path: string; createdAt: string }
 
@@ -50,9 +52,10 @@ export function holdFiles(files: File[]): string[] {
 export const heldFile = (name: string) => chosen.get(name);
 export const forgetHeldFiles = () => chosen.clear();
 
-export async function uploadFile(ownerId: string, projectId: string, file: File, n = 0): Promise<StoredFile | null> {
+/** `within` places a file in a stage's folder under a name that says what it is: `stage-0/photo-`, `stage-0/video-`, `stage-0/accept-`. */
+export async function uploadFile(ownerId: string, projectId: string, file: File, n = 0, within = ''): Promise<StoredFile | null> {
   if (!supabase) return null;
-  const path = `${ownerId}/${projectId}/${keyFor(file.name || 'photo.jpg', n)}`;
+  const path = `${ownerId}/${projectId}/${within}${keyFor(file.name || 'photo.jpg', n)}`;
   const send = () => supabase!.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false });
   try {
     let result = await send();

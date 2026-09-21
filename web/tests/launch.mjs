@@ -74,7 +74,7 @@ for (const target of ['admin', 'wallet', 'hdash', 'cdash', 'project', 'browse', 
   const at = await route();
   // With real accounts /admin is a real address: a visitor is asked to sign in, and never sees the console.
   // (/dashboard and /project/… behave the same way; tests/platform.mjs covers them.)
-  const asksToSignIn = accounts && target === 'admin';
+  const asksToSignIn = accounts && (target === 'admin' || target === 'settings');
   if (asksToSignIn ? (at !== 'auth' || (await pathname()) !== '/signin') : (at !== 'home' || (await pathname()) !== '/')) { check(`private page "${target}" is unreachable`, false, `landed on ${at} at ${await pathname()}`); break; }
   if (target === 'settings') check('private pages (admin, wallet, dashboards, projects…) are unreachable, by saved state or by address', true);
 }

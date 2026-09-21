@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import type { VM } from '../state/viewModel';
 import { fileLink, listFiles, type StoredFile } from './files';
-import { loadInbox, type Inbox } from './session';
+import { currentAccount, loadInbox, markFunded, type Inbox } from './session';
 
 const when = (iso: unknown) => String(iso || '').slice(0, 16).replace('T', ' ');
 const H = ({ children }: { children: string }) => <h2 style={{ fontSize: '18px', color: '#1B1464', margin: '34px 0 10px' }}>{children}</h2>;
@@ -56,6 +56,9 @@ export default function InboxPage({ vm }: { vm: VM }) {
             <tr key={p.id}>
               <td style={cell} className="num">{p.code}<br /><span className="muted">{when(p.created_at)}</span><br /><span className="tag tag-n">{p.status}</span></td>
               <td style={cell}><strong style={{ color: '#1B1464' }}>{p.title}</strong><br />{label(vm.trades, p.trade)} · {label(vm.cities, p.city)}{p.district ? ` · ${p.district}` : ''}<br /><span className="num">{p.budget_min.toLocaleString('en-US')} – {p.budget_max.toLocaleString('en-US')} SAR</span> · {p.timing}<br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{p.description}</span><br /><ProjectFiles ownerId={p.owner_id} projectId={p.id} ar={ar} />
+                {currentAccount()?.paymentsLive && p.status === 'active' ? (p.funded_at
+                  ? <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#0F7B4B' }}>{ar ? '✔ الدفعة مستلمة' : '✔ Payment received'}</div>
+                  : <button type="button" className="btn btn-s btn-sm" style={{ marginTop: '8px' }} onClick={() => { void markFunded(p.id).then((r) => { if (r.ok) void loadInbox().then((x) => { if (x.ok) setInbox(x.ok); }); }); }}>{ar ? 'تأكيد استلام الدفعة' : 'Confirm payment received'}</button>) : null}
                 {p.bids.map((b) => (
                   <div key={b.id} className="num" style={{ marginTop: '6px', fontSize: '12.5px', color: b.status === 'chosen' ? '#0F7B4B' : '#3A385C' }}>
                     {b.status === 'chosen' ? '✔ ' : '• '}{b.company} — {b.price.toLocaleString('en-US')} SAR · {b.days} {ar ? 'يوم' : 'days'} · <a dir="ltr" href={`tel:${b.mobile}`}>{b.mobile}</a>{b.status === 'chosen' ? (ar ? ' — اختاره العميل' : ' — chosen by the customer') : ''}

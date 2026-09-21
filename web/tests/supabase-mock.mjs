@@ -68,13 +68,20 @@ export async function installSupabaseMock(context, supabaseUrl) {
     if (path.startsWith(BUCKET + 'project-files/') && method === 'POST') {
       const key = decodeURIComponent(path.slice((BUCKET + 'project-files/').length));
       const [owner, project] = key.split('/');
-      if (owner !== me || !db.projects.some((p) => p.id === project && p.owner_id === me)) return refuse(route, 'storage: not your project');
+      const theirs = db.projects.some((p) => p.id === project && p.owner_id === owner && (p.owner_id === me || (p.contractor_id === me && /^stage-\d$/.test(key.split('/')[2] || ''))));
+      if (!theirs) return refuse(route, 'storage: not your project');
       if (!/^[\x20-\x7E]+$/.test(key)) return refuse(route, 'storage: keys must be plain ASCII');
       db.files.push({ path: key, type: headers['content-type'] || '', created_at: new Date().toISOString() });
       return send(route, 200, { Key: 'project-files/' + key, Id: 'obj' });
     }
     if (path === '/rest/v1/profiles') {
       if (method === 'GET') return rows(db.profiles.filter((p) => (admin || p.id === me) && (!eq('id') || p.id === eq('id'))));
+      if (method === 'PATCH') {
+        const forbidden = Object.keys(body).filter((k) => !['full_name', 'mobile', 'city', 'company', 'lang', 'prefs', 'about'].includes(k));
+        if (forbidden.length || eq('id') !== me) return refuse(route, 'profiles: may not change ' + (forbidden.join(', ') || "somebody else's row"));
+        Object.assign(db.profiles.find((p) => p.id === me), body);
+        return route.fulfill({ status: 204, headers: cors });
+      }
       if (method === 'POST') {
         if (!me || body.id !== me || !['homeowner', 'contractor'].includes(body.role)) return refuse(route, 'profiles: not your own row, or not an allowed role');
         const row = { company: null, ...body, email: db.users.find((u) => u.id === me).email, created_at: new Date().toISOString() };
@@ -100,6 +107,27 @@ export async function installSupabaseMock(context, supabaseUrl) {
       }
     }
     const isVerified = (id) => db.profiles.some((p) => p.id === id && p.role === 'contractor') && db.applications.some((a) => a.user_id === id && a.status === 'verified');
+    if (path === '/rest/v1/reviews') {
+      if (method === 'GET') return rows(me ? (db.reviews || []) : []);
+      const project = db.projects.find((p) => p.id === body.project_id && p.owner_id === me && p.status === 'completed' && p.contractor_id === body.contractor_id);
+      if (!project || (db.reviews || []).some((r) => r.project_id === body.project_id) || 'homeowner_id' in body) return refuse(route, 'reviews: not a finished project of yours, or already reviewed');
+      (db.reviews ||= []).push({ ...body, homeowner_id: me, created_at: new Date().toISOString() });
+      return send(route, 201);
+    }
+    if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }] : []);
+    if (path === '/rest/v1/stages') return rows((db.stages || []).filter((st) => admin || db.projects.some((p) => p.id === st.project_id && (p.owner_id === me || p.contractor_id === me))));
+    if (path === '/rest/v1/rpc/mark_funded' && method === 'POST') { const p = db.projects.find((x) => x.id === body.p_project && x.status === 'active'); if (!admin || !db.paymentsLive || !p) return refuse(route, 'mark_funded: refused'); p.funded_at = new Date().toISOString(); return send(route, 200, p.funded_at); }
+    if (path === '/rest/v1/rpc/stage_step' && method === 'POST') {
+      if (!db.paymentsLive) return refuse(route, 'stages open when payment on the site is live');
+      const project = db.projects.find((p) => p.id === body.p_project), stage = (db.stages || []).find((st) => st.project_id === body.p_project && st.idx === body.p_idx);
+      const has = (kind) => db.files.some((f) => f.path.startsWith(`${project?.owner_id}/${project?.id}/stage-${body.p_idx}/${kind}-`));
+      if (!project || !stage) return refuse(route, 'stage: none');
+      if (!project.funded_at) return refuse(route, 'stage: the payment has not been received');
+      if (body.p_action === 'submit') { if (project.contractor_id !== me || !has('photo') || !has('video')) return refuse(route, 'stage: cannot submit'); stage.status = 'submitted'; }
+      else if (project.owner_id !== me || stage.status !== 'submitted' || (body.p_action === 'approve' && !has('accept'))) return refuse(route, 'stage: cannot decide');
+      else stage.status = body.p_action === 'approve' ? 'released' : 'disputed';
+      return send(route, 200, stage);
+    }
     if (path === '/rest/v1/agreements') return rows(db.agreements.filter((a) => admin || a.homeowner_id === me || a.contractor_id === me));
     if (path === '/rest/v1/rpc/sign_agreement_homeowner' && method === 'POST') {
       const bid = db.bids.find((b) => b.id === body.p_bid && b.status !== 'withdrawn');
@@ -116,6 +144,7 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (!row) return refuse(route, 'agreement: nothing here for you to sign');
       Object.assign(row, { contractor_name: db.applications.find((a) => a.user_id === me)?.company || '', contractor_signed_at: new Date().toISOString() });
       Object.assign(db.projects.find((p) => p.id === row.project_id), { status: 'active', contractor_id: me, amount: row.amount });
+      db.stages = [...(db.stages || []), ...[0, 1, 2].map((idx) => ({ project_id: row.project_id, idx, status: 'pending' }))];
       return send(route, 200, row);
     }
     if (path === '/rest/v1/verified_contractors') return rows(me ? db.applications.filter((a) => a.status === 'verified' && a.user_id).map((a) => ({ user_id: a.user_id, company: a.company, city: a.city, trades: a.trades, since: '2026-09-21' })) : []);

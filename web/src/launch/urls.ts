@@ -17,7 +17,7 @@ const PATHS: Record<string, string> = {
   home: '', how: 'how', pricing: 'pricing', about: 'about', help: 'help', faq: 'faq',
   contact: 'contact', rules: 'rules', terms: 'terms', privacy: 'privacy', post: 'post', join: 'join',
   // real accounts (src/platform/): the guard sends anyone who is not signed in to /signin
-  auth: 'signin', hdash: 'dashboard', cdash: 'contractor', browse: 'projects', admin: 'admin', inbox: 'inbox',
+  auth: 'signin', hdash: 'dashboard', cdash: 'contractor', browse: 'projects', admin: 'admin', inbox: 'inbox', settings: 'settings', homeowner: 'profile',
 };
 const BASE = import.meta.env.BASE_URL;
 
@@ -26,6 +26,8 @@ function routeFromLocation(): { route: string; known: boolean; curId?: string } 
   const project = rest.match(/^project\/([A-Za-z0-9-]{1,24})$/);
   if (project) return { route: 'project', known: true, curId: project[1] };
   const hit = Object.entries(PATHS).find(([, path]) => path === rest);
+  // "my profile" is the signed-in homeowner's own record, which the logic knows as h1
+  if (hit?.[0] === 'homeowner') return { route: 'homeowner', known: true, curId: 'h1' };
   return { route: hit ? hit[0] : 'home', known: Boolean(hit) };
 }
 
@@ -69,7 +71,7 @@ export function titleFor(vm: LogicVals, route: string): string {
   const label: string | undefined = t && ({
     how: t.nav?.how, pricing: t.nav?.pricing, about: t.nav?.about, help: t.footer?.help, faq: t.nav?.faq,
     contact: t.footer?.contact, rules: t.footer?.rules, terms: t.footer?.terms, privacy: t.footer?.privacy,
-    post: t.nav?.post, join: t.footer?.join, auth: t.nav?.signIn, hdash: t.nav?.dashboard, cdash: t.nav?.dashboard, browse: t.nav?.browse, admin: t.nav?.admin, project: vm.pj?.title,
+    post: t.nav?.post, join: t.footer?.join, auth: t.nav?.signIn, hdash: t.nav?.dashboard, cdash: t.nav?.dashboard, browse: t.nav?.browse, admin: t.nav?.admin, settings: t.nav?.settings, homeowner: t.hprofile?.myProfile, project: vm.pj?.title,
   } as Record<string, string | undefined>)[route];
   return label ? `${label} · ${vm.dir === 'ltr' ? 'Tarmem' : 'ترميم'}` : 'ترميم · Tarmem';
 }

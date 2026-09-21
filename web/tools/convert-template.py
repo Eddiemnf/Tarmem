@@ -388,6 +388,7 @@ LAUNCH_HIDDEN_CLASSES = {
     "ai2-stats": "headline figures (contractors, projects, satisfaction) that are not real yet",
     "drop": "a file picker that uploads nothing, until photos have somewhere to go (vm.uploads: src/platform/files.ts)",
     "ai2-att": "the same, on the home page's description box: it feeds the assistant, which is not public",
+    "wa-card": "WhatsApp notifications (verify a number, quiet hours): nothing can send them until the WhatsApp Business API is connected",
 }
 # When a marker above is hidden; anything not listed here is hidden on the whole public site.
 LAUNCH_HIDDEN_CONDITIONS = {"drop": "vm.launch && !vm.uploads"}
@@ -409,7 +410,9 @@ LAUNCH_HIDDEN_ROUTES = {
     "contractors": "vm.launch", "browse": "vm.launch && !vm.accounts",
     "contractor": "vm.launch",  # public contractor profiles: their ratings and reviews do not exist yet
     # signed-in pages that still run on the design's invented figures
-    "wallet": "vm.launch", "settings": "vm.launch", "homeowner": "vm.launch",
+    "wallet": "vm.launch",
+    # settings and the homeowner's own profile are real once accounts are (src/platform/): saved to the person's profile row
+    "settings": "vm.launch && !vm.accounts", "homeowner": "vm.launch && !vm.accounts",
 }
 _launch_rules_applied: set[str] = set()
 

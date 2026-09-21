@@ -12,7 +12,7 @@ import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleL
 import { openWhatsAppTo } from '../launch/deliver';
 import { contractorRecord, runtimeData, setEveryone, toLogicProject } from './data';
 import { forgetHeldFiles, heldFile, listFiles, uploadFile, type StoredFile } from './files';
-import { createProject, currentAccount, onAccountChange, refreshAccount, saveBid, sendContact, signAgreement, withdrawProject, type AgreementRow, type BidRow } from './session';
+import { createProject, currentAccount, onAccountChange, refreshAccount, saveBid, saveReview, sendContact, signAgreement, withdrawProject, type AgreementRow, type BidRow } from './session';
 import { trackRoutes } from './track';
 
 const langOf = (state: LogicState): 'ar' | 'en' => (state.lang === 'en' ? 'en' : 'ar');
@@ -23,12 +23,12 @@ const bidderId = (userId: string) => 'co-' + userId.slice(0, 8);
 const logicBid = (bid: BidRow, cid: string): LogicState => ({ ...bid.details, cid, price: bid.price, days: bid.days, note: both(bid.note || ''), dbId: bid.id, chosen: bid.status === 'chosen' });
 
 /** An agreement as the design's project fields: awaiting the contractor's signature (`pending`), or signed by both (awarded). */
-function agreementState(a: AgreementRow | undefined, cidOf: (userId: string) => string): LogicState {
+function agreementState(a: AgreementRow | undefined, cidOf: (userId: string) => string, stages: string[] = []): LogicState {
   if (!a) return {};
   const ho = { name: a.homeowner_name, at: a.homeowner_signed_at.slice(0, 10) };
   if (!a.contractor_signed_at) return { pending: { cid: cidOf(a.contractor_id), price: a.amount, days: a.days }, sig: { ho }, agreementSaved: 'homeowner' };
   // Stages follow the first payment, and payment on the site is not connected yet: the project is awarded, with no stages to act on.
-  return { contractorId: cidOf(a.contractor_id), amount: a.amount, pending: null, ms: [], sig: { ho, co: { name: a.contractor_name || '', at: a.contractor_signed_at.slice(0, 10) } }, agreementSaved: 'both' };
+  return { contractorId: cidOf(a.contractor_id), amount: a.amount, pending: null, ms: stages, sig: { ho, co: { name: a.contractor_name || '', at: a.contractor_signed_at.slice(0, 10) } }, agreementSaved: 'both' };
 }
 
 function accountState(): LogicState {
@@ -40,10 +40,14 @@ function accountState(): LogicState {
     projects: (account?.projects || []).map((row) => {
       const cidOf = (userId: string) => (contractor ? 'c1' : bidderId(userId));
       return { ...toLogicProject(row), bids: (account?.bids || []).filter((b) => b.project_id === row.id).map((b) => logicBid(b, cidOf(b.contractor_id))),
-        ...agreementState((account?.agreements || []).find((a) => a.project_id === row.id), cidOf) };
+        ...agreementState((account?.agreements || []).find((a) => a.project_id === row.id), cidOf,
+          // stages show only once the owner has switched payments on in the database; until then an awarded project has none to act on
+          account?.paymentsLive ? account.stages.filter((st) => st.project_id === row.id).sort((x, y) => x.idx - y.idx).map((st) => st.status) : []) };
     }),
+    // reviews already written, in the design's shape, so a reviewed project does not ask for another
+    reviews: (account?.reviews || []).map((r) => ({ pid: account?.projects.find((p) => p.id === r.project_id)?.code, by: 'homeowner', stars: r.stars, text: r.body, date: r.created_at.slice(0, 10), saved: true })),
     contractors: !account ? [] : contractor ? [contractorRecord(account.application, account.profile)]
-      : account.bidders.map((b) => ({ id: bidderId(b.user_id), name: both(b.company), city: b.city, trades: b.trades || [], rating: 0, reviews: 0, done: 0, verified: true,
+      : account.bidders.map((b) => ({ id: bidderId(b.user_id), name: both(b.company), city: b.city, trades: b.trades || [], rating: Number(b.rating) || 0, reviews: Number(b.reviews) || 0, done: Number(b.done) || 0, verified: true,
         since: String(b.since || '').slice(0, 4), onTime: '—', response: '—', bio: both(''), checks: { id: false, cr: true, pf: false } })),
   };
 }
@@ -235,6 +239,19 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     }
   };
 
+  // A review written in the design's form is saved; if the database refuses it (not finished, already reviewed), it is taken back.
+  const saveNewReviews = () => {
+    const account = currentAccount();
+    if (applying || account?.profile.role !== 'homeowner') return;
+    const fresh = (host.logic.state.reviews as LogicState[]).find((r) => !r.saved && !r.saving);
+    const row = fresh && account.projects.find((p) => p.code === fresh.pid);
+    const contractorId = row && account.agreements.find((a) => a.project_id === row.id)?.contractor_id;
+    if (!fresh || !row || !contractorId) return;
+    const mark = (patch: LogicState | null) => put({ reviews: (host.logic.state.reviews as LogicState[]).flatMap((r) => (r === fresh || (r.pid === fresh.pid && !r.saved) ? (patch ? [{ ...r, ...patch }] : []) : [r])) });
+    mark({ saving: true });
+    void saveReview(row.id, contractorId, Number(fresh.stars), String(fresh.text)).then((result) => mark(result.ok ? { saved: true, saving: false } : null));
+  };
+
   // The design signs an agreement in memory. Each signature is asked of the database; if it refuses, the truth is loaded back.
   const saveSignatures = () => {
     const role = currentAccount()?.profile.role;
@@ -262,10 +279,15 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     const project = s.route === 'project' ? (s.projects as LogicState[]).find((p) => p.id === s.curId) : null;
     if (!project?.dbId || !currentAccount() || filesFor === project.dbId) return;
     filesFor = project.dbId;
-    const owner = project.ownerId === 'h1' ? currentAccount()!.profile.id : project.ownerId;
+    const owner = project.ownerDbId || (project.ownerId === 'h1' ? currentAccount()!.profile.id : project.ownerId);
     void listFiles(owner, project.dbId).then((files) => {
       if (!files.length) return;
       put({ projects: (host.logic.state.projects as LogicState[]).map((p) => (p.dbId === project.dbId ? { ...p, files: files.map(fileRow) } : p)) });
+    });
+    // a stage's evidence ticks (photos, video, the owner's acceptance photo) say what is really in storage
+    if (project.ms?.length) void Promise.all([0, 1, 2].map((i) => listFiles(owner, `${project.dbId}/stage-${i}`))).then((perStage) => {
+      const ev = perStage.map((files) => ({ p: files.some((f) => /\/photo-/.test(f.path)), v: files.some((f) => /\/video-/.test(f.path)), o: files.some((f) => /\/accept-/.test(f.path)) }));
+      put({ projects: (host.logic.state.projects as LogicState[]).map((p) => (p.dbId === project.dbId ? { ...p, ev } : p)) });
     });
   };
 
@@ -278,7 +300,12 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     // nothing invented survives on the real site: the design seeds these lists for its demo
     const next = accountState();
     next.projects = (next.projects as LogicState[]).map((p) => (filesBefore.has(p.dbId) ? { ...p, files: filesBefore.get(p.dbId) } : p));
-    put({ rejected: [], cases: [], promos: [], affiliates: [], strikes: [], refunds: [], adminAn: null, ...next });
+    // the settings page and the profile page read these two; they hold what the person's profile row says
+    const profile = account?.profile;
+    const before = host.logic.state;
+    const mine = profile ? { setg: { ...before.setg, mobile: profile.mobile, email: profile.email || '', prefs: { ...before.setg?.prefs, ...(profile.prefs || {}) }, notice: before.setg?.notice || '' },
+      hoProfile: { city: profile.city, about: both(profile.about || '') } } : {};
+    put({ rejected: [], cases: [], promos: [], affiliates: [], strikes: [], refunds: [], adminAn: null, ...mine, ...next });
     if (account?.logicUser.admin) { void refreshAdmin(); void refreshAnalytics(); }
   };
   apply();
@@ -287,7 +314,8 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   const stopFiles = host.subscribe(loadProjectFiles);
   const stopBids = host.subscribe(saveNewBids);
   const stopSigning = host.subscribe(saveSignatures);
+  const stopReviews = host.subscribe(saveNewReviews);
   loadProjectFiles();
   const stopTracking = trackRoutes(host);
-  return () => { stopAccount(); stopWatching(); stopFiles(); stopBids(); stopSigning(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
+  return () => { stopAccount(); stopWatching(); stopFiles(); stopBids(); stopSigning(); stopReviews(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
 }

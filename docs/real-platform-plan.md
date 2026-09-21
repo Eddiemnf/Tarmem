@@ -219,3 +219,25 @@ writes nothing.
 
 Still to build: stages with photo/video evidence and approvals (they go live with payment), settings / profile pages, reviews,
 alerts with no tab open, automatic WhatsApp on approval (needs the WhatsApp Business API), Nafath, payment.
+
+## Settings, profiles, reviews, photos for contractors, and stages waiting behind a switch — 22 September 2026
+
+`supabase/007_settings_reviews_stages.sql` (26 local checks) and the code beside it.
+
+- **Settings** (`/settings`) and **my profile** (`/profile`) are the designed pages, saved to the person's own profile row: mobile,
+  notification choices, language; name, city and "about". The sign-in email is shown but not changed there. "Close my account" is a
+  request to the team, as the design words it. The WhatsApp-notifications card stays hidden until the WhatsApp Business API exists.
+- **Verified contractors see a project's photos** while it is open for bids (or theirs): they need them to price the work.
+- **Reviews**: one per finished project, by its homeowner, for the contractor who did the work; a contractor's rating, review count
+  and finished projects now come from real rows (they show beside their bids).
+- **Stages are built and switched off.** Every awarded project gets three stages. The contractor submits one with photos and a
+  video (really uploaded, into the stage's own folder); the homeowner approves with their own photo of the finished work, or
+  disputes; the last approval completes the project, which opens the review. Every step is a database function that checks the
+  caller, the order of stages, that the project's payment is in, and that the evidence is really in storage.
+  Nothing moves — and the site shows no stages — until the owner runs, in the SQL editor:
+  `update public.platform_flags set enabled = true where key = 'payments_live';`
+  Until a payment provider reports payments by itself, an admin records "payment received" per project (a button in `/inbox`,
+  shown only once the switch is on). **The provider integration itself (taking and releasing money) is not written**: it depends
+  on which licensed partner is signed, and must not be switched on before that.
+- **Alerts with no tab open**: `supabase/functions/notify/index.ts` + `docs/alerts-setup.md` (email through Resend now; WhatsApp when
+  its API is set up). The owner deploys it, because it holds secrets.
