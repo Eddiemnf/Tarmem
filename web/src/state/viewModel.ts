@@ -48,7 +48,7 @@ function startProps(): Record<string, unknown> {
 function createHost(): LogicHost {
   const logic = new Component(startProps());
   if (!isLaunch) return new LogicHost(logic);
-  const initialPost = structuredClone(logic.state.post);
+  const initialPost = JSON.parse(JSON.stringify(logic.state.post)); // plain data; structuredClone needs Safari 15.4+
   return new LogicHost(logic, (prev, next) => guardLaunchState(prev, next, initialPost));
 }
 
