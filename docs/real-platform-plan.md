@@ -115,3 +115,33 @@ using only the public key.
   project comes with the email sender.
 - **PDPL**: the database is in Frankfurt. Whether Saudi residents' personal data may be kept there is
   a question for the lawyer before real volume.
+
+## The designed admin console, on real data — 21 September 2026
+
+The owner asked for the console exactly as designed, not the plain inbox. An account marked admin in
+the database now gets the design's admin role and lands on `/admin`: the design's own page
+(`web/src/pages/AdminPage.tsx`, generated from the design file) and its own handlers, fed from the
+database by `web/src/platform/admin.ts` instead of seed lists. Nothing invented is shown:
+
+| Tab | What it shows now |
+|---|---|
+| Overview | every posted project; real counts. Money figures are true zeros until payments exist |
+| Analytics + live view | the site's own visit record (`web/src/platform/track.ts` → table `visits` → function `admin_analytics`): visitors now, today vs yesterday, week / month / year, top pages, sources, cities, devices, a live feed of sign-ups, projects, applications and messages. No cookies, no IP addresses; the team's own browsing is not counted; refreshed every 20 seconds while the tab is open |
+| Verification | contractor applications, with the person and mobile to call; Approve / Reject update the application |
+| Support cases | contact-form messages with the sender; Resolve marks one handled |
+| Users | every homeowner account and every contractor who applied |
+| Promo codes, Affiliates | created, paused and archived as designed, saved in `admin_state`. Nothing can redeem a code until payments exist, so usage figures are true zeros |
+| Late & refunds, Payments | empty until milestones and payments are real |
+
+The design's analytics were labelled "simulated data until Google Analytics 4 is connected"; they are
+now first-party and real. The GA card is still the design's (it stores an ID and sends nothing).
+The plain `/inbox` stays one click away (the dark bar), because it is the one place that lists a
+customer's mobile and email next to their project.
+
+Owner step: run `supabase/002_admin_console.sql` in the SQL Editor. Until then the console works but
+its analytics read zero and promo codes are not kept. Both scripts are tested before the owner is
+asked to run them, in a private Postgres (`supabase/tests/local.mjs`), and the visitor-side rules are
+re-checked on the real database with `RLS_VISITOR_ONLY=1 node ../supabase/tests/rls.mjs` (creates no accounts).
+
+For the lawyer: the Privacy Policy should mention that the site keeps its own record of page views
+(page, language, device type, referring site; no cookies, no IP address, no name).

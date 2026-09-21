@@ -8,12 +8,13 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from './client';
 import type { PlatformError } from './copy';
 import { runtimeData, type Profile, type ProjectRow } from './data';
+import { setTrackContext, track } from './track';
 
 export interface Account {
   profile: Profile;
   projects: ProjectRow[];
   /** The `user` object the design's logic sees. One identity per sign-in, so state comparisons stay cheap. */
-  logicUser: { role: 'homeowner'; name: string; nafath: false; admin: boolean };
+  logicUser: { role: 'homeowner' | 'admin'; name: string; nafath: false; admin: boolean };
 }
 
 export type Result<T = true> = { ok: T; error?: undefined } | { ok?: undefined; error: PlatformError };
@@ -30,6 +31,7 @@ export function onAccountChange(listener: () => void): () => void {
 function setAccount(next: Account | null): void {
   account = next;
   runtimeData(next?.profile ?? null);
+  setTrackContext({ admin: next?.profile.role === 'admin', city: next?.profile.city ?? null });
   for (const listener of listeners) listener();
 }
 
@@ -80,7 +82,8 @@ async function loadAccount(user: User): Promise<Account | null> {
   const rows = await supabase.from('projects').select('*').eq('owner_id', user.id).neq('status', 'withdrawn').order('created_at', { ascending: false });
   return {
     profile, projects: (rows.data as ProjectRow[]) || [],
-    logicUser: { role: 'homeowner', name: profile.full_name, nafath: false, admin: profile.role === 'admin' },
+    // An account the owner marked admin in the database gets the design's admin role, and with it the console.
+    logicUser: { role: profile.role === 'admin' ? 'admin' : 'homeowner', name: profile.full_name, nafath: false, admin: profile.role === 'admin' },
   };
 }
 
@@ -115,6 +118,7 @@ export async function signUp(f: SignUpFields): Promise<Result<true | 'confirm'>>
     const loaded = await loadAccount(data.user);
     if (!loaded) return { error: 'generic' };
     setAccount(loaded);
+    track('signup', 'auth');
     return { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }
@@ -147,6 +151,7 @@ export async function createProject(f: ProjectFields): Promise<Result<ProjectRow
     }).select('*').single();
     if (error || !data) return { error: failure(error) };
     const row = data as ProjectRow;
+    track('project', 'post');
     account = { ...account, projects: [row, ...account.projects] };
     return { ok: row };
   } catch (e) { return { error: failure(e as Error) }; }
@@ -171,6 +176,7 @@ export async function sendContact(f: ContactFields): Promise<Result> {
       name: f.name.trim(), email: f.email.trim() || null, mobile: normalizeMobile(f.mobile) || null,
       topic: f.topic.trim().slice(0, 120) || null, message: f.message.trim(), lang: f.lang,
     });
+    if (!error) track('contact', 'contact');
     return error ? { error: failure(error) } : { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }
@@ -184,6 +190,7 @@ export async function sendApplication(f: ApplicationFields): Promise<Result> {
       company: f.company.trim(), person: f.person.trim(), mobile: normalizeMobile(f.mobile), email: f.email.trim() || null,
       city: f.city, trades: f.trades.slice(0, 12), cr_number: f.crNumber.trim() || null, note: f.note.trim().slice(0, 2000) || null, lang: f.lang,
     });
+    if (!error) track('application', 'join');
     return error ? { error: failure(error) } : { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }

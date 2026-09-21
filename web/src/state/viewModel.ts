@@ -24,6 +24,7 @@ import { openWhatsApp } from '../launch/deliver';
 import { guardLaunchState, type SentRequest } from '../launch/guard';
 import { isLaunch } from '../launch/mode';
 import { connectUrls } from '../launch/urls';
+import { EMPTY_ANALYTICS, analyticsVals } from '../platform/admin';
 import { bindPlatform, guardEffects } from '../platform/bind';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
@@ -63,11 +64,37 @@ function createHost(): LogicHost {
 
 /** What the public site changes in the bindings: a flag the generated markup checks, and a few strings —
     including the footer's line about a licensed payment partner, which stays off until one is signed. */
+/** The designed admin console, on real figures: everything the design's logic makes up is replaced here. */
+function adminVals(vm: LogicVals, state: LogicState): LogicVals {
+  if (state.user?.role !== 'admin' || !vm.t?.admin) return vm;
+  const ar = vm.dir !== 'ltr';
+  const when = (iso: string) => new Date(iso).toLocaleDateString(ar ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const applicants = new Map<string, LogicState>((state.contractors || []).map((c: LogicState) => [c.id, c]));
+  const senders = new Map<string, LogicState>((state.cases || []).map((c: LogicState) => [c.id, c]));
+  const budgets: number[] = (state.projects || []).map((p: LogicState) => (Number(p.min) + Number(p.max)) / 2);
+  const average = budgets.length ? Math.round(budgets.reduce((a, b) => a + b, 0) / budgets.length) : 0;
+  return {
+    ...vm,
+    ...analyticsVals(state.adminAn || EMPTY_ANALYTICS(state.anRange || 'week'), vm),
+    // the design dates every application "4 Sep 2026"; the team also needs to know whom to call
+    verifQueue: (vm.verifQueue || []).map((row: LogicState) => {
+      const c = applicants.get(row.id);
+      return c ? { ...row, name: `${row.name} — ${c.person}`, city: `${row.city} · ${c.mobile}`, date: when(c.appliedAt) } : row;
+    }),
+    // a support case here is a message from the contact form: there is no project, there is a sender
+    cases: (vm.cases || []).map((row: LogicState) => ({ ...row, project: senders.get(row.id)?.from || row.project })),
+    // the design's "average project value" is a fixed 46,800
+    pm: vm.pm?.kpis ? { ...vm.pm, kpis: vm.pm.kpis.map((k: LogicState, i: number) => (i === 3 ? { ...k, v: average ? average.toLocaleString('en-US') : '—' } : k)) } : vm.pm,
+    t: { ...vm.t, admin: { ...vm.t.admin, an: { ...vm.t.admin.an,
+      sub: ar ? 'الزوار الآن وأرقام اليوم، من سجل زيارات الموقع نفسه: بلا ملفات تعريف ارتباط وبلا عناوين IP.' : 'Live visitors and daily figures, from the site\'s own visit record: no cookies, no IP addresses.' } } },
+  };
+}
+
 function launchVals(vm: LogicVals, state: LogicState): LogicVals {
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
-  return {
+  return adminVals({
     ...vm,
     launch: true,
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
@@ -87,7 +114,7 @@ function launchVals(vm: LogicVals, state: LogicState): LogicVals {
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
     showWaFab: vm.showWaFab && !vm.r?.sent,
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  };
+  }, state);
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

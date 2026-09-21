@@ -39,8 +39,8 @@ export interface ProjectRow {
 
 const both = (text: string) => ({ en: text, ar: text });
 
-/** The homeowner record the logic looks up as `USERS.h1`. */
-function homeownerRecord(profile: Profile | null) {
+/** A homeowner record as the logic looks people up (`USERS.h1` for the signed-in one; by id in the admin console). */
+export function homeownerRecord(profile: Profile | null) {
   const name = profile?.full_name || '';
   const year = (profile?.created_at || new Date().toISOString()).slice(0, 4);
   return {
@@ -52,6 +52,9 @@ function homeownerRecord(profile: Profile | null) {
 }
 
 let activeProfile: Profile | null = null;
+let everyone: Record<string, ReturnType<typeof homeownerRecord>> | null = null;
+/** For the admin console: every homeowner, keyed by account id. `null` goes back to "just the signed-in one". */
+export function setEveryone(users: Record<string, ReturnType<typeof homeownerRecord>> | null): void { everyone = users; }
 
 /** The data module the logic runs on. The demo gets the design's seed data untouched; the public
     site gets the same copy and option lists with every invented person and project removed, and
@@ -59,11 +62,14 @@ let activeProfile: Profile | null = null;
 export function runtimeData(profile: Profile | null = activeProfile): typeof D {
   if (!isLaunch) return D;
   activeProfile = profile;
-  return { ...D, PROJECTS: [], CONTRACTORS: [], CASES: [], USERS: { h1: homeownerRecord(profile) } } as unknown as typeof D;
+  // The logic always looks up "h1" (the signed-in homeowner), even on pages that do not show it. In the admin
+  // console it stays reachable but uncounted, so the list of people holds real accounts only.
+  const users = everyone ? Object.defineProperty({ ...everyone }, 'h1', { value: homeownerRecord(profile), enumerable: false }) : { h1: homeownerRecord(profile) };
+  return { ...D, PROJECTS: [], CONTRACTORS: [], CASES: [], USERS: users } as unknown as typeof D;
 }
 
 /** A project row as the logic's `projects` entry. Dates are ISO; the logic prints them in words. */
-export function toLogicProject(row: ProjectRow): LogicState {
+export function toLogicProject(row: ProjectRow, ownerId = 'h1'): LogicState {
   const day = row.created_at.slice(0, 10);
   return {
     id: row.code, dbId: row.id,
@@ -71,7 +77,7 @@ export function toLogicProject(row: ProjectRow): LogicState {
     trade: row.trade, city: row.city, address: row.district || '',
     min: row.budget_min, max: row.budget_max, timing: row.timing,
     status: row.status === 'withdrawn' ? 'open' : row.status,
-    ownerId: 'h1', contractorId: null, amount: 0, funded: false,
+    ownerId, contractorId: null, amount: 0, funded: false,
     posted: both(day), bids: [], ms: [], msgs: [], files: [], ledger: [],
   };
 }

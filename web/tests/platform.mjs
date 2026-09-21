@@ -13,7 +13,11 @@ if (!site.supabase) { console.log('site.config.json has no "supabase" entry: rea
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-await context.addInitScript(() => { window.__opened = []; window.open = (url) => { window.__opened.push(String(url)); return null; }; });
+await context.addInitScript(() => {
+  window.__opened = []; window.open = (url) => { window.__opened.push(String(url)); return null; };
+  // the site does not count automated browsers as visitors; this test wants to see what a real one records
+  Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false });
+});
 const db = await installSupabaseMock(context, site.supabase.url);
 const page = await context.newPage();
 page.setDefaultTimeout(8000);
@@ -123,18 +127,6 @@ await submit.click();
 await settle(700);
 check('the right one opens the dashboard', (await pathname()) === '/dashboard');
 
-// D2 — the team inbox: nobody but an account marked admin in the database
-check('a customer sees no inbox link, and /inbox sends them to their dashboard', (await page.locator('[data-route="inbox"]').count()) === 0
-  && (await open('inbox'), (await pathname()) === '/dashboard'));
-db.profiles[0].role = 'admin'; // what the owner does in the SQL editor
-await open('dashboard');
-await page.locator('[data-route="inbox"]').click();
-await settle(700);
-check('an admin gets a link to the inbox, which lists projects with the owner\'s contact details',
-  (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 3 && (await page.locator('main', { hasText: 'تجديد مطبخ، 20 م²' }).count()) === 1
-    && (await page.locator('main a[href^="tel:"]').first().innerText()).includes('055'), await pathname());
-db.profiles[0].role = 'homeowner';
-await open('dashboard');
 await page.locator('button.acct').click();
 await page.locator('.acctmenu .acctitem').last().click();
 await settle();
@@ -160,6 +152,62 @@ await page.locator('button', { hasText: 'إرسال الطلب' }).click();
 await settle();
 check('…then it is saved, and the next page says the team will be in touch', db.applications.length === 1 && db.applications[0].company === 'مؤسسة البناء المتقن' && db.applications[0].trades.length === 1
   && (await page.locator('text=وصلنا طلبك').count()) === 1 && (await page.evaluate(() => window.__opened.length)) === 0, JSON.stringify(db.applications[0] || null).slice(0, 140));
+
+// F — visits are recorded by the site itself, without anything that identifies a person
+const seenEvents = new Set(db.visits.map((v) => v.event));
+check('page views and the moments that matter are recorded (sign-up, project, message, application)',
+  ['view', 'signup', 'project', 'contact', 'application'].every((e) => seenEvents.has(e)) && db.visits.some((v) => v.route === 'pricing' || v.route === 'post'), [...seenEvents].join(','));
+check('…with a random tab id, the page, language and device — and nothing else', db.visits.every((v) => /^[a-z0-9]{8,40}$/.test(v.session_id)
+  && Object.keys(v).every((k) => ['session_id', 'event', 'route', 'path', 'lang', 'device', 'referrer', 'city'].includes(k))), JSON.stringify(db.visits[0]));
+
+// G — the designed admin console, on real data, for an account the owner marked admin in the database
+await open('admin');
+check('a visitor cannot open the admin console', (await pathname()) === '/signin');
+await page.locator('#au-email').fill('sara@example.com');
+await page.locator('#au-password').fill('long-enough-1');
+await submit.click();
+await settle(700);
+await open('admin');
+check('neither can a customer', (await pathname()) === '/dashboard' && (await page.locator('[data-route="inbox"], [data-route="admin"]').count()) === 0);
+db.profiles[0].role = 'admin'; // what the owner does in the SQL editor
+const before = db.visits.length;
+await open('dashboard');
+await settle(900);
+check('an admin lands on the designed console', (await pathname()) === '/admin' && (await page.locator('.side[data-tab="analytics"]').count()) === 1, await pathname());
+const tab = async (id) => { await page.locator(`.side[data-tab="${id}"]`).click(); await settle(500); };
+await tab('verification');
+check('verification lists the real application, with who to call', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: '0501112223' }).count()) === 1
+  && (await page.locator('main', { hasText: '4 Sep 2026' }).count()) === 0);
+await page.locator('button[data-id="A-1"].btn-p').click();
+await settle();
+check('…and Approve marks it verified in the database', db.applications[0].status === 'verified', db.applications[0].status);
+await tab('support');
+check('support cases are the contact-form messages, with the sender', (await page.locator('main', { hasText: 'هل تغطون جدة؟' }).count()) === 1 && (await page.locator('main', { hasText: '0555123456' }).count()) === 1);
+await page.locator('button[data-id="M-1"]').click();
+await settle();
+check('…and resolving one marks it handled in the database', db.contact[0].handled === true);
+await tab('users');
+check('users lists real people only', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: 'عبدالله' }).count()) === 0);
+await tab('analytics');
+await settle(600);
+check('analytics says its figures are real, and shows the recorded visits', (await page.locator('main', { hasText: 'بيانات حقيقية' }).count()) === 1 && (await page.locator('main', { hasText: 'بيانات تجريبية' }).count()) === 0
+  && (await page.locator('main', { hasText: 'مقاول قدّم طلب انضمام' }).count()) === 1,
+  `real=${await page.locator('main', { hasText: 'بيانات حقيقية' }).count()} demo=${await page.locator('main', { hasText: 'بيانات تجريبية' }).count()} feed=${(await page.locator('main').innerText()).includes('مقاول قدّم طلب انضمام')}`);
+await tab('promos');
+await page.locator('button', { hasText: /كود جديد|إنشاء كود|New code/ }).first().click().catch(() => undefined);
+await settle(300);
+await page.locator('#pm-code').fill('WELCOME10');
+await page.locator('#pm-value').fill('10');
+await page.locator('.btn-p', { hasText: /حفظ|إنشاء|Save|Create/ }).last().click();
+await settle();
+check('a promo code made in the console is saved to the database', db.adminState.promos?.[0]?.code === 'WELCOME10' && db.adminState.promos.length === 1, JSON.stringify(db.adminState.promos || null).slice(0, 120));
+await tab('late');
+check('nothing invented is left: no seeded strikes, refunds or affiliates', !(await saved()).strikes?.length && !(await saved()).refunds?.length && !(await saved()).affiliates?.length);
+check("the team's own browsing is not counted as traffic", db.visits.length === before, `${before} → ${db.visits.length}`);
+await page.locator('[data-route="inbox"]').click();
+await settle(700);
+check('the plain contact list is still one click away', (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 3);
+db.profiles[0].role = 'homeowner';
 
 check('the site asked the database for nothing the test does not know about', db.unknown.length === 0, db.unknown.join(' · '));
 console.log(results.join('\n'));

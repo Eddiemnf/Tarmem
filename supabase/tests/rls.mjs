@@ -42,6 +42,21 @@ check('visitor: can apply as a contractor', !application.error, application.erro
 check('visitor: cannot read applications back', denied(await anon.from('contractor_applications').select('*')));
 check('visitor: cannot pre-approve their own application', Boolean((await anon.from('contractor_applications').insert({ company: 'RLS TEST', person: 'RLS TEST', mobile: '0500000000', city: 'riyadh', trades: ['kitchen'], status: 'verified' })).error));
 
+// 1b — 002: visits, the analytics function and the console's lists
+const visit = { session_id: 'rlstest' + stamp.slice(-6).padStart(6, '0'), event: 'view', route: 'home', path: '/', lang: 'en', device: 'desktop', referrer: null, city: null };
+const recorded = await anon.from('visits').insert(visit);
+check('visitor: can record a visit', !recorded.error, recorded.error?.message);
+check('visitor: cannot read visits', denied(await anon.from('visits').select('*')));
+check('visitor: cannot back-date a visit or sign it with a user', Boolean((await anon.from('visits').insert({ ...visit, created_at: '2020-01-01T00:00:00Z' })).error) && Boolean((await anon.from('visits').insert({ ...visit, user_id: '00000000-0000-4000-8000-000000000001' })).error));
+check('visitor: cannot run the analytics', Boolean((await anon.rpc('admin_analytics', { p_range: 'week' })).error));
+check("visitor: cannot read or write the console's lists", denied(await anon.from('admin_state').select('*')) && Boolean((await anon.from('admin_state').insert({ key: 'promos', value: [] })).error));
+if (process.env.RLS_VISITOR_ONLY) {
+  console.log(results.join('\n'));
+  const bad = results.filter((r) => r.startsWith('FAIL')).length;
+  console.log(bad ? `\n${bad} FAILED` : '\nall visitor rules hold (no accounts were created)');
+  process.exit(bad ? 1 : 0);
+}
+
 // 2 — two homeowners
 async function homeowner(tag) {
   const c = client();
@@ -69,6 +84,8 @@ await b.c.from('projects').update({ title: 'taken over' }).eq('id', posted.data?
 check("second homeowner: cannot change the first one's project", (await a.c.from('projects').select('title').eq('id', posted.data?.id).single()).data?.title === project.title);
 check('homeowner: cannot mark their own project active or completed', Boolean((await a.c.from('projects').update({ status: 'active' }).eq('id', posted.data?.id)).error));
 check('homeowner: cannot read the audit record', denied(await a.c.from('events').select('*')));
+check('homeowner: cannot read visits, run the analytics, or touch the console\'s lists', denied(await a.c.from('visits').select('*')) && Boolean((await a.c.rpc('admin_analytics', { p_range: 'week' })).error)
+  && denied(await a.c.from('admin_state').select('*')) && Boolean((await a.c.from('admin_state').insert({ key: 'promos', value: [] })).error));
 check('homeowner: cannot read contact messages or applications', denied(await a.c.from('contact_messages').select('*')) && denied(await a.c.from('contractor_applications').select('*')));
 const withdrawn = await a.c.from('projects').update({ status: 'withdrawn' }).eq('id', posted.data?.id);
 check('homeowner: can withdraw their own open project', !withdrawn.error && (await a.c.from('projects').select('status').eq('id', posted.data?.id).single()).data?.status === 'withdrawn', withdrawn.error?.message);

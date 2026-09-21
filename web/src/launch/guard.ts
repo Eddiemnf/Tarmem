@@ -19,7 +19,7 @@ import { LAUNCH_COPY } from './copy';
 import { openWhatsApp } from './deliver';
 
 /** Pages that need a real, signed-in account. They exist only once the database is connected. */
-const ACCOUNT_ROUTES = new Set(['hdash', 'project']);
+const ACCOUNT_ROUTES = new Set(['hdash', 'project', 'admin', 'inbox']);
 
 /** Work the guard starts but cannot finish inside a click: it needs the network (src/platform/bind.ts). */
 export interface GuardEffects {
@@ -127,17 +127,19 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
   const wantsContractorSignup = state.route === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor';
   const allowed = PUBLIC_ROUTES.has(state.route) || (platformOn && !wantsContractorSignup && (
     (state.route === 'auth' && !user)
-    || (state.route === 'hdash' && Boolean(user))
+    || (state.route === 'hdash' && user?.role === 'homeowner')
     || (state.route === 'project' && Boolean(user) && state.projects?.some((p: LogicState) => p.id === state.curId))
-    || (state.route === 'inbox' && Boolean(user?.admin))));
+    // the designed admin console, and the plain contact list beside it: only for an account marked admin in the database
+    || ((state.route === 'admin' || state.route === 'inbox') && user?.role === 'admin')));
+  const ownHome = user?.role === 'admin' ? 'admin' : 'hdash';
 
   if (!allowed) {
     const target = state.route;
     if (platformOn && target === 'auth' && user) {
-      patch({ route: 'hdash' });
-    } else if (platformOn && (ACCOUNT_ROUTES.has(target) || target === 'inbox')) {
-      // signed out: sign in first. Signed in, but not their project (or not the team): their dashboard.
-      patch(user ? { route: 'hdash' } : { route: 'auth', auth: { ...state.auth, mode: 'signin', role: 'homeowner', error: '' } });
+      patch({ route: ownHome });
+    } else if (platformOn && ACCOUNT_ROUTES.has(target)) {
+      // signed out: sign in first. Signed in, but not their page (somebody else's project, the team's console): their own home.
+      patch(user ? { route: ownHome } : { route: 'auth', auth: { ...state.auth, mode: 'signin', role: 'homeowner', error: '' } });
     } else if (target === 'auth' && state.pendingPost) {
       // A guest pressed "publish" on the last step of the project form.
       const message = projectMessage(state);

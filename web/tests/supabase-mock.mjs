@@ -12,7 +12,7 @@ const jwt = (sub) => `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub, role: 'a
 const subOf = (header) => { try { return JSON.parse(Buffer.from(String(header || '').split('.')[1], 'base64url').toString()).sub || null; } catch { return null; } };
 
 export async function installSupabaseMock(context, supabaseUrl) {
-  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], refused: [], unknown: [] };
+  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, refused: [], unknown: [] };
   let nextCode = 2001;
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
   const send = (route, status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
@@ -75,14 +75,35 @@ export async function installSupabaseMock(context, supabaseUrl) {
         return route.fulfill({ status: 204, headers: cors });
       }
     }
-    for (const [table, store] of [['contact_messages', db.contact], ['contractor_applications', db.applications]]) {
+    if (path === '/rest/v1/rpc/admin_analytics' && method === 'POST') {
+      if (!admin) return refuse(route, 'admin_analytics: admins only');
+      const sessions = new Set(db.visits.map((v) => v.session_id)).size;
+      const count = (key) => Object.entries(db.visits.reduce((m, v) => ({ ...m, [v[key] ?? 'direct']: (m[v[key] ?? 'direct'] || 0) + 1 }), {})).map(([k, n]) => ({ k, n }));
+      const stats = { visitors: sessions, views: db.visits.filter((v) => v.event === 'view').length, signups: db.visits.filter((v) => v.event === 'signup').length, posts: db.visits.filter((v) => v.event === 'project').length, avg_seconds: 75, bounce_pct: 0 };
+      const points = body.p_range === 'month' ? 30 : body.p_range === 'year' ? 12 : 7;
+      return send(route, 200, { range: ['month', 'year'].includes(body.p_range) ? body.p_range : 'week',
+        series: Array.from({ length: points }, (_, k) => ({ k: body.p_range === 'year' ? `2026-${String(k + 1).padStart(2, '0')}` : `2026-09-${String(k + 1).padStart(2, '0')}`, n: k === points - 1 ? sessions : 0 })),
+        prev_total: 0, today: stats, yesterday: { ...stats, visitors: 0, views: 0, signups: 0, posts: 0 }, top_pages: count('route'), sources: count('referrer'), cities: [{ k: 'unknown', n: sessions }],
+        live: { now: sessions, devices: count('device'), pages: count('route').slice(0, 5), feed: db.visits.slice(-8).reverse().map((v, i) => ({ city: v.city, event: v.event, route: v.route, age: i * 7 })) } });
+    }
+    if (path === '/rest/v1/admin_state') {
+      if (!admin) return method === 'GET' ? rows([]) : refuse(route, 'admin_state: admins only');
+      if (method === 'GET') return rows(Object.entries(db.adminState).map(([key, value]) => ({ key, value })));
+      if (method === 'POST') { db.adminState[body.key] = body.value; return send(route, 201); }
+    }
+    for (const [table, store] of [['contact_messages', db.contact], ['contractor_applications', db.applications], ['visits', db.visits]]) {
       if (path !== '/rest/v1/' + table) continue;
       if (method === 'POST') {
         if (wantsRows) return refuse(route, table + ': visitors cannot read a row back');
         store.push(body);
         return send(route, 201);
       }
-      if (method === 'GET') return rows(admin ? store.map((r, i) => ({ id: i + 1, created_at: new Date().toISOString(), status: 'new', ...r })) : []);
+      if (method === 'GET') return rows(admin ? store.map((r, i) => ({ id: i + 1, created_at: new Date().toISOString(), status: 'new', handled: false, ...r })) : []);
+      if (method === 'PATCH') {
+        if (!admin) return refuse(route, table + ': only admins change a row');
+        Object.assign(store[Number(eq('id')) - 1] || {}, body);
+        return route.fulfill({ status: 204, headers: cors });
+      }
     }
     db.unknown.push(`${method} ${path}${url.search}`);
     return send(route, 404, { message: 'not mocked' });
