@@ -25,10 +25,10 @@ export default function ContractorDashboardPage({ vm }: { vm: VM }) {
     
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', flexWrap: 'wrap', gap: '16px' }}>
         <div><span className="kick">{vm.t.cdash.kicker}</span><h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464', marginTop: '8px' }}>{vm.user.name}</h1></div>
-        {vm.launch ? null : (<button className="btn btn-p" data-route="browse" onClick={vm.go}>{vm.t.nav.browse}</button>)}
+        {vm.launch && !vm.accounts ? null : (<button className="btn btn-p" data-route="browse" onClick={vm.go}>{vm.t.nav.browse}</button>)}
       </div>
       <div className="qa">
-        {vm.launch ? null : (<button type="button" className="qa-t" data-route="browse" onClick={vm.go}>
+        {vm.launch && !vm.accounts ? null : (<button type="button" className="qa-t" data-route="browse" onClick={vm.go}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="6.4" /><path d="M20 20l-4.4-4.4" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.cdash.qaBrowse}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.cdash.qaBrowseSub}</span></span>
           
@@ -42,10 +42,10 @@ export default function ContractorDashboardPage({ vm }: { vm: VM }) {
     {vm.qaWorkN ? (<><span className="qa-b">{vm.qaWorkN}</span></>) : null}
     
         </button>
-        <button type="button" className="qa-t" data-route="contractor" data-id="c1" onClick={vm.go}>
+        {vm.launch ? null : (<button type="button" className="qa-t" data-route="contractor" data-id="c1" onClick={vm.go}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19.4v-1.2A3.8 3.8 0 0 1 8.8 14.4h6.4A3.8 3.8 0 0 1 19 18.2v1.2" /><circle cx="12" cy="8" r="3.4" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.cdash.qaProfile}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.cdash.qaProfileSub}</span></span>
-        </button>
+        </button>)}
         {vm.launch ? null : (<button type="button" className="qa-t" data-route="wallet" onClick={vm.go}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.6" /><path d="M3 10.5h18" /><path d="M16.5 14.8h2" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.cdash.qaWallet}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.cdash.qaWalletSub}</span></span>

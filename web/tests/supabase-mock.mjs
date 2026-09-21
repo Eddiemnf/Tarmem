@@ -78,7 +78,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
       }
     }
     if (path === '/rest/v1/projects') {
-      if (method === 'GET') return rows(db.projects.filter((p) => (admin || p.owner_id === me) && (url.searchParams.get('status') !== 'neq.withdrawn' || p.status !== 'withdrawn')).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      const verifiedContractor = db.profiles.some((p) => p.id === me && p.role === 'contractor') && db.applications.some((a) => a.user_id === me && a.status === 'verified');
+      if (method === 'GET') return rows(db.projects.filter((p) => (admin || p.owner_id === me || (verifiedContractor && p.status === 'open')) && (url.searchParams.get('status') !== 'neq.withdrawn' || p.status !== 'withdrawn')).sort((a, b) => b.created_at.localeCompare(a.created_at)));
       if (method === 'POST') {
         const assigned = ['id', 'code', 'owner_id', 'status', 'created_at'].filter((k) => k in body);
         if (assigned.length) return refuse(route, 'projects: the database assigns ' + assigned.join(', '));
@@ -113,10 +114,10 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (path !== '/rest/v1/' + table) continue;
       if (method === 'POST') {
         if (wantsRows) return refuse(route, table + ': visitors cannot read a row back');
-        store.push(body);
+        store.push(table === 'contractor_applications' ? { ...body, user_id: me, status: 'new' } : body);
         return send(route, 201);
       }
-      if (method === 'GET') return rows(admin ? store.map((r, i) => ({ id: i + 1, created_at: new Date().toISOString(), status: 'new', handled: false, ...r })) : []);
+      if (method === 'GET') return rows(store.map((r, i) => ({ id: i + 1, created_at: new Date().toISOString(), status: 'new', handled: false, ...r })).filter((r) => admin || (table === 'contractor_applications' && me && r.user_id === me)));
       if (method === 'PATCH') {
         if (!admin) return refuse(route, table + ': only admins change a row');
         Object.assign(store[Number(eq('id')) - 1] || {}, body);

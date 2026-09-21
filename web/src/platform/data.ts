@@ -51,6 +51,17 @@ export function homeownerRecord(profile: Profile | null) {
   };
 }
 
+export interface Application { id: number; created_at: string; company: string; person: string; mobile: string; email: string | null; city: string; trades: string[]; cr_number: string | null; note: string | null; lang: 'ar' | 'en'; status: 'new' | 'contacted' | 'verified' | 'declined'; user_id: string | null }
+
+/** The signed-in contractor, as the record the logic looks up as "c1". Its figures are true zeros until there is work to count. */
+export function contractorRecord(application: Application | null, profile: Profile): LogicState {
+  return {
+    id: 'c1', name: both(application?.company || profile.company || profile.full_name), city: application?.city || profile.city, trades: application?.trades || [],
+    rating: 0, reviews: 0, done: 0, verified: application?.status === 'verified', since: (application?.created_at || profile.created_at).slice(0, 4),
+    onTime: '—', response: '—', bio: both(application?.note || ''), checks: { id: false, cr: Boolean(application?.cr_number), pf: false },
+  };
+}
+
 let activeProfile: Profile | null = null;
 let everyone: Record<string, ReturnType<typeof homeownerRecord>> | null = null;
 /** For the admin console: every homeowner, keyed by account id. `null` goes back to "just the signed-in one". */
@@ -64,6 +75,11 @@ export function runtimeData(profile: Profile | null = activeProfile): typeof D {
   activeProfile = profile;
   // The logic always looks up "h1" (the signed-in homeowner), even on pages that do not show it. In the admin
   // console it stays reachable but uncounted, so the list of people holds real accounts only.
+  // A contractor sees projects, never who posted them: every owner is the same nameless homeowner.
+  if (profile?.role === 'contractor') {
+    const owner = { ...homeownerRecord(null), ar: 'صاحب منزل', en: 'Homeowner' };
+    return { ...D, PROJECTS: [], CONTRACTORS: [], CASES: [], USERS: { h1: owner } } as unknown as typeof D;
+  }
   const users = everyone ? Object.defineProperty({ ...everyone }, 'h1', { value: homeownerRecord(profile), enumerable: false }) : { h1: homeownerRecord(profile) };
   return { ...D, PROJECTS: [], CONTRACTORS: [], CASES: [], USERS: users } as unknown as typeof D;
 }

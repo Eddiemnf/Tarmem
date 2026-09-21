@@ -9,7 +9,8 @@ import type { LogicHost, LogicState } from '../state/designRuntime';
 import { supabase } from './client';
 import { PLATFORM_COPY } from './copy';
 import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleList, setApplicationStatus, setMessageHandled } from './admin';
-import { runtimeData, setEveryone, toLogicProject } from './data';
+import { openWhatsAppTo } from '../launch/deliver';
+import { contractorRecord, runtimeData, setEveryone, toLogicProject } from './data';
 import { forgetHeldFiles, heldFile, listFiles, uploadFile, type StoredFile } from './files';
 import { createProject, currentAccount, onAccountChange, sendContact, withdrawProject } from './session';
 import { trackRoutes } from './track';
@@ -19,7 +20,11 @@ const langOf = (state: LogicState): 'ar' | 'en' => (state.lang === 'en' ? 'en' :
 /** The signed-in person and their projects, as the logic's own state. */
 function accountState(): LogicState {
   const account = currentAccount();
-  return { user: account?.logicUser ?? null, projects: (account?.projects || []).map((row) => toLogicProject(row)) };
+  return {
+    user: account?.logicUser ?? null, projects: (account?.projects || []).map((row) => toLogicProject(row)),
+    // a contractor is "c1" to the logic, exactly as a homeowner is "h1"
+    contractors: account?.profile.role === 'contractor' ? [contractorRecord(account.application, account.profile)] : [],
+  };
 }
 
 export function guardEffects(getHost: () => LogicHost | null): GuardEffects {
@@ -129,7 +134,13 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     if (s.contractors !== seen.contractors) {
       for (const c of s.contractors as LogicState[]) {
         const before = (seen.contractors as LogicState[] | undefined)?.find((x) => x.id === c.id);
-        if (c.dbId && before && !before.verified && c.verified) void setApplicationStatus(c.dbId, 'verified').then(failed);
+        if (c.dbId && before && !before.verified && c.verified) {
+          void setApplicationStatus(c.dbId, 'verified').then(failed);
+          // The contractor is told on WhatsApp. It opens ready-written, from the team's own WhatsApp, inside this click;
+          // sending without anyone pressing "send" needs the WhatsApp Business API (docs/real-platform-plan.md).
+          const copy = PLATFORM_COPY[c.lang === 'en' ? 'en' : 'ar'];
+          openWhatsAppTo(c.mobile, copy.verifiedMessage(c.person, c.name.ar, `${window.location.origin}/signin`, Boolean(c.hasAccount)));
+        }
       }
     }
     if (s.rejected !== seen.rejected) {
@@ -180,7 +191,7 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     setEveryone(null);
     logic.D = runtimeData(account?.profile ?? null);
     // nothing invented survives on the real site: the design seeds these lists for its demo
-    put({ ...accountState(), contractors: [], rejected: [], cases: [], promos: [], affiliates: [], strikes: [], refunds: [], adminAn: null });
+    put({ rejected: [], cases: [], promos: [], affiliates: [], strikes: [], refunds: [], adminAn: null, ...accountState() });
     if (account?.logicUser.admin) { void refreshAdmin(); void refreshAnalytics(); }
   };
   apply();

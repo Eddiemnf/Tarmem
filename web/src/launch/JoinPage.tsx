@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { normalizeMobile, sendApplication, validEmail, validMobile } from '../platform/session';
+import { normalizeMobile, signUpContractor, validEmail, validMobile } from '../platform/session';
 import { useLaunchActions, type VM } from '../state/viewModel';
 import { LAUNCH_COPY } from './copy';
 
@@ -20,12 +20,12 @@ const TRADE_KEYS = ['hc0', 'hc1', 'hc2', 'hc3', 'hc4', 'hc5', 'hc6', 'hc7', 'hc8
 export default function JoinPage({ vm }: { vm: VM }) {
   const lang = vm.dir === 'ltr' ? 'en' : 'ar';
   const copy = LAUNCH_COPY[lang].join;
-  const { send } = useLaunchActions();
+  const { send, host } = useLaunchActions();
   const cities = (vm.cities || []) as { id: string; label: string }[];
   const trades = TRADE_KEYS.map((key) => vm[key]).filter(Boolean) as { id: string; label: string }[];
 
   const real = PLATFORM_COPY[lang];
-  const [form, setForm] = useState({ company: '', person: '', mobile: '', email: '', city: cities[0]?.id || '', cr: '', note: '' });
+  const [form, setForm] = useState({ company: '', person: '', mobile: '', email: '', password: '', city: cities[0]?.id || '', cr: '', note: '' });
   const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -44,13 +44,17 @@ export default function JoinPage({ vm }: { vm: VM }) {
       // Saved with Tarmem directly, so the team needs a way to reach the applicant.
       const mobile = normalizeMobile(form.mobile), email = form.email.trim();
       if (!validMobile(mobile)) return setError(real.err.mobile);
-      if (email && !validEmail(email)) return setError(real.err.email);
+      // The application creates the contractor's account: once an admin verifies it, they sign in with this email and password.
+      if (!validEmail(email)) return setError(real.coEmailNeeded);
+      if (form.password.length < 8) return setError(real.err.password);
       if (form.cr.trim() && !/^[0-9]{5,15}$/.test(form.cr.trim())) return setError(copy.crHint);
       setBusy(true); setError('');
-      const result = await sendApplication({ company: form.company, person: form.person, mobile, email, city: form.city, trades: picked, crNumber: form.cr, note: form.note, lang });
+      const result = await signUpContractor({ company: form.company, person: form.person, mobile, email: email.toLowerCase(), password: form.password, city: form.city, trades: picked, crNumber: form.cr, note: form.note, lang });
       setBusy(false);
       if (!result.ok) return setError(real.err[result.error]);
-      return send({ kind: 'join', files: 0, text: '', saved: real.joinSent });
+      if (result.ok === 'confirm') return send({ kind: 'join', files: 0, text: '', saved: real.confirmSent });
+      (host.logic as unknown as { nav: (route: string) => void }).nav('cdash'); // their dashboard, which says the account is being verified
+      return undefined;
     }
     const lines = [
       `${copy.company}: ${form.company.trim()}`,
@@ -92,6 +96,7 @@ export default function JoinPage({ vm }: { vm: VM }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '12px' }}>
             <div><label className="lbl" htmlFor="join-mobile">{real.mobile}</label><input id="join-mobile" className="input num" name="mobile" type="tel" dir="ltr" autoComplete="tel" placeholder={real.mobilePh} value={form.mobile} onChange={set} /></div>
             <div><label className="lbl" htmlFor="join-email">{real.email}</label><input id="join-email" className="input" name="email" type="email" dir="ltr" autoComplete="email" value={form.email} onChange={set} /></div>
+            <div style={{ gridColumn: '1 / -1' }}><label className="lbl" htmlFor="join-password">{real.coPassword}</label><input id="join-password" className="input" name="password" type="password" dir="ltr" autoComplete="new-password" placeholder={real.passwordHint} value={form.password} onChange={set} /></div>
           </div>
         ) : null}
         <div>
@@ -107,7 +112,7 @@ export default function JoinPage({ vm }: { vm: VM }) {
           <p className="muted" style={{ fontSize: '12px', marginTop: '6px' }}>{copy.crHint}</p></div>
         <div><label className="lbl" htmlFor="join-note">{copy.note}</label><textarea id="join-note" className="input" name="note" rows={4} value={form.note} onChange={set} placeholder={copy.notePh} /></div>
         {error ? <p role="alert" style={{ color: '#D9401F', fontSize: '13px' }}>{error}</p> : null}
-        <button className="btn btn-p" type="button" disabled={busy} onClick={submit}>{busy ? real.working : platformOn ? real.joinSend : copy.send}</button>
+        <button className="btn btn-p" type="button" disabled={busy} onClick={submit}>{busy ? real.working : platformOn ? real.coCreate : copy.send}</button>
       </div>
     </section>
   );

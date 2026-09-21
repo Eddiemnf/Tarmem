@@ -124,7 +124,7 @@ export default function PlanPage({ vm }: { vm: VM }) {
                     </div>
                     <p className="v-sm" style={{ marginTop: '7px', maxWidth: '74ch' }}><span style={{ color: '#6E685E' }}>{m.whyLabel} </span>{m.why}</p>
                   </div>
-                  <button className="v-icb" type="button" data-route="contractor" data-id={m.id} onClick={vm.go}>{vm.t.ai.viewProfile}</button>
+                  {vm.launch ? null : (<button className="v-icb" type="button" data-route="contractor" data-id={m.id} onClick={vm.go}>{vm.t.ai.viewProfile}</button>)}
                 </div>
               </React.Fragment>
       ))}

@@ -129,7 +129,7 @@ export default function HomePage({ vm }: { vm: VM }) {
         <span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.coKicker}</span>
         <h3 style={{ fontSize: 'clamp(22px,2.2vw,28px)', lineHeight: '1.3', color: '#1B1464', margin: '2px 0 0', fontWeight: '600' }}>{vm.t.home.coHead}</h3>
         <p style={{ fontSize: '15px', color: '#5B5A7A', flex: '1' }}>{vm.t.home.coDesc}</p>
-        <div style={{ paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-s" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.home.coCta}</button>{vm.launch ? null : (<a className="hlnk" data-route="browse" onClick={vm.go}>{vm.t.nav.browseProjects}</a>)}</div>
+        <div style={{ paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-s" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.home.coCta}</button>{vm.launch && !vm.accounts ? null : (<a className="hlnk" data-route="browse" onClick={vm.go}>{vm.t.nav.browseProjects}</a>)}</div>
       </div>
     </section>
 

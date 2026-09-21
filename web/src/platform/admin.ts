@@ -84,7 +84,7 @@ export function adminLogicState(data: AdminData): LogicState {
     contractors: data.applications.map((a) => ({
       id: 'A-' + a.id, dbId: a.id, name: both(a.company), city: a.city, trades: a.trades || [], rating: 0, reviews: 0, done: 0,
       verified: a.status === 'verified', since: a.created_at.slice(0, 4), onTime: '—', response: '—', bio: both(a.note || ''),
-      checks: { id: false, cr: Boolean(a.cr_number), pf: false }, person: a.person, mobile: a.mobile, email: a.email, appliedAt: a.created_at,
+      checks: { id: false, cr: Boolean(a.cr_number), pf: false }, person: a.person, mobile: a.mobile, email: a.email, appliedAt: a.created_at, lang: (a as ApplicationRow & { lang?: string }).lang === 'en' ? 'en' : 'ar', hasAccount: Boolean((a as ApplicationRow & { user_id?: string | null }).user_id),
     })),
     rejected: data.applications.filter((a) => a.status === 'declined').map((a) => 'A-' + a.id),
     cases: data.messages.map((m) => ({

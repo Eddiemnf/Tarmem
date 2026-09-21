@@ -145,3 +145,30 @@ re-checked on the real database with `RLS_VISITOR_ONLY=1 node ../supabase/tests/
 
 For the lawyer: the Privacy Policy should mention that the site keeps its own record of page views
 (page, language, device type, referring site; no cookies, no IP address, no name).
+
+## Contractor accounts — 21 September 2026
+
+The owner applied as a contractor, approved himself in the admin console, and then could not sign in:
+the application had created no account. Now the application form creates it (`signUpContractor` in
+`web/src/platform/session.ts`): email + password, a `contractor` profile, and an application stamped
+with that account (`supabase/004_contractor_accounts.sql`).
+
+- Until an admin verifies the application the contractor can sign in, and their dashboard says the
+  account is being verified. The design's "verify through Nafath" gate is what shows it; until Nafath
+  is connected it stands for Tarmem's own verification. "Check again" re-reads the status.
+- **Approve** in the admin console marks the application verified and opens WhatsApp to the
+  contractor's own number with a ready-written "your account is live" message and the sign-in link.
+  The admin presses send. Sending it with no click at all needs the WhatsApp Business API (a Meta
+  business account, a verified number, an approved message template, and a server-side token); when
+  the owner has those, the same message can be sent from a database function on approval.
+- A verified contractor lands on the designed contractor dashboard and can browse open projects at
+  `/projects`. They never see who posted a project: the homeowner's name, mobile and email are in a
+  table contractors cannot read.
+- **Bidding is the next slice.** Until bids are saved for real, the project page's bid form is replaced
+  by the same gate saying bidding opens soon — it never pretends to send a bid. Next: a `bids` table
+  (a contractor sees only their own; a homeowner sees those on their projects), the homeowner's compare
+  view, then the two-party agreement.
+
+Owner step: run `supabase/004_contractor_accounts.sql`. An application made before this (with no
+account) still shows in Verification; approving it sends a message asking the contractor to create
+their account on the join page.

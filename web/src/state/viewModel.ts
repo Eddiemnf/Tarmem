@@ -29,6 +29,7 @@ import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { acceptFiles, holdFiles } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
+import { refreshAccount } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -108,11 +109,27 @@ function filePickers(host: LogicHost, copy: (typeof PLATFORM_COPY)['ar' | 'en'])
   };
 }
 
+/** A contractor's account: waiting for the team's verification, then verified. The design gates both the dashboard
+    and the bid form on Nafath; until Nafath is connected that gate stands for Tarmem's own verification, and —
+    until bids are saved for real — for "bidding opens soon", so the form never pretends to send one. */
+function contractorVals(vm: LogicVals, state: LogicState): LogicVals {
+  if (state.user?.role !== 'contractor' || !vm.t?.auth) return vm;
+  const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const verified = Boolean(state.user.nafath);
+  return {
+    ...vm,
+    bidNeedsNafath: true, canBid: false,
+    startNafath: () => { void refreshAccount(); },
+    t: { ...vm.t, auth: { ...vm.t.auth,
+      gateCoTitle: verified ? copy.bidsSoonTitle : copy.coPendingTitle, gateCoNote: verified ? copy.bidsSoonNote : copy.coPendingNote, nafathVerify: copy.coRefresh } },
+  };
+}
+
 function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
-  return adminVals({
+  return contractorVals(adminVals({
     ...vm,
     launch: true,
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
@@ -138,7 +155,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
     showWaFab: vm.showWaFab && !vm.r?.sent,
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state);
+  }, state), state);
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

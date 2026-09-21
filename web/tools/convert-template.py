@@ -406,7 +406,8 @@ LAUNCH_HIDDEN_SECTIONS: dict[str, str] = {}
 # (`vm.accounts`, src/platform/); the rest wait for the slices in docs/real-platform-plan.md.
 LAUNCH_HIDDEN_ROUTES = {
     "auth": "vm.launch && !vm.accounts",
-    "contractors": "vm.launch", "browse": "vm.launch",
+    "contractors": "vm.launch", "browse": "vm.launch && !vm.accounts",
+    "contractor": "vm.launch",  # public contractor profiles: their ratings and reviews do not exist yet
     # signed-in pages that still run on the design's invented figures
     "wallet": "vm.launch", "settings": "vm.launch", "homeowner": "vm.launch",
 }

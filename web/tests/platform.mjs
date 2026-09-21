@@ -164,14 +164,25 @@ await open('join');
 await page.locator('#join-company').fill('مؤسسة البناء المتقن');
 await page.locator('#join-person').fill('خالد العتيبي');
 await page.locator('button.tchip').first().click();
-await page.locator('button', { hasText: 'إرسال الطلب' }).click();
+const apply = page.locator('button', { hasText: 'إرسال الطلب وإنشاء الحساب' });
+await apply.click();
 await settle(200);
-check('a contractor application needs a mobile number', db.applications.length === 0 && (await page.locator('[role="alert"]').count()) === 1);
+check('a contractor application needs a mobile number, an email and a password', db.applications.length === 0 && (await page.locator('[role="alert"]').count()) === 1);
 await page.locator('#join-mobile').fill('0501112223');
-await page.locator('button', { hasText: 'إرسال الطلب' }).click();
+await page.locator('#join-email').fill('Khalid@Build.example');
+await page.locator('#join-password').fill('contractor-pass-1');
+await apply.click();
+await settle(900);
+const coUser = db.users.find((u) => u.email === 'khalid@build.example');
+check('applying creates the contractor\'s account, their profile, and an application tied to it',
+  !!coUser && db.profiles.some((p) => p.id === coUser.id && p.role === 'contractor' && p.company === 'مؤسسة البناء المتقن') && db.applications.length === 1 && db.applications[0].user_id === coUser?.id && db.applications[0].trades.length === 1,
+  JSON.stringify(db.applications[0] || null).slice(0, 140));
+check('…and lands on their dashboard, which says the account is being verified', (await pathname()) === '/contractor' && (await page.locator('text=حسابك قيد التوثيق').count()) === 1 && (await page.evaluate(() => window.__opened.length)) === 0);
+await open('projects');
+check('…open projects stay closed to them until then', (await pathname()) === '/contractor');
+await page.locator('button.acct').click();
+await page.locator('.acctmenu .acctitem').last().click();
 await settle();
-check('…then it is saved, and the next page says the team will be in touch', db.applications.length === 1 && db.applications[0].company === 'مؤسسة البناء المتقن' && db.applications[0].trades.length === 1
-  && (await page.locator('text=وصلنا طلبك').count()) === 1 && (await page.evaluate(() => window.__opened.length)) === 0, JSON.stringify(db.applications[0] || null).slice(0, 140));
 
 // F — visits are recorded by the site itself, without anything that identifies a person
 const seenEvents = new Set(db.visits.map((v) => v.event));
@@ -198,9 +209,13 @@ const tab = async (id) => { await page.locator(`.side[data-tab="${id}"]`).click(
 await tab('verification');
 check('verification lists the real application, with who to call', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: '0501112223' }).count()) === 1
   && (await page.locator('main', { hasText: '4 Sep 2026' }).count()) === 0);
+await page.evaluate(() => { window.__opened.length = 0; });
 await page.locator('button[data-id="A-1"].btn-p').click();
 await settle();
 check('…and Approve marks it verified in the database', db.applications[0].status === 'verified', db.applications[0].status);
+const told = await page.evaluate(() => window.__opened.slice());
+check('…and opens WhatsApp to the contractor\'s own number, with the "your account is live" message and the sign-in link',
+  told.length === 1 && told[0].startsWith('https://wa.me/966501112223?text=') && decodeURIComponent(told[0]).includes('تم توثيق حساب') && decodeURIComponent(told[0]).includes('/signin'), told[0]?.slice(0, 80));
 await tab('support');
 check('support cases are the contact-form messages, with the sender', (await page.locator('main', { hasText: 'هل تغطون جدة؟' }).count()) === 1 && (await page.locator('main', { hasText: '0555123456' }).count()) === 1);
 await page.locator('button[data-id="M-1"]').click();
@@ -211,8 +226,8 @@ check('users lists real people only', (await page.locator('main', { hasText: 'م
 await tab('analytics');
 await settle(600);
 check('analytics says its figures are real, and shows the recorded visits', (await page.locator('main', { hasText: 'بيانات حقيقية' }).count()) === 1 && (await page.locator('main', { hasText: 'بيانات تجريبية' }).count()) === 0
-  && (await page.locator('main', { hasText: 'مقاول قدّم طلب انضمام' }).count()) === 1,
-  `real=${await page.locator('main', { hasText: 'بيانات حقيقية' }).count()} demo=${await page.locator('main', { hasText: 'بيانات تجريبية' }).count()} feed=${(await page.locator('main').innerText()).includes('مقاول قدّم طلب انضمام')}`);
+  && (await page.locator('main', { hasText: 'يتصفح' }).count()) === 1,
+  `real=${await page.locator('main', { hasText: 'بيانات حقيقية' }).count()} demo=${await page.locator('main', { hasText: 'بيانات تجريبية' }).count()} feed=${(await page.locator('main').innerText()).includes('يتصفح')}`);
 await tab('promos');
 await page.locator('button', { hasText: /كود جديد|إنشاء كود|New code/ }).first().click().catch(() => undefined);
 await settle(300);
@@ -231,6 +246,28 @@ await page.locator('button', { hasText: 'عرض الصور والملفات' }).
 await settle(600);
 check('…where the team can open a project\'s photos through links that expire', (await page.locator('main a[href*="token="]').count()) === 2);
 db.profiles[0].role = 'homeowner';
+
+// H — the verified contractor signs in with the account they made when applying
+await page.locator('button.acct').click();
+await page.locator('.acctmenu .acctitem').last().click();
+await settle();
+db.projects.push({ id: '10000000-0000-4000-8000-000000009001', code: 'P-9001', owner_id: db.users[0].id, status: 'open', created_at: new Date().toISOString(), title: 'ترميم حمام رئيسي', trade: 'bathroom', description: 'تغيير السيراميك والأدوات الصحية، 8 م².', city: 'riyadh', district: null, budget_min: 18000, budget_max: 30000, timing: 'month' });
+await open('signin');
+await page.locator('#au-email').fill('khalid@build.example');
+await page.locator('#au-password').fill('contractor-pass-1');
+await submit.click();
+await settle(900);
+check('the verified contractor signs in and lands on the contractor dashboard, no longer "being verified"', (await pathname()) === '/contractor' && (await page.locator('text=حسابك قيد التوثيق').count()) === 0 && (await page.locator('h1', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1, await pathname());
+await page.locator('header [data-route="browse"]').first().click();
+await settle(500);
+check('…browses the open projects', (await pathname()) === '/projects' && (await page.locator('main', { hasText: 'ترميم حمام رئيسي' }).count()) === 1);
+check('…without ever seeing who posted them', (await page.locator('main', { hasText: 'سارة' }).count()) === 0);
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="bids"]').click();
+await settle(300);
+check('…and the bid form does not pretend: it says bidding opens soon', (await pathname()) === '/project/P-9001' && (await page.locator('text=تقديم العروض يفتح قريبًا').count()) === 1 && (await page.locator('input[name="price"]').count()) === 0);
+await open('dashboard');
+check("a contractor cannot open a homeowner's dashboard or the admin console", (await pathname()) === '/contractor' && (await open('admin'), (await pathname()) === '/contractor'));
 
 check('the site asked the database for nothing the test does not know about', db.unknown.length === 0, db.unknown.join(' · '));
 console.log(results.join('\n'));

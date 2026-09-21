@@ -55,6 +55,9 @@ const PIXEL = new Blob([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCA
 const strangerUpload = await anon.storage.from('project-files').upload('00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002/x.png', PIXEL);
 check('visitor: cannot add a file — and the private bucket exists', Boolean(strangerUpload.error) && !/bucket not found/i.test(strangerUpload.error?.message || ''), strangerUpload.error?.message);
 check('visitor: sees no files', ((await anon.storage.from('project-files').list('')).data || []).length === 0);
+// 1d — 004: contractor accounts
+const probe = await anon.rpc('is_verified_contractor');
+check('004 is installed: the contractor check exists, and is closed to visitors', Boolean(probe.error) && !/PGRST202|could not find/i.test(`${probe.error?.code} ${probe.error?.message}`), `${probe.error?.code} ${probe.error?.message}`);
 if (process.env.RLS_VISITOR_ONLY) {
   console.log(results.join('\n'));
   const bad = results.filter((r) => r.startsWith('FAIL')).length;

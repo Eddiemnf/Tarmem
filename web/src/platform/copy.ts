@@ -29,6 +29,12 @@ export const PLATFORM_COPY = {
     postedNoBids: 'استلمنا مشروعك. يراجعه فريق ترميم ويتواصل معك على جوالك خلال يوم عمل. ستظهر عروض المقاولين الموثّقين هنا فور وصولها.',
     publish: 'نشر المشروع',
     contactSent: 'وصلتنا رسالتك. نرد عليك خلال يوم عمل.', contactFailed: 'تعذّر إرسال الرسالة. حاول مجددًا.',
+    verifiedMessage: (person: string, company: string, link: string, hasAccount: boolean) => hasAccount
+      ? `مرحبًا ${person}، معك فريق ترميم.\nتم توثيق حساب «${company}» وأصبح جاهزًا للاستخدام. سجّل دخولك بالبريد وكلمة المرور اللذين أنشأتهما:\n${link}`
+      : `مرحبًا ${person}، معك فريق ترميم.\nتم قبول طلب «${company}». لإكمال التسجيل أنشئ حسابك من صفحة انضمام المقاولين:\n${link.replace('/signin', '/join')}`,
+    coPendingTitle: 'حسابك قيد التوثيق', coPendingNote: 'استلمنا طلبك وأنشأنا حسابك. يراجع فريق ترميم بياناتك ويتواصل معك على جوالك، وتصلك رسالة واتساب فور تفعيل الحساب. بعدها تظهر لك المشاريع المفتوحة هنا.',
+    coRefresh: 'تحديث الحالة', bidsSoonTitle: 'تقديم العروض يفتح قريبًا', bidsSoonNote: 'حسابك موثّق ويمكنك تصفّح المشاريع المفتوحة. تقديم العروض من الموقع قيد الإطلاق؛ إلى ذلك الحين راسل فريق ترميم بشأن المشروع الذي يهمّك.',
+    coPassword: 'اختر كلمة مرور لحسابك', coEmailNeeded: 'اكتب بريدك الإلكتروني: به تسجّل دخولك بعد التوثيق.', coCreate: 'إرسال الطلب وإنشاء الحساب',
     uploading: 'جارٍ رفع الملفات…', uploadFailed: 'تعذّر رفع هذا الملف. حاول مجددًا من تبويب الملفات.',
     fileErr: { type: 'الملفات المسموحة: صور JPG وPNG وملفات PDF.', size: 'الحد الأقصى لحجم الملف 10 ميغابايت.', count: 'الحد الأقصى 10 ملفات للمشروع.' },
     joinSent: 'وصلنا طلبك. يتواصل معك فريق ترميم لاستكمال التوثيق.', joinSend: 'إرسال الطلب', inbox: 'الوارد', inboxOpen: 'افتح الوارد: المشاريع والطلبات والرسائل ←',
@@ -59,6 +65,12 @@ export const PLATFORM_COPY = {
     postedNoBids: 'We have your project. Tarmem\'s team reviews it and contacts you on your mobile within one working day. Bids from verified contractors will appear here as they arrive.',
     publish: 'Post project',
     contactSent: 'We have your message. We reply within one working day.', contactFailed: 'The message could not be sent. Please try again.',
+    verifiedMessage: (person: string, company: string, link: string, hasAccount: boolean) => hasAccount
+      ? `Hello ${person}, this is the Tarmem team.\n${company}'s account is verified and ready to use. Sign in with the email and password you created:\n${link}`
+      : `Hello ${person}, this is the Tarmem team.\n${company}'s application is accepted. To finish, create your account on the contractor page:\n${link.replace('/signin', '/join')}`,
+    coPendingTitle: 'Your account is being verified', coPendingNote: 'We have your application and your account is created. The Tarmem team reviews your details and contacts you on your mobile; you get a WhatsApp message the moment the account is live. Open projects then appear here.',
+    coRefresh: 'Check again', bidsSoonTitle: 'Bidding opens soon', bidsSoonNote: 'Your account is verified and you can browse open projects. Bidding on the site is about to launch; until then, message the Tarmem team about a project you want.',
+    coPassword: 'Choose a password for your account', coEmailNeeded: 'Enter your email: you sign in with it once verified.', coCreate: 'Send application and create account',
     uploading: 'Uploading files…', uploadFailed: 'This file could not be uploaded. Try again from the Files tab.',
     fileErr: { type: 'Allowed files: JPG and PNG images, and PDF files.', size: 'A file can be 10 MB at most.', count: 'A project can hold 10 files at most.' },
     joinSent: 'We have your application. Tarmem\'s team will contact you to complete verification.', joinSend: 'Send application', inbox: 'Inbox', inboxOpen: 'Open the inbox: projects, applications, messages →',

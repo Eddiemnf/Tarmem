@@ -7,14 +7,16 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './client';
 import type { PlatformError } from './copy';
-import { runtimeData, type Profile, type ProjectRow } from './data';
+import { runtimeData, type Application, type Profile, type ProjectRow } from './data';
 import { setTrackContext, track } from './track';
 
 export interface Account {
   profile: Profile;
   projects: ProjectRow[];
   /** The `user` object the design's logic sees. One identity per sign-in, so state comparisons stay cheap. */
-  logicUser: { role: 'homeowner' | 'admin'; name: string; nafath: false; admin: boolean };
+  /** A contractor's application: `verified` is what an admin's approval sets, and what opens the projects to them. */
+  application: Application | null;
+  logicUser: { role: 'homeowner' | 'admin' | 'contractor'; name: string; nafath: boolean; admin: boolean };
 }
 
 export type Result<T = true> = { ok: T; error?: undefined } | { ok?: undefined; error: PlatformError };
@@ -67,8 +69,9 @@ async function ensureProfile(user: User): Promise<Profile | null> {
   if (found.data) return found.data as Profile;
   if (found.error) return null;
   const meta = user.user_metadata || {};
+  const contractor = meta.role === 'contractor';
   const created = await supabase.from('profiles').insert({
-    id: user.id, role: 'homeowner',
+    id: user.id, role: contractor ? 'contractor' : 'homeowner', ...(contractor ? { company: String(meta.company || '').slice(0, 160) || null } : {}),
     full_name: String(meta.full_name || '').trim(), mobile: normalizeMobile(meta.mobile),
     city: String(meta.city || 'riyadh'), lang: meta.lang === 'en' ? 'en' : 'ar',
   }).select('*').single();
@@ -79,9 +82,21 @@ async function loadAccount(user: User): Promise<Account | null> {
   if (!supabase) return null;
   const profile = await ensureProfile(user);
   if (!profile) return null;
+  if (profile.role === 'contractor') {
+    const applied = await supabase.from('contractor_applications').select('*').eq('user_id', user.id).maybeSingle();
+    const application = (applied.data as Application | null) || null;
+    const verified = application?.status === 'verified';
+    // Open projects reach a contractor only once an admin has verified them; the database returns none before that.
+    const open = verified ? await supabase.from('projects').select('*').eq('status', 'open').order('created_at', { ascending: false }).limit(200) : null;
+    return {
+      profile, application, projects: (open?.data as ProjectRow[]) || [],
+      // the design's "verified through Nafath" flag stands for Tarmem's own verification until Nafath is connected
+      logicUser: { role: 'contractor', name: application?.company || profile.company || profile.full_name, nafath: verified, admin: false },
+    };
+  }
   const rows = await supabase.from('projects').select('*').eq('owner_id', user.id).neq('status', 'withdrawn').order('created_at', { ascending: false });
   return {
-    profile, projects: (rows.data as ProjectRow[]) || [],
+    profile, application: null, projects: (rows.data as ProjectRow[]) || [],
     // An account the owner marked admin in the database gets the design's admin role, and with it the console.
     logicUser: { role: profile.role === 'admin' ? 'admin' : 'homeowner', name: profile.full_name, nafath: false, admin: profile.role === 'admin' },
   };
@@ -131,6 +146,33 @@ export async function signIn(email: string, password: string): Promise<Result> {
     const loaded = await loadAccount(data.user);
     if (!loaded) return { error: 'generic' };
     setAccount(loaded);
+    return { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** Ask the database again who this is — a contractor waiting to be verified presses this to see whether they have been. */
+export async function refreshAccount(): Promise<void> {
+  if (!supabase) return;
+  const { data } = await supabase.auth.getUser();
+  if (data.user) setAccount(await loadAccount(data.user));
+}
+
+export interface ContractorSignUp extends ApplicationFields { password: string }
+
+/** A contractor applies and gets their account in one step; it opens fully once an admin verifies the application. */
+export async function signUpContractor(f: ContractorSignUp): Promise<Result<true | 'confirm'>> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: f.email, password: f.password,
+      options: { data: { role: 'contractor', full_name: f.person.trim(), company: f.company.trim(), mobile: normalizeMobile(f.mobile), city: f.city, lang: f.lang } },
+    });
+    if (error) return { error: failure(error) };
+    if (!data.session || !data.user) return { ok: 'confirm' };
+    if (!(await loadAccount(data.user))) return { error: 'generic' }; // creates the contractor profile
+    const applied = await sendApplication(f);
+    if (!applied.ok) return applied;
+    setAccount(await loadAccount(data.user));
     return { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }

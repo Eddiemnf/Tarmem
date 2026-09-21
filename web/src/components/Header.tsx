@@ -36,7 +36,7 @@ export default function Header({ vm }: { vm: VM }) {
     {vm.isContractor ? (<>
         <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: '26px', alignItems: 'center', marginInlineEnd: 'auto' }}>
           <a className="lnk" data-route="cdash" aria-current={vm.cur.cdash} onClick={vm.go}>{vm.t.nav.dashboard}</a>
-          {vm.launch ? null : (<a className="lnk" data-route="browse" aria-current={vm.cur.browse} onClick={vm.go}>{vm.t.nav.browse}</a>)}
+          {vm.launch && !vm.accounts ? null : (<a className="lnk" data-route="browse" aria-current={vm.cur.browse} onClick={vm.go}>{vm.t.nav.browse}</a>)}
         </nav>
       </>) : null}
     
@@ -109,7 +109,7 @@ export default function Header({ vm }: { vm: VM }) {
         {vm.isHomeowner ? (<>{vm.launch ? null : (<button className="acctitem" data-route="homeowner" data-id="h1" onClick={vm.goMenu}>{vm.t.hprofile.myProfile}</button>)}</>) : null}
         
                 
-        {vm.isContractor ? (<><button className="acctitem" data-route="contractor" data-id="c1" onClick={vm.goMenu}>{vm.t.nav.myProfile}</button></>) : null}
+        {vm.isContractor ? (<>{vm.launch ? null : (<button className="acctitem" data-route="contractor" data-id="c1" onClick={vm.goMenu}>{vm.t.nav.myProfile}</button>)}</>) : null}
         
                 
         {vm.isNotAdmin ? (<>{vm.launch ? null : (<button className="acctitem" data-route="wallet" onClick={vm.goMenu}>{vm.t.nav.wallet}</button>)}</>) : null}
