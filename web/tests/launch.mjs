@@ -1,0 +1,143 @@
+/* The public early-access site: what a real visitor can and cannot do.
+
+   Start the app first (`npm run dev`), then: `npm run test:launch`.
+
+   The design is a whole marketplace on invented data. This checks that none of
+   that reaches the public: no sign-in, no dummy accounts, no invented claims —
+   and that the three ways a visitor can reach Tarmem (a project request, a
+   contractor application, the contact form) each produce a real WhatsApp
+   message to the number in site.config.json. */
+
+import { readFileSync } from 'node:fs';
+import { chromium } from 'playwright';
+
+const BASE_URL = (process.env.BASE_URL || 'http://localhost:5173/').replace(/demo\/?$/, '');
+const site = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
+
+const browser = await chromium.launch(
+  process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
+);
+const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+// Record what the page tries to open instead of opening it.
+await context.addInitScript(() => {
+  window.__opened = [];
+  window.open = (url) => { window.__opened.push(String(url)); return null; };
+});
+const page = await context.newPage();
+page.setDefaultTimeout(8000);
+const errors = [];
+page.on('pageerror', (e) => errors.push('PAGEERROR: ' + String(e).slice(0, 300)));
+const results = [];
+const check = (name, ok, detail = '') => results.push(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
+const opened = async () => page.evaluate(() => window.__opened.splice(0));
+const route = async () => page.evaluate(() => JSON.parse(localStorage.getItem('tarmem-public-v1') || '{}').route);
+const load = async (saved) => {
+  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+  await page.evaluate((s) => { localStorage.clear(); if (s) localStorage.setItem(s.key, JSON.stringify(s.value)); }, saved || null);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('header');
+  await page.waitForTimeout(500);
+};
+const waText = (url) => decodeURIComponent(url.split('?text=')[1] || '');
+
+// A — nothing invented on the home page
+await load();
+const invented = await page.evaluate(() => ['.ph-live', '.ai2-stats', '.tsti-wrap', '.prtnrs'].filter((s) => document.querySelector(s)));
+check('home page carries no invented counter, figures, testimonials or partner logos', invented.length === 0, invented.join(' '));
+const signIn = await page.locator('header [data-route="auth"]:not([data-signup])').count();
+check('there is no sign-in link', signIn === 0, `found ${signIn}`);
+const dummy = await page.evaluate((n) => [...document.querySelectorAll('a[href*="wa.me"]')].map((a) => a.href).filter((h) => !h.includes('wa.me/' + n)), site.whatsapp);
+check('every WhatsApp link uses the configured number', dummy.length === 0, dummy.join(' '));
+
+// B — the demo's saved state cannot follow a visitor here, and private pages cannot be opened
+await load({ key: 'tarmem-state-v3', value: { route: 'admin', user: { role: 'admin', name: 'Operations' } } });
+check('a demo sign-in does not carry over to the public site', (await page.locator('text=Operations').count()) === 0 && (await route()) !== 'admin');
+for (const target of ['admin', 'wallet', 'hdash', 'cdash', 'project', 'browse', 'settings']) {
+  await load({ key: 'tarmem-public-v1', value: { route: target, user: { role: 'admin', name: 'x' } } });
+  const at = await route();
+  if (at !== 'home') { check(`private page "${target}" is unreachable`, false, 'landed on ' + at); break; }
+  if (target === 'settings') check('private pages (admin, wallet, dashboards, projects…) are unreachable', true);
+}
+
+// C — "join as a contractor" is an application, not a dummy account
+await load();
+await page.locator('header button[data-signup="contractor"]').first().click();
+await page.waitForTimeout(300);
+check('join as a contractor opens the application form, not sign-up', (await route()) === 'join' && (await page.locator('#join-company').count()) === 1);
+check('no demo account switcher anywhere on it', (await page.locator('text=تصفّح المنصة بصفتك').count()) === 0);
+await page.locator('#join-company').fill('مؤسسة البناء المتقن');
+await page.locator('#join-person').fill('خالد العتيبي');
+await page.locator('button.tchip').first().click();
+await page.locator('button', { hasText: 'أرسل الطلب عبر واتساب' }).click();
+await page.waitForTimeout(300);
+let urls = await opened();
+check('the application is written into WhatsApp for the configured number',
+  urls.length === 1 && urls[0].startsWith(`https://wa.me/${site.whatsapp}?text=`) && waText(urls[0]).includes('مؤسسة البناء المتقن'), urls[0]?.slice(0, 60));
+check('…and the visitor is told nothing is sent until they press Send', (await route()) === 'sent' && (await page.locator('text=لن يصل شيء').count()) === 1);
+
+// D — a trade tile and the "describe your project" box both lead to the request form
+await load();
+await page.locator('.hire-grid [data-trade]').nth(2).click();
+await page.waitForTimeout(300);
+const tile = await page.evaluate(() => ({ trade: document.querySelector('select[name="trade"]')?.value }));
+check('a trade tile opens the request form with that trade chosen', (await route()) === 'post' && tile.trade === 'kitchen', JSON.stringify(tile));
+await load();
+await page.locator('#v-ai-in').fill('أريد تجديد مطبخي في الرياض، مساحته 4×5 م.');
+await page.locator('button.ai2-go').click();
+await page.waitForTimeout(300);
+check('the description box carries its text into the request form',
+  (await route()) === 'post' && (await page.locator('textarea[name="desc"]').inputValue()).includes('تجديد مطبخي'));
+
+// E — the project request, end to end
+await page.locator('input[name="title"]').fill('تجديد مطبخ، 20 م²');
+await page.locator('button', { hasText: 'التالي' }).first().click();
+await page.locator('input[name="min"]').fill('40000');
+await page.locator('input[name="max"]').fill('60000');
+await page.locator('button', { hasText: 'التالي' }).first().click();
+await page.locator('button', { hasText: 'التالي' }).first().click();
+await page.waitForTimeout(200);
+const sendBtn = page.locator('button', { hasText: 'أرسل الطلب عبر واتساب' }).first();
+check('the last step offers to send on WhatsApp and waits for the undertaking', await sendBtn.isDisabled());
+await page.locator('label.radio').first().click();
+await sendBtn.click();
+await page.waitForTimeout(400);
+urls = await opened();
+const text = urls[0] ? waText(urls[0]) : '';
+check('the request is written into WhatsApp with title, budget and description',
+  urls.length === 1 && urls[0].startsWith(`https://wa.me/${site.whatsapp}?text=`)
+    && text.includes('تجديد مطبخ، 20 م²') && text.includes('40,000') && text.includes('60,000') && text.includes('تجديد مطبخي'),
+  text.replace(/\n/g, ' ⏎ ').slice(0, 140));
+const again = await page.locator('a', { hasText: 'افتح واتساب مرة أخرى' }).getAttribute('href').catch(() => null);
+const byMail = await page.locator('a', { hasText: 'البريد الإلكتروني' }).getAttribute('href').catch(() => null);
+check('…the next page shows the message and offers WhatsApp again, or email',
+  !!again && again.startsWith(`https://wa.me/${site.whatsapp}?text=`) && waText(again).includes('تجديد مطبخ، 20 م²')
+    && !!byMail && byMail.startsWith(`mailto:${site.email}?`) && (await page.locator('pre').innerText()).includes('40,000'));
+check('…no account is created and no project is stored', (await route()) === 'sent' && !(await page.evaluate(() => JSON.parse(localStorage.getItem('tarmem-public-v1')).user)));
+
+// F — the contact form really sends
+await load({ key: 'tarmem-public-v1', value: { route: 'contact' } });
+await page.locator('input[name="name"]').fill('سارة');
+await page.locator('input[name="phone"]').fill('0555123456');
+await page.locator('textarea[name="msg"]').fill('هل تغطون جدة؟');
+await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
+await page.waitForTimeout(300);
+urls = await opened();
+check('the contact form writes the message into WhatsApp', urls.length === 1 && waText(urls[0]).includes('هل تغطون جدة؟') && waText(urls[0]).includes('0555123456'));
+check('…and says so, without promising a reply time', (await page.locator('text=اضغط «إرسال» هناك').count()) === 1);
+
+// G — the full demo is still there, at /demo, untouched
+await page.goto(BASE_URL + 'demo', { waitUntil: 'domcontentloaded' });
+await page.evaluate(() => localStorage.setItem('tarmem-state-v3', JSON.stringify({ route: 'auth' })));
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(600);
+check('the private demo at /demo still has the full product', (await page.locator('text=تصفّح المنصة بصفتك').count()) === 1 && (await page.locator('[role="note"]').count()) === 0);
+
+// H — ready to open to the public?
+const placeholder = site.whatsapp === '966500000000';
+check('site.config.json has a real WhatsApp number (required before publicLaunch)', !(site.publicLaunch && placeholder),
+  placeholder ? 'still the design\'s dummy number — fine while publicLaunch is false' : site.whatsapp);
+
+console.log(results.join('\n'));
+console.log(errors.length ? '\n' + errors.join('\n') : '\nno page errors');
+await browser.close();
+if (results.some((r) => r.startsWith('FAIL')) || errors.length) process.exit(1);

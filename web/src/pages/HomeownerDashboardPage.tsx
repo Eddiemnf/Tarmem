@@ -12,7 +12,7 @@ export default function HomeownerDashboardPage({ vm }: { vm: VM }) {
     
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', flexWrap: 'wrap', gap: '16px' }}>
         <div><span className="kick">{vm.t.hdash.kicker}</span><h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464', marginTop: '8px' }}>{vm.t.hdash.hello}{vm.t.comma} {vm.user.name}</h1></div>
-        <button className="btn btn-s" data-route="contractors" onClick={vm.go}>{vm.t.nav.contractors}</button>
+        {vm.launch ? null : (<button className="btn btn-s" data-route="contractors" onClick={vm.go}>{vm.t.nav.contractors}</button>)}
       </div>
       <div className="qa">
         <button type="button" className="qa-t" data-route="post" onClick={vm.go}>
@@ -26,13 +26,13 @@ export default function HomeownerDashboardPage({ vm }: { vm: VM }) {
     {vm.qaProjN ? (<><span className="qa-b">{vm.qaProjN}</span></>) : null}
     
         </button>
-        <button type="button" className="qa-t" data-route="contractors" onClick={vm.go}>
+        {vm.launch ? null : (<button type="button" className="qa-t" data-route="contractors" onClick={vm.go}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19" /><circle cx="10" cy="8" r="3.2" /><path d="M20 19v-1.4a3.4 3.4 0 0 0-2.6-3.3" /><path d="M15.4 5.2a3.2 3.2 0 0 1 0 5.6" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.hdash.qaCo}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.hdash.qaCoSub}</span></span>
           
     {vm.qaSavedN ? (<><span className="qa-b">{vm.qaSavedN}</span></>) : null}
     
-        </button>
+        </button>)}
         <button type="button" className="qa-t" data-route="wallet" onClick={vm.go}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.6" /><path d="M3 10.5h18" /><path d="M16.5 14.8h2" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.hdash.qaWallet}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.hdash.qaWalletSub}</span></span>

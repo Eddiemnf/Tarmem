@@ -7,7 +7,7 @@ import type { VM } from '../state/viewModel';
 export default function ContractorProfilePage({ vm }: { vm: VM }) {
   return (<>
     <section className="wrap fade" style={{ paddingBlock: '40px 80px' }}>
-      <a className="lnk" data-route="contractors" onClick={vm.go} style={{ fontSize: '13px', color: '#FF5A3C' }}>{vm.backArrow} {vm.t.search.title}</a>
+      {vm.launch ? null : (<a className="lnk" data-route="contractors" onClick={vm.go} style={{ fontSize: '13px', color: '#FF5A3C' }}>{vm.backArrow} {vm.t.search.title}</a>)}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '28px', flexWrap: 'wrap', marginTop: '22px' }}>
         <div style={{ minWidth: '0' }}>

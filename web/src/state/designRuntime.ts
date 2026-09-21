@@ -54,8 +54,12 @@ export class LogicHost {
   private readonly listeners = new Set<() => void>();
   private callbacks: (() => void)[] = [];
 
-  constructor(logic: DCLogic) {
+  /** Corrects every state before the logic adopts it; the public site uses it (src/launch/guard.ts). */
+  private readonly guard: ((prev: LogicState, next: LogicState) => LogicState) | null;
+
+  constructor(logic: DCLogic, guard: ((prev: LogicState, next: LogicState) => LogicState) | null = null) {
     this.logic = logic;
+    this.guard = guard;
     logic.__host = this;
   }
 
@@ -69,7 +73,8 @@ export class LogicHost {
   setLogicState(update: StateUpdate, callback?: () => void): void {
     const prev = this.logic.state;
     const patch = typeof update === 'function' ? update(prev) : update;
-    this.logic.state = { ...prev, ...patch };
+    const next = { ...prev, ...patch };
+    this.logic.state = this.guard ? this.guard(prev, next) : next;
     if (callback) this.callbacks.push(callback);
     this.bump();
   }

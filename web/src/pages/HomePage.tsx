@@ -35,11 +35,11 @@ export default function HomePage({ vm }: { vm: VM }) {
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 8.2a4.2 4.2 0 0 1 7.5 2.3c0 5.4-7.5 10-7.5 10Z" /></svg>
             {vm.t.hero2.note}
           </span>
-          <span className="ph-replay ph-live" aria-live="off">
+          {vm.launch ? null : (<span className="ph-replay ph-live" aria-live="off">
             <span className="ph-livedot" aria-hidden="true"></span>
             <b className="ph-live-n">{vm.onlineNow}</b>
             {vm.t.hero2.liveNow}
-          </span>
+          </span>)}
           <button className="ph-down" type="button" onClick={vm.toAiBar}>
             {vm.t.hero2.discover}
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v16" /><path d="M6 14l6 6 6-6" /></svg>
@@ -55,11 +55,11 @@ export default function HomePage({ vm }: { vm: VM }) {
           <label className="skick" htmlFor="v-ai-in"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.ai.label}</label>
           <h2 className="sh2 ai2-h">صف لنا مشروعك، ونوصلك بالمقاول <br />المناسب.</h2>
         </div>
-        <div className="ai2-stats">
+        {vm.launch ? null : (<div className="ai2-stats">
           <div className="ai2-stat"><span className="ai2-sv">{vm.hsA.v}</span><span className="ai2-sl">{vm.hsA.l}</span></div>
           <div className="ai2-stat"><span className="ai2-sv">{vm.hsB.v}</span><span className="ai2-sl">{vm.hsB.l}</span></div>
           <div className="ai2-stat"><span className="ai2-sv">{vm.hsC.v}</span><span className="ai2-sl">{vm.hsC.l}</span></div>
-        </div>
+        </div>)}
         </div>
         <div className="ai2-main">
         <div className="ai2-box">
@@ -121,13 +121,13 @@ export default function HomePage({ vm }: { vm: VM }) {
         <span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.hoKicker}</span>
         <h3 style={{ position: 'relative', fontSize: 'clamp(22px,2.2vw,28px)', lineHeight: '1.3', color: '#1B1464', margin: '2px 0 0', fontWeight: '600' }}>{vm.t.home.hoHead}</h3>
         <p style={{ position: 'relative', fontSize: '15px', color: '#5B5A7A', flex: '1' }}>{vm.t.home.hoDesc}</p>
-        <div style={{ position: 'relative', paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-p" data-route="post" onClick={vm.go}>{vm.t.home.hoCta}</button><a className="hlnk" data-route="contractors" onClick={vm.go}>{vm.t.nav.contractors}</a></div>
+        <div style={{ position: 'relative', paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-p" data-route="post" onClick={vm.go}>{vm.t.home.hoCta}</button>{vm.launch ? null : (<a className="hlnk" data-route="contractors" onClick={vm.go}>{vm.t.nav.contractors}</a>)}</div>
       </div>
       <div style={{ background: '#F8F7FC', borderRadius: '24px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.coKicker}</span>
         <h3 style={{ fontSize: 'clamp(22px,2.2vw,28px)', lineHeight: '1.3', color: '#1B1464', margin: '2px 0 0', fontWeight: '600' }}>{vm.t.home.coHead}</h3>
         <p style={{ fontSize: '15px', color: '#5B5A7A', flex: '1' }}>{vm.t.home.coDesc}</p>
-        <div style={{ paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-s" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.home.coCta}</button><a className="hlnk" data-route="browse" onClick={vm.go}>{vm.t.nav.browseProjects}</a></div>
+        <div style={{ paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-s" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.home.coCta}</button>{vm.launch ? null : (<a className="hlnk" data-route="browse" onClick={vm.go}>{vm.t.nav.browseProjects}</a>)}</div>
       </div>
     </section>
 
@@ -177,7 +177,7 @@ export default function HomePage({ vm }: { vm: VM }) {
       </div>
     </section>
 
-    <section className="wrap" style={{ paddingBlock: 'clamp(44px,5.4vw,80px) clamp(40px,5vw,72px)', borderTop: '1px solid #EEEDF5' }}>
+    {vm.launch ? null : (<section className="wrap" style={{ paddingBlock: 'clamp(44px,5.4vw,80px) clamp(40px,5vw,72px)', borderTop: '1px solid #EEEDF5' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '24px', flexWrap: 'wrap' }}>
         <div style={{ maxWidth: '560px' }}>
           <span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.testiKicker}</span>
@@ -236,9 +236,9 @@ export default function HomePage({ vm }: { vm: VM }) {
         </div>
         
       </div>
-    </section>
+    </section>)}
 
-    <section className="wrap" style={{ paddingBlock: 'clamp(40px,5vw,72px) clamp(56px,7vw,100px)', borderTop: '1px solid #EEEDF5' }}>
+    {vm.launch ? null : (<section className="wrap" style={{ paddingBlock: 'clamp(40px,5vw,72px) clamp(56px,7vw,100px)', borderTop: '1px solid #EEEDF5' }}>
       <div style={{ maxWidth: '520px' }}>
         <span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.partnersKicker}</span>
         <h2 className="sh2">{vm.t.home.partnersTitle}</h2>
@@ -254,7 +254,7 @@ export default function HomePage({ vm }: { vm: VM }) {
     ))}
     
       </div>
-    </section>
+    </section>)}
 
   </>);
 }

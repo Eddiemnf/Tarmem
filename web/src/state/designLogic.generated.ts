@@ -5,6 +5,7 @@
 /* oxlint-disable */
 import * as D from '../data/tarmem-data';
 import { DCLogic, aiErrorText, claude } from './designRuntime';
+import { STORAGE_KEY } from '../launch/mode';
 
 const fmt = n => { const v=Number(n)||0;
   return v%1===0 ? v.toLocaleString('en-US') : v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); };
@@ -62,7 +63,7 @@ class Component extends DCLogic {
     const onlTick = () => { this.setState(s => { const c = s.onlineNow ?? 312; const r = Math.random(); let d = r < .55 ? (Math.random()<.5?-1:1) : r < .85 ? (Math.random()<.5?-2:2) : Math.round((Math.random()-.5)*8); if (c > 500 && d > 0 && Math.random() < .6) d = -d; return {onlineNow: Math.min(3000, Math.max(1, c + d))}; });
       this._onl = setTimeout(onlTick, 2500 + Math.random()*5500); };
     this._onl = setTimeout(onlTick, 3000);
-    const saved = (()=>{ try { return JSON.parse(localStorage.getItem('tarmem-state-v3')||'null'); } catch(e){ return null; } })();
+    const saved = (()=>{ try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'null'); } catch(e){ return null; } })();
     // Session keys always restore; seed-derived collections only while the seed data is unchanged,
     // so editing tarmem-i18n.js can never be masked by a stale cache.
     const SESSION = ['lang','route','curId','tab','atab','user','saved','page','openShown','pay','payout','txns','hoProfile','gaId','anRange','promos','affiliates','gift','strikes','refunds'];
@@ -131,7 +132,7 @@ class Component extends DCLogic {
   componentDidUpdate(){
     if(!this.state.ready) return;
     const {lang,route,curId,tab,atab,user,saved,payout,txns,hoProfile,contractors,projects,cases,rejected,pay,page,openShown,gaId,anRange,promos,affiliates,gift,strikes,refunds} = this.state;
-    localStorage.setItem('tarmem-state-v3', JSON.stringify({seedSig:this.seedSig,lang,route,curId,tab,atab,user,saved,payout,txns,hoProfile,contractors,projects,cases,rejected,pay,page,openShown,gaId,anRange,promos,affiliates,gift,strikes,refunds}));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({seedSig:this.seedSig,lang,route,curId,tab,atab,user,saved,payout,txns,hoProfile,contractors,projects,cases,rejected,pay,page,openShown,gaId,anRange,promos,affiliates,gift,strikes,refunds}));
     if(route === 'home' && this._lastRoute !== 'home') this.startStats();
     this._lastRoute = route;
   }

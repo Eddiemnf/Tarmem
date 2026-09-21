@@ -322,14 +322,77 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
 
     if node.tag == "textarea":
         # React forbids children on a controlled textarea.
-        return f"<textarea{attr_str} />"
-    if tag in VOID or node.tag == "image-slot":
-        return f"<{tag}{attr_str} />"
-    body = emit_children(node.children, scope, indent)
-    return f"<{tag}{attr_str}>{body}</{tag}>"
+        out = f"<textarea{attr_str} />"
+    elif tag in VOID or node.tag == "image-slot":
+        out = f"<{tag}{attr_str} />"
+    else:
+        body = emit_children(node.children, scope, indent)
+        out = f"<{tag}{attr_str}>{body}</{tag}>"
+    if launch_hidden(node):
+        return "{vm.launch ? null : (" + out + ")}"
+    return out
 
 
 # --------------------------------------------------------------------------- file writing
+
+"""Facts about the business that the design only holds placeholders for.
+
+`site.config.json` is the one place they live; the app reads the same file at
+runtime (src/launch/mode.ts). The design's WhatsApp links all point at a dummy
+number, which is swapped here for the real one.
+"""
+import json as _json
+
+SITE_CONFIG = _json.load(open(os.path.join(WEB, "site.config.json"), encoding="utf-8"))
+PLACEHOLDER_WHATSAPP = "wa.me/966500000000"
+_whatsapp_rewrites = 0
+
+"""What the public, early-access site leaves out.
+
+The design is the whole product, walkable on invented data. Until accounts,
+identity checks and payments are real, the public site (see src/launch/) shows
+only what is true today, and keeps the full product for the private demo at
+/demo. Each rule wraps the matching markup in `vm.launch ? null : (...)`, so the
+demo renders exactly as designed. A rule that stops matching fails the run.
+"""
+LAUNCH_HIDDEN_CLASSES = {
+    "ph-live": "a live-visitor counter that is a random walk, not a measurement",
+    "ai2-stats": "headline figures (contractors, projects, satisfaction) that are not real yet",
+}
+LAUNCH_HIDDEN_SECTIONS = {
+    "tsti-wrap": "testimonials written for the design, not said by customers",
+    "prtnrs": "partner logos shown before any partnership is signed",
+}
+# Links into parts of the product that do not exist publicly yet. A link that names
+# a sign-up role stays: the launch guard sends it to the matching request form.
+LAUNCH_HIDDEN_ROUTES = {"auth", "contractors", "browse"}
+_launch_rules_applied: set[str] = set()
+
+
+def launch_hidden(node: "Element") -> bool:
+    attrs = dict(node.attrs)
+    classes = (attrs.get("class") or "").split()
+    for marker in LAUNCH_HIDDEN_CLASSES:
+        if marker in classes:
+            _launch_rules_applied.add(marker)
+            return True
+    if node.tag == "section":
+        stack = list(node.children)
+        while stack:
+            current = stack.pop()
+            if isinstance(current, Element):
+                inner = (dict(current.attrs).get("class") or "").split()
+                for marker in LAUNCH_HIDDEN_SECTIONS:
+                    if marker in inner:
+                        _launch_rules_applied.add(marker)
+                        return True
+                stack.extend(current.children)
+    route = attrs.get("data-route")
+    if node.tag in ("a", "button") and route in LAUNCH_HIDDEN_ROUTES and not attrs.get("data-signup"):
+        _launch_rules_applied.add("route:" + route)
+        return True
+    return False
+
 
 """Assets the site serves in a lighter form than the design carries them.
 
@@ -343,11 +406,12 @@ _asset_rewrites_applied = 0
 
 
 def rewrite_assets(code: str) -> str:
-    global _asset_rewrites_applied
+    global _asset_rewrites_applied, _whatsapp_rewrites
     for pattern, replacement in ASSET_REWRITES:
         code, n = pattern.subn(replacement, code)
         _asset_rewrites_applied += n
-    return code
+    _whatsapp_rewrites += code.count(PLACEHOLDER_WHATSAPP)
+    return code.replace(PLACEHOLDER_WHATSAPP, "wa.me/" + SITE_CONFIG["whatsapp"])
 
 
 BANNER = """/* Generated from ../../project/Tarmem.dc.html by tools/convert-template.py.
@@ -445,6 +509,10 @@ LOGIC_PATCHES = [
     ("... and call the renamed cleanup from the surviving componentWillUnmount",
      "  componentWillUnmount(){ clearTimeout(this._onl);",
      "  componentWillUnmount(){ this._unmountTimers(); clearTimeout(this._onl);", 1),
+    ("the public site and the private demo keep separate saved state, so a demo sign-in\n"
+     "     can never follow someone onto the public site",
+     "'tarmem-state-v3'",
+     "STORAGE_KEY", 2),
     ("trade photographs are served as optimised JPEGs (see ASSET_REWRITES)",
      ".padStart(2,'0')+'.png'",
      ".padStart(2,'0')+'.jpg'", 2),
@@ -470,6 +538,7 @@ def sync_logic(src: str) -> str:
         "/* oxlint-disable */\n"
         "import * as D from '../data/tarmem-data';\n"
         "import { DCLogic, aiErrorText, claude } from './designRuntime';\n"
+        "import { STORAGE_KEY } from '../launch/mode';\n"
         + body.rstrip() + "\n\nexport default Component;\n"
     )
     with open(os.path.join(WEB, "src", "state", "designLogic.generated.ts"), "w", encoding="utf-8") as fh:
@@ -636,6 +705,14 @@ def main() -> None:
 
     if not _asset_rewrites_applied:
         raise SystemExit("ASSET_REWRITES matched nothing — the design no longer references assets/trades/NN.png")
+
+    if not _whatsapp_rewrites:
+        raise SystemExit(f"the design no longer links to {PLACEHOLDER_WHATSAPP} — check where its WhatsApp links point")
+
+    expected = set(LAUNCH_HIDDEN_CLASSES) | set(LAUNCH_HIDDEN_SECTIONS) | {"route:" + r for r in LAUNCH_HIDDEN_ROUTES}
+    unmatched_launch = expected - _launch_rules_applied
+    if unmatched_launch:
+        raise SystemExit(f"launch rules no longer match the design file: {sorted(unmatched_launch)}")
 
     written.append(sync_css(src))
     written.append(sync_data())

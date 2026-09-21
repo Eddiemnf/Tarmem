@@ -23,7 +23,8 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const APP = process.env.BASE_URL || 'http://localhost:5173/';
+// The full product lives at /demo; the site root is the public early-access site (tests/launch.mjs).
+const APP = process.env.BASE_URL || 'http://localhost:5173/demo';
 const PROJECT = resolve(fileURLToPath(new URL('../../project/', import.meta.url)));
 const only = process.argv[2];
 

@@ -1,0 +1,124 @@
+/* What the public early-access site does differently from the full product.
+
+   The design's logic is the whole marketplace: sign-in, dashboards, wallets, an
+   admin console, all running on invented data. None of that may reach a real
+   visitor. Rather than fork the logic, the public site lets it run and corrects
+   its state on the way through `setState`, which every navigation passes through:
+
+   - routes that are not public never become current — they are redirected to
+     the request form, the contractor application, or home;
+   - nobody can be signed in;
+   - publishing a project, and sending the contact form, deliver a real message
+     to the Tarmem team (src/launch/deliver.ts) instead of updating seed data. */
+
+import * as D from '../data/tarmem-data';
+import type { LogicState } from '../state/designRuntime';
+import { LAUNCH_COPY } from './copy';
+import { openWhatsApp } from './deliver';
+
+/** Pages a visitor can be on. `join` and `sent` exist only on the public site. */
+export const PUBLIC_ROUTES = new Set([
+  'home', 'how', 'pricing', 'about', 'help', 'faq', 'contact', 'rules', 'terms', 'privacy', 'post', 'join', 'sent',
+]);
+
+export interface SentRequest {
+  kind: 'project' | 'join' | 'contact';
+  text: string;
+  files: number;
+}
+
+type Lang = 'ar' | 'en';
+const langOf = (state: LogicState): Lang => (state.lang === 'en' ? 'en' : 'ar');
+const fmt = (n: unknown) => (Number(n) || 0).toLocaleString('en-US');
+const label = (list: { id: string; ar: string; en: string }[], id: string, lang: Lang) =>
+  list.find((x) => x.id === id)?.[lang] || id;
+
+const paragraphs = (...blocks: (string | false | undefined)[][]) =>
+  blocks.map((lines) => lines.filter(Boolean).join('\n')).filter(Boolean).join('\n\n');
+
+/** The project form, written out as the message the homeowner sends. */
+export function projectMessage(state: LogicState): SentRequest {
+  const lang = langOf(state);
+  const c = LAUNCH_COPY[lang].request;
+  const f = state.post.f;
+  const files = (state.post.files || []).length;
+  const address = String(f.address || '').trim();
+  const budget = lang === 'ar' ? `من ${fmt(f.min)} إلى ${fmt(f.max)} ريال` : `SAR ${fmt(f.min)} – ${fmt(f.max)}`;
+  const timing = (D.T as LogicState)[lang].post[f.timing] || f.timing;
+  const text = paragraphs(
+    [c.heading],
+    [
+      `${c.title}: ${f.title}`,
+      `${c.trade}: ${label(D.TRADES, f.trade, lang)}`,
+      `${c.city}: ${label(D.CITIES, f.city, lang)}`,
+      address && `${c.address}: ${address}`,
+      `${c.budget}: ${budget}`,
+      `${c.timing}: ${timing}`,
+    ],
+    [`${c.desc}:`, String(f.desc || '').trim()],
+    [files > 0 && `${c.files}: ${files} — ${c.filesNote}`],
+  );
+  return { kind: 'project', text, files };
+}
+
+function contactMessage(state: LogicState): SentRequest {
+  const lang = langOf(state);
+  const c = LAUNCH_COPY[lang].contact;
+  const f = state.contact;
+  const text = paragraphs(
+    [c.heading],
+    [
+      `${c.name}: ${f.name}`,
+      f.phone && `${c.phone}: ${f.phone}`,
+      f.email && `${c.email}: ${f.email}`,
+      f.topic && `${c.topic}: ${f.topic}`,
+    ],
+    [`${c.msg}:`, String(f.msg || '').trim()],
+  );
+  return { kind: 'contact', text, files: 0 };
+}
+
+/** Correct a state the logic is about to adopt. Runs synchronously inside the click that caused it. */
+export function guardLaunchState(prev: LogicState, next: LogicState, initialPost: unknown): LogicState {
+  let state = next;
+  const patch = (extra: LogicState) => { state = { ...state, ...extra }; };
+
+  if (state.user) patch({ user: null });
+
+  // The contact form "sends" by flipping a flag. Here it really sends.
+  if (state.contact?.sent && !prev.contact?.sent) {
+    const message = contactMessage(state);
+    openWhatsApp(message.text);
+    patch({ launchLast: message });
+  }
+
+  if (!PUBLIC_ROUTES.has(state.route)) {
+    const target = state.route;
+    if (target === 'auth' && state.pendingPost) {
+      // A guest pressed "publish" on the last step of the project form.
+      const message = projectMessage(state);
+      openWhatsApp(message.text);
+      patch({ route: 'sent', pendingPost: false, launchLast: message, post: initialPost });
+    } else if (target === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor') {
+      patch({ route: 'join' });
+    } else if (target === 'auth' || target === 'plan' || target === 'contractors') {
+      // "Describe your project", a trade tile, or any other way in: all lead to the request form.
+      const f = { ...state.post.f };
+      if (target === 'plan') {
+        // The assistant page is not public. What the visitor typed (the logic has already moved
+        // it into the assistant's conversation) becomes the request's description instead, and
+        // the conversation is emptied so the queued assistant call finds nothing to send.
+        const typed = String(state.plan?.msgs?.[0]?.text || state.aiText || '').trim();
+        if (typed && !String(f.desc || '').trim()) f.desc = typed;
+        patch({ aiText: '', plan: { ...state.plan, msgs: [], busy: false } });
+      }
+      const trade = state.filt?.trade;
+      if (target === 'contractors' && trade && (D.TRADES as { id: string }[]).some((x) => x.id === trade)) f.trade = trade;
+      patch({ route: 'post', post: { ...state.post, f } });
+    } else {
+      patch({ route: 'home' });
+    }
+    if (state.pendingPost) patch({ pendingPost: false });
+  }
+  return state;
+}

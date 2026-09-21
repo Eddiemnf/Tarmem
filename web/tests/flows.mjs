@@ -9,7 +9,8 @@
    on each fee), and the posting undertaking. */
 
 import { chromium } from 'playwright';
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173/';
+// The full product lives at /demo; the site root is the public early-access site (tests/launch.mjs).
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173/demo';
 const browser = await chromium.launch(
   process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
 );

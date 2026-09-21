@@ -19,7 +19,7 @@ export default function Header({ vm }: { vm: VM }) {
           <a className="lnk hide-over" data-route="help" aria-current={vm.cur.help} onClick={vm.go}>{vm.t.footer.help}</a>
           <span className="mobonly" style={{ width: '100%', height: '1px', background: '#EEEDF5' }}></span>
           <a className="lnk mobonly" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}</a>
-          <a className="lnk mobonly" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>
+          {vm.launch ? null : (<a className="lnk mobonly" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>)}
         </nav>
       </>) : null}
     
@@ -27,7 +27,7 @@ export default function Header({ vm }: { vm: VM }) {
     {vm.isHomeowner ? (<>
         <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: '26px', alignItems: 'center', marginInlineEnd: 'auto' }}>
           <a className="lnk" data-route="hdash" aria-current={vm.cur.hdash} onClick={vm.go}>{vm.t.nav.dashboard}</a>
-          <a className="lnk" data-route="contractors" aria-current={vm.cur.contractors} onClick={vm.go}>{vm.t.nav.contractors}</a>
+          {vm.launch ? null : (<a className="lnk" data-route="contractors" aria-current={vm.cur.contractors} onClick={vm.go}>{vm.t.nav.contractors}</a>)}
         </nav>
         <button className="btn btn-p btn-sm" data-route="post" onClick={vm.go} style={{ flex: 'none' }}>{vm.t.nav.post}</button>
       </>) : null}
@@ -36,7 +36,7 @@ export default function Header({ vm }: { vm: VM }) {
     {vm.isContractor ? (<>
         <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: '26px', alignItems: 'center', marginInlineEnd: 'auto' }}>
           <a className="lnk" data-route="cdash" aria-current={vm.cur.cdash} onClick={vm.go}>{vm.t.nav.dashboard}</a>
-          <a className="lnk" data-route="browse" aria-current={vm.cur.browse} onClick={vm.go}>{vm.t.nav.browse}</a>
+          {vm.launch ? null : (<a className="lnk" data-route="browse" aria-current={vm.cur.browse} onClick={vm.go}>{vm.t.nav.browse}</a>)}
         </nav>
       </>) : null}
     
@@ -48,7 +48,7 @@ export default function Header({ vm }: { vm: VM }) {
       <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
         
     {vm.isGuest ? (<>
-          <a className="ulnk deskonly hide-over" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>
+          {vm.launch ? null : (<a className="ulnk deskonly hide-over" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>)}
           <button className="langbtn hide-over" onClick={vm.toggleLang}>{vm.t.langSwitch}</button>
           <button className="btn btn-s btn-sm deskonly join-over" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}<svg className="ph-ar join-ar" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></button>
           <button className="btn btn-p btn-sm hide-over" data-route="post" onClick={vm.go}>{vm.t.nav.post}</button>

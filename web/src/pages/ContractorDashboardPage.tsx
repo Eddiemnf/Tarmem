@@ -25,16 +25,16 @@ export default function ContractorDashboardPage({ vm }: { vm: VM }) {
     
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', flexWrap: 'wrap', gap: '16px' }}>
         <div><span className="kick">{vm.t.cdash.kicker}</span><h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464', marginTop: '8px' }}>{vm.user.name}</h1></div>
-        <button className="btn btn-p" data-route="browse" onClick={vm.go}>{vm.t.nav.browse}</button>
+        {vm.launch ? null : (<button className="btn btn-p" data-route="browse" onClick={vm.go}>{vm.t.nav.browse}</button>)}
       </div>
       <div className="qa">
-        <button type="button" className="qa-t" data-route="browse" onClick={vm.go}>
+        {vm.launch ? null : (<button type="button" className="qa-t" data-route="browse" onClick={vm.go}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="6.4" /><path d="M20 20l-4.4-4.4" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.cdash.qaBrowse}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.cdash.qaBrowseSub}</span></span>
           
     {vm.qaOpenN ? (<><span className="qa-b">{vm.qaOpenN}</span></>) : null}
     
-        </button>
+        </button>)}
         <button type="button" className="qa-t" onClick={vm.qaToWork}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7.4" width="18" height="12.6" rx="2.4" /><path d="M9 7.4V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.4" /><path d="M3 12.4h18" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.cdash.qaWork}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.cdash.qaWorkSub}</span></span>
