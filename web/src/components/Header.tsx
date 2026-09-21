@@ -19,7 +19,7 @@ export default function Header({ vm }: { vm: VM }) {
           <a className="lnk hide-over" data-route="help" aria-current={vm.cur.help} onClick={vm.go}>{vm.t.footer.help}</a>
           <span className="mobonly" style={{ width: '100%', height: '1px', background: '#EEEDF5' }}></span>
           <a className="lnk mobonly" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}</a>
-          {vm.launch ? null : (<a className="lnk mobonly" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>)}
+          {vm.launch && !vm.accounts ? null : (<a className="lnk mobonly" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>)}
         </nav>
       </>) : null}
     
@@ -48,7 +48,7 @@ export default function Header({ vm }: { vm: VM }) {
       <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
         
     {vm.isGuest ? (<>
-          {vm.launch ? null : (<a className="ulnk deskonly hide-over" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>)}
+          {vm.launch && !vm.accounts ? null : (<a className="ulnk deskonly hide-over" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>)}
           <button className="langbtn hide-over" onClick={vm.toggleLang}>{vm.t.langSwitch}</button>
           <button className="btn btn-s btn-sm deskonly join-over" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}<svg className="ph-ar join-ar" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></button>
           <button className="btn btn-p btn-sm hide-over" data-route="post" onClick={vm.go}>{vm.t.nav.post}</button>
@@ -106,16 +106,16 @@ export default function Header({ vm }: { vm: VM }) {
               <div className="acctmenu">
                 <span className="acctrole">{vm.accountRole}</span>
                 
-        {vm.isHomeowner ? (<><button className="acctitem" data-route="homeowner" data-id="h1" onClick={vm.goMenu}>{vm.t.hprofile.myProfile}</button></>) : null}
+        {vm.isHomeowner ? (<>{vm.launch ? null : (<button className="acctitem" data-route="homeowner" data-id="h1" onClick={vm.goMenu}>{vm.t.hprofile.myProfile}</button>)}</>) : null}
         
                 
         {vm.isContractor ? (<><button className="acctitem" data-route="contractor" data-id="c1" onClick={vm.goMenu}>{vm.t.nav.myProfile}</button></>) : null}
         
                 
-        {vm.isNotAdmin ? (<><button className="acctitem" data-route="wallet" onClick={vm.goMenu}>{vm.t.nav.wallet}</button></>) : null}
+        {vm.isNotAdmin ? (<>{vm.launch ? null : (<button className="acctitem" data-route="wallet" onClick={vm.goMenu}>{vm.t.nav.wallet}</button>)}</>) : null}
         
                 
-        {vm.isNotAdmin ? (<><button className="acctitem" data-route="settings" onClick={vm.goMenu}>{vm.t.nav.settings}</button></>) : null}
+        {vm.isNotAdmin ? (<>{vm.launch ? null : (<button className="acctitem" data-route="settings" onClick={vm.goMenu}>{vm.t.nav.settings}</button>)}</>) : null}
         
                 <hr className="hair" />
                 <button className="acctitem" onClick={vm.signOut}>{vm.t.nav.signOut}</button>

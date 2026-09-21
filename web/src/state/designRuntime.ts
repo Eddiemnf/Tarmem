@@ -50,6 +50,8 @@ export class DCLogic {
 /** Owns one logic instance and tells React when its state has changed. */
 export class LogicHost {
   readonly logic: DCLogic;
+  /** The project form as it starts out, for putting it back after a request is sent (public site only). */
+  initialPost: unknown = null;
   private version = 0;
   private readonly listeners = new Set<() => void>();
   private callbacks: (() => void)[] = [];

@@ -12,9 +12,11 @@
     "sync:template": "python3 tools/convert-template.py",
     "test:flows": "node tests/flows.mjs",
     "test:parity": "node tests/parity.mjs",
-    "test:launch": "node tests/launch.mjs"
+    "test:launch": "node tests/launch.mjs",
+    "test:platform": "node tests/platform.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -24,9 +26,9 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
+    "playwright": "^1.58.0",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0",
-    "playwright": "^1.58.0"
+    "vite": "^8.3.0"
   },
   "description": "Tarmem \u2014 Saudi renovation marketplace, implemented from the Claude Design prototype."
 }

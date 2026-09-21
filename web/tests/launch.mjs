@@ -10,6 +10,7 @@
 
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { installSupabaseMock } from './supabase-mock.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:5173/').replace(/demo\/?$/, '');
 const site = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
@@ -23,6 +24,11 @@ await context.addInitScript(() => {
   window.__opened = [];
   window.open = (url) => { window.__opened.push(String(url)); return null; };
 });
+// With real accounts connected (site.config.json "supabase"), requests are saved to the database rather
+// than written into WhatsApp. That flow has its own test (tests/platform.mjs); here the database is a
+// stand-in, so this test still writes nothing real when it runs against the live site.
+const accounts = Boolean(site.supabase);
+if (accounts) await installSupabaseMock(context, site.supabase.url);
 const page = await context.newPage();
 page.setDefaultTimeout(8000);
 const errors = [];
@@ -50,7 +56,7 @@ check('home page carries no invented visitor counter or headline figures, and no
 check('testimonials and partners are shown', (await page.locator('.tsti-wrap').count()) === 1 && (await page.locator('.prtnrs').count()) === 1);
 check('the early-access notice sits under the home hero', (await page.locator('[role="note"]').count()) === 1);
 const signIn = await page.locator('header [data-route="auth"]:not([data-signup])').count();
-check('there is no sign-in link', signIn === 0, `found ${signIn}`);
+check(accounts ? 'sign-in is offered, now that accounts are real' : 'there is no sign-in link', accounts ? signIn > 0 : signIn === 0, `found ${signIn}`);
 const dummy = await page.evaluate((n) => [...document.querySelectorAll('a[href*="wa.me"]')].map((a) => a.href).filter((h) => !h.includes('wa.me/' + n)), site.whatsapp);
 check('every WhatsApp link uses the configured number', dummy.length === 0, dummy.join(' '));
 
@@ -66,6 +72,7 @@ for (const target of ['admin', 'wallet', 'hdash', 'cdash', 'project', 'browse', 
   // neither a saved page nor its address gets a visitor in
   await load({ key: 'tarmem-public-v1', value: { route: target, user: { role: 'admin', name: 'x' } } }, target);
   const at = await route();
+  // (with real accounts, /dashboard and /project/… exist and ask a visitor to sign in: tests/platform.mjs)
   if (at !== 'home' || (await pathname()) !== '/') { check(`private page "${target}" is unreachable`, false, `landed on ${at} at ${await pathname()}`); break; }
   if (target === 'settings') check('private pages (admin, wallet, dashboards, projects…) are unreachable, by saved state or by address', true);
 }
@@ -76,15 +83,17 @@ await page.locator('header button[data-signup="contractor"]').first().click();
 await page.waitForTimeout(300);
 check('join as a contractor opens the application form, not sign-up', (await route()) === 'join' && (await page.locator('#join-company').count()) === 1);
 check('no demo account switcher anywhere on it', (await page.locator('text=تصفّح المنصة بصفتك').count()) === 0);
+if (!accounts) {
 await page.locator('#join-company').fill('مؤسسة البناء المتقن');
 await page.locator('#join-person').fill('خالد العتيبي');
 await page.locator('button.tchip').first().click();
 await page.locator('button', { hasText: 'أرسل الطلب عبر واتساب' }).click();
 await page.waitForTimeout(300);
-let urls = await opened();
+let joinUrls = await opened();
 check('the application is written into WhatsApp for the configured number',
-  urls.length === 1 && urls[0].startsWith(`https://wa.me/${site.whatsapp}?text=`) && waText(urls[0]).includes('مؤسسة البناء المتقن'), urls[0]?.slice(0, 60));
+  joinUrls.length === 1 && joinUrls[0].startsWith(`https://wa.me/${site.whatsapp}?text=`) && waText(joinUrls[0]).includes('مؤسسة البناء المتقن'), joinUrls[0]?.slice(0, 60));
 check('…and the visitor is told nothing is sent until they press Send', (await route()) === 'sent' && (await page.locator('text=لن يصل شيء').count()) === 1);
+}
 
 // D — a trade tile and the "describe your project" box both lead to the request form
 await load();
@@ -99,7 +108,9 @@ await page.waitForTimeout(300);
 check('the description box carries its text into the request form',
   (await route()) === 'post' && (await page.locator('textarea[name="desc"]').inputValue()).includes('تجديد مطبخي'));
 
-// E — the project request, end to end
+// E — the project request, end to end (by WhatsApp; with real accounts see tests/platform.mjs)
+let urls = [];
+if (!accounts) {
 await page.locator('input[name="title"]').fill('تجديد مطبخ، 20 م²');
 await page.locator('button', { hasText: 'التالي' }).first().click();
 await page.locator('input[name="min"]').fill('40000');
@@ -135,6 +146,7 @@ await page.waitForTimeout(300);
 urls = await opened();
 check('the contact form writes the message into WhatsApp', urls.length === 1 && waText(urls[0]).includes('هل تغطون جدة؟') && waText(urls[0]).includes('0555123456'));
 check('…and says so, without promising a reply time', (await page.locator('text=اضغط «إرسال» هناك').count()) === 1);
+}
 
 // G — the full demo is still there, at /demo, untouched
 await page.goto(BASE_URL + 'demo', { waitUntil: 'domcontentloaded' });

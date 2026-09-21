@@ -12,9 +12,20 @@
      to the Tarmem team (src/launch/deliver.ts) instead of updating seed data. */
 
 import * as D from '../data/tarmem-data';
+import { platformOn } from '../platform/client';
+import { currentAccount, signOut } from '../platform/session';
 import type { LogicState } from '../state/designRuntime';
 import { LAUNCH_COPY } from './copy';
 import { openWhatsApp } from './deliver';
+
+/** Pages that need a real, signed-in account. They exist only once the database is connected. */
+const ACCOUNT_ROUTES = new Set(['hdash', 'project']);
+
+/** Work the guard starts but cannot finish inside a click: it needs the network (src/platform/bind.ts). */
+export interface GuardEffects {
+  contact: (form: LogicState, lang: 'ar' | 'en') => void;
+  withdraw: (dbId: string) => void;
+}
 
 /** Pages a visitor can be on. `join` and `sent` exist only on the public site. */
 export const PUBLIC_ROUTES = new Set([
@@ -25,6 +36,8 @@ export interface SentRequest {
   kind: 'project' | 'join' | 'contact';
   text: string;
   files: number;
+  /** Set when the request was saved to the database instead: the sentence that confirms it. */
+  saved?: string;
 }
 
 type Lang = 'ar' | 'en';
@@ -79,28 +92,60 @@ function contactMessage(state: LogicState): SentRequest {
 }
 
 /** Correct a state the logic is about to adopt. Runs synchronously inside the click that caused it. */
-export function guardLaunchState(prev: LogicState, next: LogicState, initialPost: unknown): LogicState {
+export function guardLaunchState(prev: LogicState, next: LogicState, initialPost: unknown, effects?: GuardEffects): LogicState {
   let state = next;
   const patch = (extra: LogicState) => { state = { ...state, ...extra }; };
 
-  if (state.user) patch({ user: null });
+  /* Who is signed in is decided by the database session and by nothing else: the design's own
+     sign-in (a code it shows on screen, the demo buttons) can never put anybody in. */
+  if (platformOn && prev.user && !state.user && currentAccount()) signOut(); // the account menu's "sign out"
+  const user = platformOn ? currentAccount()?.logicUser ?? null : null;
+  if (state.user !== user) patch({ user });
+  if (platformOn && !user && state.projects?.length) patch({ projects: [] });
+
+  // "Withdraw project" removes it from the list. For a real project that is a change of status in the database.
+  if (effects && user && prev.user && prev.withdrawAsk && !state.withdrawAsk && prev.projects?.length === (state.projects?.length ?? 0) + 1) {
+    const gone = prev.projects.find((p: LogicState) => p.id === prev.curId && !state.projects.some((q: LogicState) => q.id === p.id));
+    if (gone?.dbId) effects.withdraw(gone.dbId);
+  }
 
   // The contact form "sends" by flipping a flag. Here it really sends.
   if (state.contact?.sent && !prev.contact?.sent) {
-    const message = contactMessage(state);
-    openWhatsApp(message.text);
-    patch({ launchLast: message });
+    if (platformOn && effects) {
+      // `delivered` marks the flip that follows a saved message; any other flip starts the save instead.
+      if (!state.contact.delivered) {
+        patch({ contact: { ...state.contact, sent: false, busy: true, error: '' } });
+        if (!prev.contact?.busy) effects.contact(state.contact, langOf(state));
+      }
+    } else {
+      const message = contactMessage(state);
+      openWhatsApp(message.text);
+      patch({ launchLast: message });
+    }
   }
 
-  if (!PUBLIC_ROUTES.has(state.route)) {
+  const wantsContractorSignup = state.route === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor';
+  const allowed = PUBLIC_ROUTES.has(state.route) || (platformOn && !wantsContractorSignup && (
+    (state.route === 'auth' && !user)
+    || (state.route === 'hdash' && Boolean(user))
+    || (state.route === 'project' && Boolean(user) && state.projects?.some((p: LogicState) => p.id === state.curId))
+    || (state.route === 'inbox' && Boolean(user?.admin))));
+
+  if (!allowed) {
     const target = state.route;
-    if (target === 'auth' && state.pendingPost) {
+    if (platformOn && target === 'auth' && user) {
+      patch({ route: 'hdash' });
+    } else if (platformOn && (ACCOUNT_ROUTES.has(target) || target === 'inbox')) {
+      // signed out: sign in first. Signed in, but not their project (or not the team): their dashboard.
+      patch(user ? { route: 'hdash' } : { route: 'auth', auth: { ...state.auth, mode: 'signin', role: 'homeowner', error: '' } });
+    } else if (target === 'auth' && state.pendingPost) {
       // A guest pressed "publish" on the last step of the project form.
       const message = projectMessage(state);
       openWhatsApp(message.text);
       patch({ route: 'sent', pendingPost: false, launchLast: message, post: initialPost });
-    } else if (target === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor') {
-      patch({ route: 'join' });
+    } else if (wantsContractorSignup) {
+      // contractors apply; the role is put back so a later "sign in" is not mistaken for another application
+      patch({ route: 'join', auth: { ...state.auth, mode: 'signin', role: 'homeowner' } });
     } else if (target === 'auth' || target === 'plan' || target === 'contractors') {
       // "Describe your project", a trade tile, or any other way in: all lead to the request form.
       const f = { ...state.post.f };
@@ -118,7 +163,8 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
     } else {
       patch({ route: 'home' });
     }
-    if (state.pendingPost) patch({ pendingPost: false });
+    // A project waiting for its owner to sign in survives the sign-in itself (src/platform/AuthPage.tsx publishes it).
+    if (state.pendingPost && state.route !== 'auth' && !(platformOn && user)) patch({ pendingPost: false });
   }
   return state;
 }

@@ -19,11 +19,18 @@ import LaunchNotice from './launch/LaunchNotice';
 import SentPage from './launch/SentPage';
 import { isLaunch } from './launch/mode';
 import { titleFor } from './launch/urls';
+import RealAuthPage from './platform/AuthPage';
+import { platformOn } from './platform/client';
+import InboxPage from './platform/InboxPage';
 import { PAGES, type Route } from './routes';
 import { useLogicState, useViewModel, type VM } from './state/viewModel';
 
 /** Pages that exist only on the public early-access site (see src/launch/). */
-const LAUNCH_PAGES: Record<string, (props: { vm: VM }) => React.ReactNode> = { join: JoinPage, sent: SentPage };
+const LAUNCH_PAGES: Record<string, (props: { vm: VM }) => React.ReactNode> = {
+  join: JoinPage, sent: SentPage,
+  // real accounts (src/platform/): email sign-in stands in for the design's mobile code and Nafath
+  ...(platformOn ? { auth: RealAuthPage, inbox: InboxPage } : {}),
+};
 
 export default function App() {
   const vm = useViewModel();

@@ -6,6 +6,7 @@
 import * as D from '../data/tarmem-data';
 import { DCLogic, aiErrorText, claude } from './designRuntime';
 import { STORAGE_KEY } from '../launch/mode';
+import { runtimeData } from '../platform/data';
 
 const fmt = n => { const v=Number(n)||0;
   return v%1===0 ? v.toLocaleString('en-US') : v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); };
@@ -63,7 +64,7 @@ class Component extends DCLogic {
     bidF:{price:'',days:'',note:'',incl:'',excl:'',brands:'',start:'',warranty:'',valid:'',ms1:'30',ms2:'40',ms3:'30',vatReg:true,visit:false,step:'edit',error:''}, msgDraft:'', pay:'card', contractors:[], projects:[], cases:[], rejected:[] };
 
   async componentDidMount(){
-    const m = D;
+    const m = runtimeData();
     this.D = m; this.heroStart();
     this.seedSig = (str => { let k = 5381; for (let i = 0; i < str.length; i++) k = ((k * 33) ^ str.charCodeAt(i)) >>> 0; return String(k); })(JSON.stringify([m.PROJECTS, m.CONTRACTORS, m.CASES, m.TRADES, m.CITIES]));
     this.watchScroll(); this.watchPointer(); this.kickVideo(); this.startLive();

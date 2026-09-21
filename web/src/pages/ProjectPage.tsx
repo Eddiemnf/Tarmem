@@ -63,7 +63,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
     {vm.pjSk.show ? (<><div className="strikebar" data-n={vm.pjSk.n} style={{ margin: '0', flexBasis: '100%', padding: '16px 18px', gap: '8px' }}><div className="strikebar-t" style={{ fontSize: '14.5px' }}>{vm.pjSk.title}</div><p className="strikebar-s" style={{ fontSize: '12.5px' }}>{vm.pjSk.sub}</p></div></>) : null}
     
         <div className="num" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', textAlign: 'end' }}><div><div className="muted" style={{ fontSize: '12px' }}>{vm.pj.amountLabel}</div><div style={{ fontSize: '30px', fontWeight: '600', color: '#1B1464', lineHeight: '1.1' }}>{vm.curPre}{vm.pj.amount}{vm.curPost}</div></div>
-    {vm.pj.showAddFunds ? (<><button className="btn btn-s btn-sm" data-route="wallet" onClick={vm.go}>{vm.t.wallet.addFunds}</button></>) : null}
+    {vm.pj.showAddFunds ? (<>{vm.launch ? null : (<button className="btn btn-s btn-sm" data-route="wallet" onClick={vm.go}>{vm.t.wallet.addFunds}</button>)}</>) : null}
     </div>
       </div>
       <div role="tablist" style={{ display: 'flex', gap: '24px', borderBottom: '1px solid #E6E5F0', margin: '24px 0 32px', overflowX: 'auto' }}>
@@ -189,7 +189,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
               <tr><td className="muted">{vm.t.post.timing}</td><td>{vm.pj.timingLabel}</td></tr>
               <tr><td className="muted">{vm.t.ws.posted}</td><td>{vm.pj.posted}</td></tr>
               <tr><td className="muted">{vm.t.roles.contractor}</td><td>{vm.pj.contractorName}</td></tr>
-              <tr><td className="muted">{vm.t.hprofile.ownerOf}</td><td><a className="lnk" style={{ color: '#FF5A3C', fontWeight: '500' }} data-route="homeowner" data-id={vm.pj.ownerId} onClick={vm.go}>{vm.pj.ownerName}</a></td></tr>
+              <tr><td className="muted">{vm.t.hprofile.ownerOf}</td><td>{vm.launch ? null : (<a className="lnk" style={{ color: '#FF5A3C', fontWeight: '500' }} data-route="homeowner" data-id={vm.pj.ownerId} onClick={vm.go}>{vm.pj.ownerName}</a>)}</td></tr>
             </tbody></table>
           </div>
           <aside style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

@@ -1,5 +1,9 @@
 {
   "whatsapp": "966530373026",
   "email": "support@tarmem.sa",
-  "publicLaunch": true
+  "publicLaunch": true,
+  "supabase": {
+    "url": "https://rdqlnsqdmaosghpxexup.supabase.co",
+    "key": "sb_publishable_n3eZdMHHA59rlCy8T49WjA_0n1TLKX5"
+  }
 }

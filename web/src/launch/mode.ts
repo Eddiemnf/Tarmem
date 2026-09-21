@@ -16,6 +16,10 @@ export interface SiteConfig {
   email: string;
   /** false keeps the public site behind the preview password too, for a final look before opening it. */
   publicLaunch: boolean;
+  /** The database behind real accounts and posted projects. The key is the PUBLISHABLE one: it is
+      meant to be public, and every permission is enforced by the database's own rules. Never put a
+      secret or service key here — this file ships to every visitor. */
+  supabase?: { url: string; key: string };
 }
 
 export const site: SiteConfig = config;

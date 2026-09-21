@@ -355,8 +355,9 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
     else:
         body = emit_children(node.children, scope, indent)
         out = f"<{tag}{attr_str}>{body}</{tag}>"
-    if launch_hidden(node):
-        out = "{vm.launch ? null : (" + out + ")}"
+    hidden_when = launch_hidden(node)
+    if hidden_when:
+        out = "{" + hidden_when + " ? null : (" + out + ")}"
     return out + launch_insert(node)
 
 
@@ -395,9 +396,16 @@ LAUNCH_HIDDEN_CLASSES = {
 # both sections are public. If either stops being true, add its marker back:
 #   "tsti-wrap": testimonials,  "prtnrs": partner logos
 LAUNCH_HIDDEN_SECTIONS: dict[str, str] = {}
-# Links into parts of the product that do not exist publicly yet. A link that names
-# a sign-up role stays: the launch guard sends it to the matching request form.
-LAUNCH_HIDDEN_ROUTES = {"auth", "contractors", "browse"}
+# Links into parts of the product that do not exist publicly yet, and the condition under
+# which each is left out. A link that names a sign-up role stays: the launch guard sends it
+# to the matching request form. Sign-in appears once real accounts are connected
+# (`vm.accounts`, src/platform/); the rest wait for the slices in docs/real-platform-plan.md.
+LAUNCH_HIDDEN_ROUTES = {
+    "auth": "vm.launch && !vm.accounts",
+    "contractors": "vm.launch", "browse": "vm.launch",
+    # signed-in pages that still run on the design's invented figures
+    "wallet": "vm.launch", "settings": "vm.launch", "homeowner": "vm.launch",
+}
 _launch_rules_applied: set[str] = set()
 
 
@@ -431,13 +439,14 @@ def launch_insert(node: "Element") -> str:
     return ""
 
 
-def launch_hidden(node: "Element") -> bool:
+def launch_hidden(node: "Element") -> str:
+    """The condition under which the public site leaves this node out ('' = never)."""
     attrs = dict(node.attrs)
     classes = (attrs.get("class") or "").split()
     for marker in LAUNCH_HIDDEN_CLASSES:
         if marker in classes:
             _launch_rules_applied.add(marker)
-            return True
+            return "vm.launch"
     if node.tag == "section":
         stack = list(node.children)
         while stack:
@@ -447,14 +456,14 @@ def launch_hidden(node: "Element") -> bool:
                 for marker in LAUNCH_HIDDEN_SECTIONS:
                     if marker in inner:
                         _launch_rules_applied.add(marker)
-                        return True
+                        return "vm.launch"
                 stack.extend(current.children)
     route = attrs.get("data-route")
     names_a_role = attrs.get("data-signup") or attrs.get("data-role")
     if node.tag in ("a", "button") and route in LAUNCH_HIDDEN_ROUTES and not names_a_role:
         _launch_rules_applied.add("route:" + route)
-        return True
-    return False
+        return LAUNCH_HIDDEN_ROUTES[route]
+    return ""
 
 
 """Assets the site serves in a lighter form than the design carries them.
@@ -561,7 +570,7 @@ the run fails rather than silently shipping the prototype behaviour.
 LOGIC_PATCHES = [
     ("the data module is bundled, not fetched at runtime",
      "const m = await import('./tarmem-i18n.js');",
-     "const m = D;", 1),
+     "const m = runtimeData();", 1),
     ("the assistant talks to VITE_AI_ENDPOINT — no model key may sit in client code",
      "window.claude.complete(",
      "claude.complete(", 2),
@@ -605,6 +614,7 @@ def sync_logic(src: str) -> str:
         "import * as D from '../data/tarmem-data';\n"
         "import { DCLogic, aiErrorText, claude } from './designRuntime';\n"
         "import { STORAGE_KEY } from '../launch/mode';\n"
+        "import { runtimeData } from '../platform/data';\n"
         + body.rstrip() + "\n\nexport default Component;\n"
     )
     with open(os.path.join(WEB, "src", "state", "designLogic.generated.ts"), "w", encoding="utf-8") as fh:

@@ -24,6 +24,9 @@ import { openWhatsApp } from '../launch/deliver';
 import { guardLaunchState, type SentRequest } from '../launch/guard';
 import { isLaunch } from '../launch/mode';
 import { connectUrls } from '../launch/urls';
+import { bindPlatform, guardEffects } from '../platform/bind';
+import { platformOn } from '../platform/client';
+import { PLATFORM_COPY } from '../platform/copy';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -50,7 +53,12 @@ function createHost(): LogicHost {
   const logic = new Component(startProps());
   if (!isLaunch) return new LogicHost(logic);
   const initialPost = JSON.parse(JSON.stringify(logic.state.post)); // plain data; structuredClone needs Safari 15.4+
-  return new LogicHost(logic, (prev, next) => guardLaunchState(prev, next, initialPost));
+  // eslint-disable-next-line prefer-const -- the effects need the host, and the host needs the guard
+  let host: LogicHost | null = null;
+  const effects = platformOn ? guardEffects(() => host) : undefined;
+  host = new LogicHost(logic, (prev, next) => guardLaunchState(prev, next, initialPost, effects));
+  host.initialPost = initialPost;
+  return host;
 }
 
 /** What the public site changes in the bindings: a flag the generated markup checks, and a few strings —
@@ -58,21 +66,27 @@ function createHost(): LogicHost {
 function launchVals(vm: LogicVals, state: LogicState): LogicVals {
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
   return {
     ...vm,
     launch: true,
+    /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
+    accounts: platformOn,
+    justPosted: state.justPosted,
     /** The request last written into WhatsApp, for the page that follows it (src/launch/SentPage.tsx). */
     launchLast: state.launchLast,
     t: {
       ...vm.t,
-      pages: { ...vm.t.pages, cSent: copy.contactSent },
+      pages: { ...vm.t.pages, cSent: real ? real.contactSent : copy.contactSent },
       footer: { ...vm.t.footer, note: '' },
       // the photo step explains where photos go instead of offering a picker that uploads nothing
-      post: { ...vm.t.post, filesIntro: copy.filesIntro, fileTypes: '' },
+      post: { ...vm.t.post, filesIntro: real ? real.filesIntro : copy.filesIntro, fileTypes: '' },
+      // an open project with no bids yet: say what actually happens next
+      ...(real ? { ws: { ...vm.t.ws, noBids: real.postedNoBids } } : {}),
     },
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
     showWaFab: vm.showWaFab && !vm.r?.sent,
-    post: vm.post?.step4 ? { ...vm.post, nextLabel: copy.sendWhatsApp } : vm.post,
+    post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
   };
 }
 
@@ -81,9 +95,12 @@ export function LogicProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     host.mount();
+    // The signed-in person and their projects go in before the address is read, so /dashboard opens for them.
+    const unbind = platformOn ? bindPlatform(host, host.initialPost as LogicState) : undefined;
     // The logic restores the last page from saved state as it mounts; on the public site the address wins.
     const disconnect = isLaunch ? connectUrls(host) : undefined;
     return () => {
+      unbind?.();
       disconnect?.();
       host.unmount();
     };
@@ -118,11 +135,13 @@ export function useLogicState(): LogicState {
 }
 
 /** For the public site's own pages: write a request into WhatsApp and show what happens next. */
-export function useLaunchActions(): { send: (request: SentRequest) => void } {
+export function useLaunchActions(): { send: (request: SentRequest) => void; host: LogicHost } {
   const host = useHost();
   return useMemo(() => ({
+    host,
+    /** A request with `saved` set is already with Tarmem; any other is written into WhatsApp. */
     send: (request: SentRequest) => {
-      openWhatsApp(request.text);
+      if (!request.saved) openWhatsApp(request.text);
       host.setLogicState({ route: 'sent', launchLast: request });
       window.scrollTo(0, 0);
     },

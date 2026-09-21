@@ -33,10 +33,10 @@ export default function HomeownerDashboardPage({ vm }: { vm: VM }) {
     {vm.qaSavedN ? (<><span className="qa-b">{vm.qaSavedN}</span></>) : null}
     
         </button>)}
-        <button type="button" className="qa-t" data-route="wallet" onClick={vm.go}>
+        {vm.launch ? null : (<button type="button" className="qa-t" data-route="wallet" onClick={vm.go}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.6" /><path d="M3 10.5h18" /><path d="M16.5 14.8h2" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.hdash.qaWallet}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.hdash.qaWalletSub}</span></span>
-        </button>
+        </button>)}
       </div>
       <div className="statstrip num">
         

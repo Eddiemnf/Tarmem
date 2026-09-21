@@ -13,6 +13,19 @@ export default function SentPage({ vm }: { vm: VM }) {
   const title = last?.kind === 'join' ? copy.titleJoin : last?.kind === 'contact' ? copy.titleContact : copy.titleProject;
   const steps = [copy.steps[0], ...(last?.files ? [copy.stepsFiles] : []), copy.steps[1]];
 
+  // Saved straight to Tarmem (src/platform/): nothing is left for the visitor to send.
+  if (last?.saved) {
+    return (
+      <section className="wrap fade" style={{ paddingBlock: 'clamp(34px,4.2vw,60px) clamp(48px,6vw,88px)', maxWidth: '760px' }}>
+        <span className="kick">{copy.kicker}</span>
+        <h1 style={{ fontSize: 'clamp(26px,3vw,34px)', marginTop: '10px' }}>{last.saved}</h1>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '22px' }}>
+          <button className="btn btn-p" type="button" data-route="home" onClick={vm.go}>{copy.home}</button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="wrap fade" style={{ paddingBlock: 'clamp(34px,4.2vw,60px) clamp(48px,6vw,88px)', maxWidth: '760px' }}>
       <span className="kick">{copy.kicker}</span>

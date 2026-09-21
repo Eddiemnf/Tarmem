@@ -46,10 +46,10 @@ export default function ContractorDashboardPage({ vm }: { vm: VM }) {
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19.4v-1.2A3.8 3.8 0 0 1 8.8 14.4h6.4A3.8 3.8 0 0 1 19 18.2v1.2" /><circle cx="12" cy="8" r="3.4" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.cdash.qaProfile}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.cdash.qaProfileSub}</span></span>
         </button>
-        <button type="button" className="qa-t" data-route="wallet" onClick={vm.go}>
+        {vm.launch ? null : (<button type="button" className="qa-t" data-route="wallet" onClick={vm.go}>
           <span className="qa-i" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.6" /><path d="M3 10.5h18" /><path d="M16.5 14.8h2" /></svg></span>
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.cdash.qaWallet}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.cdash.qaWalletSub}</span></span>
-        </button>
+        </button>)}
       </div>
       <div className="strikebar" data-n={vm.sk.n} role="status" aria-live="polite">
         <div className="strikebar-head">

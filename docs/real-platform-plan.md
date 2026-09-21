@@ -63,3 +63,52 @@ is the product's promise in a dispute.
 The design's screens stay as they are. What changes is where each action's data goes: today the
 design's logic writes to the browser; slice by slice, those writes go to the database instead,
 behind the same buttons.
+
+## Where it stands — slice 1 (accounts and posting), 21 September 2026
+
+Built on the branch `platform-accounts-and-posting`, **not yet live**. It goes live only after the
+two owner steps below are done and the security test passes, because a site that offers sign-up
+before its database exists would fail for every visitor.
+
+What slice 1 does on the public site:
+
+- **Sign up / sign in** with email and a password (`web/src/platform/AuthPage.tsx`), in the design's
+  own frame. The design's mobile code and Nafath return when an SMS provider and Nafath are connected.
+- **Post a project** through the design's four-step form. A guest who presses publish is asked to
+  create an account, and the project is then saved under their name and opens at `/project/P-2001`.
+- **Dashboard** at `/dashboard`: their projects, withdraw an open one, sign out. Wallet, settings,
+  profile and contractor search stay hidden until their slices are real.
+- **Contact form** and **contractor application** are saved for the team instead of opening WhatsApp.
+  The application now asks for a mobile number (the team needs a way to reach the applicant).
+- **Team inbox** at `/inbox`, for accounts the owner has marked admin: posted projects with the
+  owner's name, mobile and email; applications; messages.
+- The floating WhatsApp button and footer link stay, as a way to reach Tarmem — nothing depends on them.
+
+How it is put together: the design's logic still runs untouched. `web/src/platform/` feeds it the
+signed-in person and their real projects in the shapes it expects, and replaces the three places where
+the prototype only pretended to save (publish, withdraw, contact). Who is signed in is decided by the
+database session alone; the guard (`web/src/launch/guard.ts`) discards any other `user`. What anybody
+may read or write is decided by the database's own rules in `supabase/001_accounts_projects_forms.sql`,
+not by the site.
+
+Tests: `npm run test:platform` (26 checks, in a browser, against a stand-in database — it writes
+nothing real), and `node ../supabase/tests/rls.mjs`, which proves the rules against the real database
+using only the public key.
+
+### Owner steps before it can go live
+
+1. Supabase → **SQL Editor** → paste `supabase/001_accounts_projects_forms.sql` → **Run**.
+2. Supabase → **Authentication → Sign In / Providers → Email** → turn **off** "Confirm email" → Save.
+   (Supabase's built-in mailer sends only a few emails an hour. Turn it back on once Tarmem has its
+   own email sender.)
+3. After it is live: sign up on the site with your own email, then in the SQL Editor run
+   `update public.profiles set role = 'admin' where email = 'you@example.com';` — that opens `/inbox`.
+
+### Known gaps in slice 1, on purpose
+
+- **Forgotten password**: the page says to message Tarmem. Self-service reset needs the email sender.
+- **Photos**: the form says uploads are on the way. They come with storage rules in a later slice.
+- **No new-project alert**: the team has to look at `/inbox`. An email or WhatsApp alert per new
+  project comes with the email sender.
+- **PDPL**: the database is in Frankfurt. Whether Saudi residents' personal data may be kept there is
+  a question for the lawyer before real volume.
