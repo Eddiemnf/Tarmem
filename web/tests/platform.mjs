@@ -122,6 +122,19 @@ await page.locator('#au-password').fill('long-enough-1');
 await submit.click();
 await settle(700);
 check('the right one opens the dashboard', (await pathname()) === '/dashboard');
+
+// D2 — the team inbox: nobody but an account marked admin in the database
+check('a customer sees no inbox link, and /inbox sends them to their dashboard', (await page.locator('[data-route="inbox"]').count()) === 0
+  && (await open('inbox'), (await pathname()) === '/dashboard'));
+db.profiles[0].role = 'admin'; // what the owner does in the SQL editor
+await open('dashboard');
+await page.locator('[data-route="inbox"]').click();
+await settle(700);
+check('an admin gets a link to the inbox, which lists projects with the owner\'s contact details',
+  (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 3 && (await page.locator('main', { hasText: 'تجديد مطبخ، 20 م²' }).count()) === 1
+    && (await page.locator('main a[href^="tel:"]').first().innerText()).includes('055'), await pathname());
+db.profiles[0].role = 'homeowner';
+await open('dashboard');
 await page.locator('button.acct').click();
 await page.locator('.acctmenu .acctitem').last().click();
 await settle();

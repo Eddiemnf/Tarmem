@@ -21,6 +21,7 @@ import { isLaunch } from './launch/mode';
 import { titleFor } from './launch/urls';
 import RealAuthPage from './platform/AuthPage';
 import { platformOn } from './platform/client';
+import { PLATFORM_COPY } from './platform/copy';
 import InboxPage from './platform/InboxPage';
 import { PAGES, type Route } from './routes';
 import { useLogicState, useViewModel, type VM } from './state/viewModel';
@@ -53,6 +54,15 @@ export default function App() {
       <ShellBlocks vm={vm} />
       <main style={{ flex: 1 }}>
         {isLaunch ? <LaunchNotice vm={vm} /> : null}
+        {/* The team's way into what has arrived. Only an account the owner marked admin in the database sees it. */}
+        {isLaunch && state.user?.admin && state.route !== 'home' && state.route !== 'inbox' ? (
+          <div style={{ background: '#1B1464', color: '#fff', fontSize: '13px' }}>
+            <div className="wrap" style={{ display: 'flex', gap: '14px', alignItems: 'center', justifyContent: 'space-between', paddingBlock: '9px' }}>
+              <span>{vm.dir === 'ltr' ? 'Tarmem team' : 'فريق ترميم'}</span>
+              <a className="lnk" data-route="inbox" onClick={vm.go} style={{ color: '#FFB199', fontWeight: 600, cursor: 'pointer' }}>{PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'].inboxOpen}</a>
+            </div>
+          </div>
+        ) : null}
         <BackLink vm={vm} />
         <Page vm={vm} />
         <GiftModal vm={vm} />
