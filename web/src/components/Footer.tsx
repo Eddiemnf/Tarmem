@@ -11,9 +11,9 @@ export default function Footer({ vm }: { vm: VM }) {
           <a className="soc" href="https://instagram.com/tarmem_ksa" target="_blank" rel="noopener" aria-label="Instagram">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r="1.1" fill="currentColor" stroke="none" /></svg>
           </a>
-          <span className="soc soc-off" role="img" aria-label="X" title={vm.t.footer.soon}>
+          <a className="soc" href="https://x.com/Tarmemsa" target="_blank" rel="noopener" aria-label="X">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.7 3h3.2l-7 8 7.4 9.9h-5.6l-4.4-5.8-5 5.8H3.1l7.3-8.4L3.3 3H9l4.1 5.5zm-1.1 15.9h1.8L7.3 4.8H5.4z" /></svg>
-          </span>
+          </a>
           <a className="soc" href="https://www.linkedin.com/company/tarmemsa/" target="_blank" rel="noopener" aria-label="LinkedIn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4.6 3a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8zM3 8.4h3.2V21H3zM9.2 8.4h3.1v1.7a3.5 3.5 0 0 1 3.1-1.8c2.4 0 3.9 1.5 3.9 4.4V21h-3.2v-7.6c0-1.5-.6-2.3-1.8-2.3-1.1 0-1.9.8-1.9 2.3V21H9.2z" /></svg>
           </a>
