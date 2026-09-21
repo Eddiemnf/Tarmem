@@ -67,6 +67,11 @@ check('visitor: cannot see the list of verified contractors', denied(await anon.
 const signProbe = await anon.rpc('sign_agreement_contractor', { p_project: '00000000-0000-4000-8000-000000000001' });
 check('006 is installed: signing exists, and is closed to visitors', Boolean(signProbe.error) && !/PGRST202|could not find/i.test(`${signProbe.error?.code} ${signProbe.error?.message}`), `${signProbe.error?.code} ${signProbe.error?.message}`);
 check('visitor: cannot read agreements', denied(await anon.from('agreements').select('*')));
+// 1g — 007: settings, reviews, stages behind the payments switch
+const stepProbe = await anon.rpc('stage_step', { p_project: '00000000-0000-4000-8000-000000000001', p_idx: 0, p_action: 'submit' });
+check('007 is installed: stage steps exist, and are closed to visitors', Boolean(stepProbe.error) && !/PGRST202|could not find/i.test(`${stepProbe.error?.code} ${stepProbe.error?.message}`), `${stepProbe.error?.code} ${stepProbe.error?.message}`);
+check('visitor: cannot read reviews, stages or the switches', denied(await anon.from('reviews').select('*')) && denied(await anon.from('stages').select('*')) && denied(await anon.from('platform_flags').select('*')));
+check('visitor: cannot record a payment', Boolean((await anon.rpc('mark_funded', { p_project: '00000000-0000-4000-8000-000000000001' })).error));
 if (process.env.RLS_VISITOR_ONLY) {
   console.log(results.join('\n'));
   const bad = results.filter((r) => r.startsWith('FAIL')).length;
