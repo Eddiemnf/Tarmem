@@ -22,6 +22,8 @@ export interface Profile {
   /** Notification choices from the settings page, and the profile's "about" line (supabase/007). */
   prefs?: Record<string, boolean> | null;
   about?: string | null;
+  /** A contractor's own list of trades, over the one in their verified application (supabase/008). */
+  trades?: string[] | null;
 }
 
 export interface ProjectRow {
@@ -61,9 +63,9 @@ export interface Application { id: number; created_at: string; company: string; 
 /** The signed-in contractor, as the record the logic looks up as "c1". Its figures are true zeros until there is work to count. */
 export function contractorRecord(application: Application | null, profile: Profile): LogicState {
   return {
-    id: 'c1', name: both(application?.company || profile.company || profile.full_name), city: application?.city || profile.city, trades: application?.trades || [],
+    id: 'c1', userId: profile.id, name: both(application?.company || profile.company || profile.full_name), city: profile.city || application?.city, trades: profile.trades?.length ? profile.trades : application?.trades || [],
     rating: 0, reviews: 0, done: 0, verified: application?.status === 'verified', since: (application?.created_at || profile.created_at).slice(0, 4),
-    onTime: '—', response: '—', bio: both(application?.note || ''), checks: { id: false, cr: Boolean(application?.cr_number), pf: false },
+    onTime: '—', response: '—', bio: both(profile.about || ''), checks: { id: false, cr: Boolean(application?.cr_number), pf: false },
   };
 }
 

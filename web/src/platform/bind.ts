@@ -12,7 +12,7 @@ import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleL
 import { openWhatsAppTo } from '../launch/deliver';
 import { contractorRecord, runtimeData, setEveryone, toLogicProject } from './data';
 import { forgetHeldFiles, heldFile, listFiles, uploadFile, type StoredFile } from './files';
-import { createProject, currentAccount, onAccountChange, refreshAccount, saveBid, saveReview, sendContact, signAgreement, withdrawProject, type AgreementRow, type BidRow } from './session';
+import { createProject, currentAccount, loadContractorReviews, onAccountChange, refreshAccount, saveBid, savePayoutAccount, saveReview, sendContact, signAgreement, walletRequest, withdrawProject, type AgreementRow, type BidRow } from './session';
 import { trackRoutes } from './track';
 
 const langOf = (state: LogicState): 'ar' | 'en' => (state.lang === 'en' ? 'en' : 'ar');
@@ -46,9 +46,13 @@ function accountState(): LogicState {
     }),
     // reviews already written, in the design's shape, so a reviewed project does not ask for another
     reviews: (account?.reviews || []).map((r) => ({ pid: account?.projects.find((p) => p.id === r.project_id)?.code, by: 'homeowner', stars: r.stars, text: r.body, date: r.created_at.slice(0, 10), saved: true })),
-    contractors: !account ? [] : contractor ? [contractorRecord(account.application, account.profile)]
-      : account.bidders.map((b) => ({ id: bidderId(b.user_id), name: both(b.company), city: b.city, trades: b.trades || [], rating: Number(b.rating) || 0, reviews: Number(b.reviews) || 0, done: Number(b.done) || 0, verified: true,
-        since: String(b.since || '').slice(0, 4), onTime: '—', response: '—', bio: both(''), checks: { id: false, cr: true, pf: false } })),
+    // the wallet, in the design's own vocabulary (a waiting deposit, money held, a payout being processed, done)
+    txns: (account?.wallet || []).filter((t) => t.status !== 'rejected' && t.status !== 'cancelled').map((t) => ({ dbId: t.id, who: contractor ? 'c1' : 'h1', date: t.created_at.slice(0, 10), type: t.type, method: t.method, amount: t.amount,
+      st: t.type === 'deposit' ? (t.status === 'confirmed' ? 'escrow' : 'pending') : t.status === 'paid' ? 'done' : 'processing' })),
+    ...(account?.payout ? { payout: { ...account.payout, saved: true, editing: false, error: '', draft: null } } : {}),
+    contractors: !account ? [] : contractor ? [{ ...contractorRecord(account.application, account.profile), rating: Number(account.standing?.rating) || 0, reviews: Number(account.standing?.reviews) || 0, done: Number(account.standing?.done) || 0 }]
+      : account.bidders.map((b) => ({ id: bidderId(b.user_id), userId: b.user_id, bio: both(b.bio || ''), name: both(b.company), city: b.city, trades: b.trades || [], rating: Number(b.rating) || 0, reviews: Number(b.reviews) || 0, done: Number(b.done) || 0, verified: true,
+        since: String(b.since || '').slice(0, 4), onTime: '—', response: '—', checks: { id: false, cr: true, pf: false } })),
   };
 }
 
@@ -252,6 +256,38 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     void saveReview(row.id, contractorId, Number(fresh.stars), String(fresh.text)).then((result) => mark(result.ok ? { saved: true, saving: false } : null));
   };
 
+  // The wallet's two writes. A deposit or payout the design adds in memory becomes a request in the database (and the list is
+  // then re-read: what shows is what the database holds); a bank account saved in the design's form is saved for real.
+  let savedIban = '';
+  const saveWallet = () => {
+    const account = currentAccount();
+    if (applying || !account?.paymentsLive) return;
+    const s = host.logic.state;
+    const fresh = (s.txns as LogicState[]).find((t) => !t.dbId && !t.saving);
+    if (fresh) {
+      put({ txns: (s.txns as LogicState[]).map((t) => (t === fresh ? { ...t, saving: true } : t)) });
+      const project = fresh.type === 'deposit' ? (s.projects as LogicState[]).find((p) => p.status === 'active' && !p.funded) : null;
+      void walletRequest(fresh.type, Number(fresh.amount), String(fresh.method || 'bank'), project?.dbId || null).then((result) => {
+        if (!result.ok) host.setLogicState((st) => ({ wl: { ...st.wl, notice: '', error: PLATFORM_COPY[langOf(st)].err[result.error] } }));
+      });
+    }
+    const p = s.payout as LogicState;
+    if (account.profile.role === 'contractor' && p?.saved && p.iban && p.iban !== (account.payout?.iban || '') && p.iban !== savedIban) {
+      savedIban = p.iban;
+      void savePayoutAccount({ holder: p.holder, bank: p.bank, iban: p.iban });
+    }
+  };
+
+  // A contractor's profile page shows real reviews: read when the page is opened.
+  let reviewsFor = '';
+  const loadProfileReviews = () => {
+    const s = host.logic.state;
+    const shown = s.route === 'contractor' ? (s.contractors as LogicState[]).find((c) => c.id === s.curId) : null;
+    if (!shown?.userId || reviewsFor === shown.userId) return;
+    reviewsFor = shown.userId;
+    void loadContractorReviews(shown.userId).then((rows) => put({ contractorReviews: { ...(host.logic.state.contractorReviews || {}), [shown.id]: rows } }));
+  };
+
   // The design signs an agreement in memory. Each signature is asked of the database; if it refuses, the truth is loaded back.
   const saveSignatures = () => {
     const role = currentAccount()?.profile.role;
@@ -315,7 +351,9 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   const stopBids = host.subscribe(saveNewBids);
   const stopSigning = host.subscribe(saveSignatures);
   const stopReviews = host.subscribe(saveNewReviews);
+  const stopWallet = host.subscribe(saveWallet);
+  const stopProfile = host.subscribe(loadProfileReviews);
   loadProjectFiles();
   const stopTracking = trackRoutes(host);
-  return () => { stopAccount(); stopWatching(); stopFiles(); stopBids(); stopSigning(); stopReviews(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
+  return () => { stopAccount(); stopWatching(); stopFiles(); stopBids(); stopSigning(); stopReviews(); stopWallet(); stopProfile(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
 }

@@ -139,6 +139,33 @@ function awardedVals(vm: LogicVals, state: LogicState): LogicVals {
   };
 }
 
+/** A contractor's public profile, from real rows only: the design fills it with stock "work" photos, two made-up reviews and
+    made-up response times. Here: real rating, real reviews (first name only), finished projects; photos come with a later slice.
+    The contractor's own edit form saves the introduction, city and trades; the verified company name is not theirs to change. */
+function profileVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
+  if (!platformOn || !vm.t?.profile) return vm;
+  const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'], ar = vm.dir !== 'ltr';
+  const shown = state.route === 'contractor' ? (state.contractors as LogicState[] | undefined)?.find((c) => c.id === state.curId) : null;
+  const rows: LogicState[] = (shown && state.contractorReviews?.[shown.id]) || [];
+  const when = (iso: string) => new Date(iso).toLocaleDateString(ar ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { month: 'long', year: 'numeric' });
+  return {
+    ...vm,
+    ...(shown && vm.prof ? { prof: { ...vm.prof, tmWork: [], ownWork: [], stats: [], moreReviews: false, reviewTotal: rows.length,
+      reviewList: rows.map((r) => ({ who: r.reviewer, when: when(r.created_at), stars: '★★★★★'.slice(0, r.stars) + '☆☆☆☆☆'.slice(0, 5 - r.stars), text: r.body })) },
+      t: { ...vm.t, profile: { ...vm.t.profile, tmProjects: `${vm.t.profile.tmProjects} — ${copy.noWorkYet}`, ...(rows.length ? {} : { reviews: `${vm.t.profile.reviews} — ${copy.noReviewsYet}` }) } } } : {}),
+    saveEdit: () => {
+      const d = state.edit, me = (state.contractors as LogicState[]).find((c) => c.id === 'c1');
+      if (!d || !me) return;
+      const fail = (error: string) => host.setLogicState({ edit: { ...d, error } });
+      if (String(d.name || '').trim() !== String(me.name.ar).trim()) return fail(copy.companyLocked);
+      if (!d.trades?.length) return fail(vm.t.profile.errTrades);
+      const length = String(d.bio || '').length;
+      if (length < 50 || length > 500) return fail(vm.t.profile.errBio);
+      void updateProfile({ about: String(d.bio), city: d.city, trades: d.trades }).then((result) => (result.ok ? host.setLogicState({ edit: null }) : fail(copy.err[result.error])));
+    },
+  };
+}
+
 /** Stages, once the owner has switched payments on (supabase/007): the design's own buttons, but every step is asked of the
     database, and the evidence is really uploaded. Until then an awarded project shows no stages, so none of this is reachable. */
 function stageVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
@@ -196,13 +223,15 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
-  return stageVals(accountPages(awardedVals(contractorVals(adminVals({
+  return profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
     ...vm,
     launch: true,
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
     accounts: platformOn,
     /** Photos have somewhere to go (supabase/003): the design's file pickers show, and really upload. */
     uploads: platformOn,
+    /** The wallet opens only once the owner has switched payments on in the database. */
+    wallet: Boolean(platformOn && currentAccount()?.paymentsLive),
     ...(real ? filePickers(host, real) : {}),
     justPosted: state.justPosted,
     /** The request last written into WhatsApp, for the page that follows it (src/launch/SentPage.tsx). */
@@ -219,7 +248,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
     showWaFab: vm.showWaFab && !vm.r?.sent,
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state), state), state), state, host), state, host);
+  }, state), state), state), state, host), state, host), state, host);
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

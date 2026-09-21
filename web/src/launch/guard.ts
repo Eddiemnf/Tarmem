@@ -19,7 +19,7 @@ import { LAUNCH_COPY } from './copy';
 import { openWhatsApp } from './deliver';
 
 /** Pages that need a real, signed-in account. They exist only once the database is connected. */
-const ACCOUNT_ROUTES = new Set(['hdash', 'cdash', 'browse', 'project', 'admin', 'inbox', 'settings', 'homeowner']);
+const ACCOUNT_ROUTES = new Set(['hdash', 'cdash', 'browse', 'project', 'admin', 'inbox', 'settings', 'homeowner', 'contractor', 'wallet']);
 
 /** Work the guard starts but cannot finish inside a click: it needs the network (src/platform/bind.ts). */
 export interface GuardEffects {
@@ -135,6 +135,10 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
     || (state.route === 'settings' && (user?.role === 'homeowner' || user?.role === 'contractor'))
     // "my profile": a homeowner's own. Other people's profiles wait for reviews to exist.
     || (state.route === 'homeowner' && user?.role === 'homeowner' && (!state.curId || state.curId === 'h1'))
+    // a verified contractor's profile: their own, or a bidder on the homeowner's projects — never an id the page does not already hold
+    || (state.route === 'contractor' && Boolean(user) && state.contractors?.some((c: LogicState) => c.id === state.curId && c.verified))
+    // the wallet opens with payments
+    || (state.route === 'wallet' && (user?.role === 'homeowner' || user?.role === 'contractor') && Boolean(currentAccount()?.paymentsLive))
     || (state.route === 'cdash' && user?.role === 'contractor')
     || (state.route === 'browse' && user?.role === 'contractor' && Boolean(user.nafath))
     || (state.route === 'project' && Boolean(user) && state.projects?.some((p: LogicState) => p.id === state.curId))

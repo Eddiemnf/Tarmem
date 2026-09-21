@@ -241,3 +241,23 @@ alerts with no tab open, automatic WhatsApp on approval (needs the WhatsApp Busi
   on which licensed partner is signed, and must not be switched on before that.
 - **Alerts with no tab open**: `supabase/functions/notify/index.ts` + `docs/alerts-setup.md` (email through Resend now; WhatsApp when
   its API is set up). The owner deploys it, because it holds secrets.
+
+## Contractor profiles, and the wallet behind the payments switch — 22 September 2026
+
+`supabase/008_contractor_profiles_wallet.sql` (16 local checks).
+
+- **A contractor's public profile** (`/firm/<id>`) is the designed page on real rows only: the verified company name, the city,
+  trades and introduction the contractor maintains, their real rating, review count and finished projects, and their real reviews
+  with the reviewer's first name only. The design's stock "work" photos, its two made-up reviews and its made-up response and
+  on-time figures are not shown; a portfolio of real photos is a later slice. Homeowners open it from a bid; a contractor opens
+  their own from the account menu. No contact details are ever part of it.
+- **The contractor's edit form** saves the introduction (50–500 characters), city and trades to their profile. The company name
+  stays the one Tarmem verified (the design locks the field; the save refuses a different name too).
+- **The wallet is built and switched off** with the same switch as stages (`platform_flags.payments_live`). With it on:
+  a contractor saves a Saudi IBAN for payouts (a table only they and admins can read), homeowners' deposits and contractors'
+  payouts are recorded as REQUESTS that an admin confirms (`wallet_decide`) until a payment provider reports money by itself,
+  and balances come from confirmed rows only. With it off there is no wallet link, `/wallet` opens nothing, and the database
+  refuses every wallet write.
+  **Before switching on**: the bank-transfer details the design shows for deposits (escrow IBAN, bank, beneficiary, reference)
+  are the design's placeholders and must be replaced with the payment partner's real account; the provider integration that
+  actually takes and releases money is still to be written against that partner's API.

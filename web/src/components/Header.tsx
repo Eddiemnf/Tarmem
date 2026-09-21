@@ -109,10 +109,10 @@ export default function Header({ vm }: { vm: VM }) {
         {vm.isHomeowner ? (<>{vm.launch && !vm.accounts ? null : (<button className="acctitem" data-route="homeowner" data-id="h1" onClick={vm.goMenu}>{vm.t.hprofile.myProfile}</button>)}</>) : null}
         
                 
-        {vm.isContractor ? (<>{vm.launch ? null : (<button className="acctitem" data-route="contractor" data-id="c1" onClick={vm.goMenu}>{vm.t.nav.myProfile}</button>)}</>) : null}
+        {vm.isContractor ? (<>{vm.launch && !vm.accounts ? null : (<button className="acctitem" data-route="contractor" data-id="c1" onClick={vm.goMenu}>{vm.t.nav.myProfile}</button>)}</>) : null}
         
                 
-        {vm.isNotAdmin ? (<>{vm.launch ? null : (<button className="acctitem" data-route="wallet" onClick={vm.goMenu}>{vm.t.nav.wallet}</button>)}</>) : null}
+        {vm.isNotAdmin ? (<>{vm.launch && !vm.wallet ? null : (<button className="acctitem" data-route="wallet" onClick={vm.goMenu}>{vm.t.nav.wallet}</button>)}</>) : null}
         
                 
         {vm.isNotAdmin ? (<>{vm.launch && !vm.accounts ? null : (<button className="acctitem" data-route="settings" onClick={vm.goMenu}>{vm.t.nav.settings}</button>)}</>) : null}

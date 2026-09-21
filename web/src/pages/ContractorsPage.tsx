@@ -77,7 +77,7 @@ export default function ContractorsPage({ vm }: { vm: VM }) {
                   <p className="ctrades">{c.tradeLine}</p>
                   </div>
                   <div className="cfoot">
-                    {vm.launch ? null : (<button className="cview" data-route="contractor" data-id={c.id} onClick={vm.go}><span>{vm.t.search.view}</span></button>)}
+                    {vm.launch && !vm.accounts ? null : (<button className="cview" data-route="contractor" data-id={c.id} onClick={vm.go}><span>{vm.t.search.view}</span></button>)}
                   </div>
                 </div>
               </article>

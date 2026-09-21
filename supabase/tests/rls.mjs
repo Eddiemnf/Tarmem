@@ -72,6 +72,10 @@ const stepProbe = await anon.rpc('stage_step', { p_project: '00000000-0000-4000-
 check('007 is installed: stage steps exist, and are closed to visitors', Boolean(stepProbe.error) && !/PGRST202|could not find/i.test(`${stepProbe.error?.code} ${stepProbe.error?.message}`), `${stepProbe.error?.code} ${stepProbe.error?.message}`);
 check('visitor: cannot read reviews, stages or the switches', denied(await anon.from('reviews').select('*')) && denied(await anon.from('stages').select('*')) && denied(await anon.from('platform_flags').select('*')));
 check('visitor: cannot record a payment', Boolean((await anon.rpc('mark_funded', { p_project: '00000000-0000-4000-8000-000000000001' })).error));
+// 1h — 008: contractor profiles and the wallet
+const walletProbe = await anon.rpc('wallet_request', { p_type: 'deposit', p_amount: 1, p_method: 'mada' });
+check('008 is installed: wallet requests exist, and are closed to visitors', Boolean(walletProbe.error) && !/PGRST202|could not find/i.test(`${walletProbe.error?.code} ${walletProbe.error?.message}`), `${walletProbe.error?.code} ${walletProbe.error?.message}`);
+check('visitor: cannot read wallets, bank accounts, contractor profiles or reviews', denied(await anon.from('wallet_txns').select('*')) && denied(await anon.from('payout_accounts').select('*')) && denied(await anon.from('verified_contractors').select('*')) && denied(await anon.from('contractor_reviews').select('*')));
 if (process.env.RLS_VISITOR_ONLY) {
   console.log(results.join('\n'));
   const bad = results.filter((r) => r.startsWith('FAIL')).length;

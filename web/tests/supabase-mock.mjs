@@ -77,7 +77,7 @@ export async function installSupabaseMock(context, supabaseUrl) {
     if (path === '/rest/v1/profiles') {
       if (method === 'GET') return rows(db.profiles.filter((p) => (admin || p.id === me) && (!eq('id') || p.id === eq('id'))));
       if (method === 'PATCH') {
-        const forbidden = Object.keys(body).filter((k) => !['full_name', 'mobile', 'city', 'company', 'lang', 'prefs', 'about'].includes(k));
+        const forbidden = Object.keys(body).filter((k) => !['full_name', 'mobile', 'city', 'company', 'lang', 'prefs', 'about', 'trades'].includes(k));
         if (forbidden.length || eq('id') !== me) return refuse(route, 'profiles: may not change ' + (forbidden.join(', ') || "somebody else's row"));
         Object.assign(db.profiles.find((p) => p.id === me), body);
         return route.fulfill({ status: 204, headers: cors });
@@ -147,7 +147,26 @@ export async function installSupabaseMock(context, supabaseUrl) {
       db.stages = [...(db.stages || []), ...[0, 1, 2].map((idx) => ({ project_id: row.project_id, idx, status: 'pending' }))];
       return send(route, 200, row);
     }
-    if (path === '/rest/v1/verified_contractors') return rows(me ? db.applications.filter((a) => a.status === 'verified' && a.user_id).map((a) => ({ user_id: a.user_id, company: a.company, city: a.city, trades: a.trades, since: '2026-09-21' })) : []);
+    if (path === '/rest/v1/verified_contractors') {
+      const all = me ? db.applications.filter((a) => a.status === 'verified' && a.user_id).map((a) => { const p = db.profiles.find((x) => x.id === a.user_id) || {}; const theirs = (db.reviews || []).filter((r) => r.contractor_id === a.user_id);
+        return { user_id: a.user_id, company: a.company, city: p.city || a.city, trades: p.trades || a.trades, since: '2026-09-21', rating: theirs.length ? theirs.reduce((t, r) => t + r.stars, 0) / theirs.length : null, reviews: theirs.length, done: db.projects.filter((x) => x.contractor_id === a.user_id && x.status === 'completed').length, bio: p.about || null }; }) : [];
+      return rows(all.filter((c) => !eq('user_id') || c.user_id === eq('user_id')));
+    }
+    if (path === '/rest/v1/contractor_reviews') return rows(me ? (db.reviews || []).filter((r) => r.contractor_id === eq('contractor_id')).map((r) => ({ contractor_id: r.contractor_id, stars: r.stars, body: r.body, created_at: r.created_at, reviewer: String(db.profiles.find((p) => p.id === r.homeowner_id)?.full_name || '').split(' ')[0] })) : []);
+    if (path === '/rest/v1/wallet_txns') return rows((db.wallet || []).filter((t) => admin || t.user_id === me));
+    if (path === '/rest/v1/payout_accounts') {
+      if (method === 'GET') return rows((db.payouts || []).filter((a) => a.user_id === me));
+      if (!db.paymentsLive || !db.profiles.some((p) => p.id === me && p.role === 'contractor') || !/^SA\d{22}$/.test(body.iban || '') || 'user_id' in body) return refuse(route, 'payout_accounts: refused');
+      db.payouts = [...(db.payouts || []).filter((a) => a.user_id !== me), { ...body, user_id: me }];
+      return send(route, 201);
+    }
+    if (path === '/rest/v1/rpc/wallet_request' && method === 'POST') {
+      const role = db.profiles.find((p) => p.id === me)?.role;
+      if (!db.paymentsLive || (body.p_type === 'deposit' ? role !== 'homeowner' : role !== 'contractor' || !(db.payouts || []).some((a) => a.user_id === me))) return refuse(route, 'wallet_request: refused');
+      const row = { id: (db.wallet || []).length + 1, user_id: me, project_id: body.p_project, type: body.p_type, method: body.p_type === 'payout' ? 'bank' : body.p_method, amount: body.p_amount, status: 'pending', created_at: new Date().toISOString() };
+      db.wallet = [row, ...(db.wallet || [])];
+      return send(route, 200, row);
+    }
     if (path === '/rest/v1/bids') {
       const mayRead = (b) => admin || b.contractor_id === me || db.projects.some((p) => p.id === b.project_id && p.owner_id === me);
       if (method === 'GET') return rows(db.bids.filter((b) => mayRead(b) && (url.searchParams.get('status') !== 'neq.withdrawn' || b.status !== 'withdrawn')));

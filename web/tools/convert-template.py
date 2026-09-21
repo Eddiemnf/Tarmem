@@ -408,9 +408,9 @@ LAUNCH_HIDDEN_SECTIONS: dict[str, str] = {}
 LAUNCH_HIDDEN_ROUTES = {
     "auth": "vm.launch && !vm.accounts",
     "contractors": "vm.launch", "browse": "vm.launch && !vm.accounts",
-    "contractor": "vm.launch",  # public contractor profiles: their ratings and reviews do not exist yet
+    "contractor": "vm.launch && !vm.accounts",  # a verified contractor's profile: real rows only (src/platform/, supabase/008)
     # signed-in pages that still run on the design's invented figures
-    "wallet": "vm.launch",
+    "wallet": "vm.launch && !vm.wallet",  # the wallet opens with payments (platform_flags.payments_live, supabase/007-008)
     # settings and the homeowner's own profile are real once accounts are (src/platform/): saved to the person's profile row
     "settings": "vm.launch && !vm.accounts", "homeowner": "vm.launch && !vm.accounts",
 }

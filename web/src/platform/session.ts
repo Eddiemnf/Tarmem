@@ -13,7 +13,10 @@ import { setTrackContext, track } from './track';
 export interface BidRow { id: string; project_id: string; contractor_id: string; price: number; days: number; note: string | null; details: Record<string, unknown>; status: 'submitted' | 'withdrawn' | 'chosen'; created_at: string }
 export interface AgreementRow { project_id: string; bid_id: string; homeowner_id: string; contractor_id: string; amount: number; days: number; homeowner_name: string; homeowner_signed_at: string; contractor_name: string | null; contractor_signed_at: string | null }
 export interface StageRow { project_id: string; idx: number; status: 'pending' | 'submitted' | 'released' | 'disputed' }
-export interface Bidder { user_id: string; company: string; city: string; trades: string[]; since: string; rating?: number | null; reviews?: number | null; done?: number | null }
+export interface Bidder { user_id: string; company: string; city: string; trades: string[]; since: string; rating?: number | null; reviews?: number | null; done?: number | null; bio?: string | null }
+export interface PublicReview { contractor_id: string; stars: number; body: string; created_at: string; reviewer: string }
+export interface WalletTxn { id: number; user_id: string; project_id: string | null; type: 'deposit' | 'payout'; method: string; amount: number; status: 'pending' | 'confirmed' | 'paid' | 'rejected' | 'cancelled'; created_at: string }
+export interface PayoutAccount { holder: string; bank: string; iban: string }
 
 export interface Account {
   /** A contractor's own bids; for a homeowner, the bids on their projects and who made them (company and city only). */
@@ -26,6 +29,11 @@ export interface Account {
   paymentsLive: boolean;
   /** Reviews this person wrote (a homeowner) or received (a contractor). */
   reviews: ReviewRow[];
+  /** The wallet, once payments are live: this person's deposits or payouts, and a contractor's bank account. */
+  wallet: WalletTxn[];
+  payout: PayoutAccount | null;
+  /** For a contractor: their own rating, review count and finished projects, from real rows. */
+  standing: Bidder | null;
   profile: Profile;
   projects: ProjectRow[];
   /** The `user` object the design's logic sees. One identity per sign-in, so state comparisons stay cheap. */
@@ -177,7 +185,7 @@ export async function signIn(email: string, password: string): Promise<Result> {
 }
 
 /** Save the parts of their own profile a person may change (the database refuses anything else, such as the role). */
-export async function updateProfile(patch: Partial<Pick<Profile, 'full_name' | 'mobile' | 'city' | 'lang' | 'prefs' | 'about'>>): Promise<Result> {
+export async function updateProfile(patch: Partial<Pick<Profile, 'full_name' | 'mobile' | 'city' | 'lang' | 'prefs' | 'about' | 'trades'>>): Promise<Result> {
   if (!supabase || !account) return { error: 'generic' };
   try {
     const { error } = await supabase.from('profiles').update(patch).eq('id', account.profile.id);
@@ -273,15 +281,52 @@ async function loadAgreements(): Promise<AgreementRow[]> {
 }
 
 /** (empty, and off, until 007 has been run) */
-async function loadStages(): Promise<{ stages: StageRow[]; paymentsLive: boolean; reviews: ReviewRow[] }> {
-  if (!supabase) return { stages: [], paymentsLive: false, reviews: [] };
+async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | 'reviews' | 'wallet' | 'payout' | 'standing'>> {
+  if (!supabase) return { stages: [], paymentsLive: false, reviews: [], wallet: [], payout: null, standing: null };
   const [flag, rows] = await Promise.all([
     supabase.from('platform_flags').select('enabled').eq('key', 'payments_live').maybeSingle(),
     supabase.from('stages').select('project_id, idx, status').order('idx', { ascending: true }),
   ]);
   const { data: who } = await supabase.auth.getUser();
   const mine = who.user ? await supabase.from('reviews').select('*').or(`homeowner_id.eq.${who.user.id},contractor_id.eq.${who.user.id}`) : null;
-  return { stages: (rows.data as StageRow[]) || [], paymentsLive: Boolean(flag.data?.enabled), reviews: (mine?.data as ReviewRow[]) || [] };
+  const live = Boolean(flag.data?.enabled);
+  const [wallet, payout, standing] = who.user ? await Promise.all([
+    live ? supabase.from('wallet_txns').select('*').eq('user_id', who.user.id).order('created_at', { ascending: false }).limit(200) : null,
+    live ? supabase.from('payout_accounts').select('holder, bank, iban').eq('user_id', who.user.id).maybeSingle() : null,
+    supabase.from('verified_contractors').select('*').eq('user_id', who.user.id).maybeSingle(),
+  ]) : [null, null, null];
+  return { stages: (rows.data as StageRow[]) || [], paymentsLive: live, reviews: (mine?.data as ReviewRow[]) || [],
+    wallet: (wallet?.data as WalletTxn[]) || [], payout: (payout?.data as PayoutAccount | null) || null, standing: (standing?.data as Bidder | null) || null };
+}
+
+/** What signed-in people may read about a contractor's reviews: the stars, the words, and the reviewer's first name. */
+export async function loadContractorReviews(userId: string): Promise<PublicReview[]> {
+  if (!supabase) return [];
+  const { data } = await supabase.from('contractor_reviews').select('*').eq('contractor_id', userId).order('created_at', { ascending: false }).limit(50);
+  return (data as PublicReview[]) || [];
+}
+
+/** A wallet request is only ever a request: the database records it as waiting, and an admin (later, the payment provider) confirms the money. */
+export async function walletRequest(type: 'deposit' | 'payout', amount: number, method: string, projectId: string | null = null): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.rpc('wallet_request', { p_type: type, p_amount: Math.round(amount), p_method: method, p_project: projectId });
+    await refreshAccount();
+    return error ? { error: failure(error) } : { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+export async function walletDecide(id: number, status: 'cancelled' | 'confirmed' | 'paid' | 'rejected'): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  const { error } = await supabase.rpc('wallet_decide', { p_id: id, p_status: status });
+  return error ? { error: failure(error) } : { ok: true };
+}
+export async function savePayoutAccount(a: PayoutAccount): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.from('payout_accounts').upsert({ holder: a.holder, bank: a.bank, iban: a.iban, updated_at: new Date().toISOString() });
+    await refreshAccount();
+    return error ? { error: failure(error) } : { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
 }
 
 export interface ReviewRow { project_id: string; contractor_id: string; stars: number; body: string; created_at: string }

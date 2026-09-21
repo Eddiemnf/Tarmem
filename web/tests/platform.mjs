@@ -421,7 +421,44 @@ await page.locator('main textarea').first().fill('تشطيب ممتاز والت
 await page.locator('button', { hasText: /إرسال التقييم|نشر التقييم|أرسل التقييم/ }).first().click().catch(() => undefined);
 await settle(900);
 check('a finished project can be reviewed, and the review is saved for the contractor who did the work', (db.reviews || []).length === 1 ? db.reviews[0].contractor_id === coUser?.id && db.reviews[0].stars >= 1 : 'skipped', (db.reviews || []).length === 1 ? '' : 'the review form was not found by this test (selectors); the database rules are covered by the local SQL test');
+// J4 — the contractor's public profile, as the homeowner sees it, and the wallet (only while payments are switched on)
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="bids"]').click();
+await settle(400);
+await page.locator('main [data-route="contractor"]').first().click();
+await settle(900);
+const firmText = await page.locator('main').innerText();
+check('a homeowner opens a bidder\'s profile: the verified company, the real review with a first name only — no stock photos, no made-up reviews or response times',
+  (await pathname()).startsWith('/firm/co-') && firmText.includes('مؤسسة البناء المتقن') && firmText.includes('أنصح بالتعامل معهم') && firmText.includes('سارة') && !firmText.includes('العتيبي')
+    && (await page.locator('main img[src*="assets/trades"]').count()) === 0 && !firmText.includes('0501112223'), await pathname());
+await open('wallet');
+check('with payments on, the homeowner\'s wallet opens', (await pathname()) === '/wallet' && (await page.locator('main h1, main h2').count()) >= 1, await pathname());
+// (the design offers a deposit only when a stage payment is due; this project is already finished, so there may be nothing to deposit)
+const depositButton = page.locator('main button', { hasText: /إيداع/ }).first();
+if (await depositButton.count()) { await depositButton.click(); await settle(900); }
+check('…a deposit, when one is made, is recorded as a request waiting for confirmation — never as money received', (db.wallet || []).every((t) => t.type === 'deposit' && t.status === 'pending') && db.refused.length === 0, db.refused.join('; ') || `${(db.wallet || []).length} request(s)`);
+await signInAs('khalid@build.example', 'contractor-pass-1');
+await open('firm/c1');
+await page.locator('button', { hasText: /تعديل/ }).first().click();
+await settle(300);
+check('the verified company name cannot be edited (the design locks the field, and the save refuses a different name)', (await page.locator('#ed-name').getAttribute('readonly')) !== null);
+await page.locator('[name="bio"]').first().fill('نُنفّذ المطابخ والحمامات منذ 2015 بطاقم خاص وضمان سنة على جميع الأعمال.');
+await page.locator('button', { hasText: 'حفظ' }).last().click();
+await settle(900);
+check('their introduction, city and trades are saved, and show on the profile', String(db.profiles.find((p) => p.id === coUser.id).about).includes('بطاقم خاص') && (await page.locator('main', { hasText: 'بطاقم خاص' }).count()) === 1 && db.refused.length === 0, db.refused.join('; '));
+await open('wallet');
+await page.locator('button', { hasText: /إضافة حساب|أضف حساب|حساب بنكي|تعديل/ }).first().click().catch(() => undefined);
+await settle(300);
+await page.locator('select[name="bank"]').selectOption({ index: 1 });
+await page.locator('input[name="holder"]').fill('مؤسسة البناء المتقن');
+await page.locator('input[name="iban"]').fill('SA0380000000608010167519');
+await page.locator('button', { hasText: 'حفظ' }).first().click();
+await settle(900);
+check('the contractor\'s bank account for payouts is saved — to a table only they and the team can read', (db.payouts || []).length === 1 && db.payouts[0].iban === 'SA0380000000608010167519' && db.payouts[0].user_id === coUser.id, JSON.stringify(db.payouts || null).slice(0, 120));
 db.paymentsLive = false;
+await open('wallet');
+check('with payments off, there is no wallet to open', (await pathname()) === '/contractor' && (await page.locator('[data-route="wallet"]').count()) === 0, await pathname());
+await signInAs('sara@example.com', 'long-enough-1');
 
 // K — a forgotten password
 await page.locator('button.acct').click();
