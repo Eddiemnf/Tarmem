@@ -151,6 +151,7 @@ const departed = (line) => {
 };
 
 const volatile = (line) => departed(line)
+  .replace(/wa\.me\/\d+/g, 'wa.me/#')            // site.config.json supplies the real WhatsApp number
   .replace(/"[\d,]+\+?"|"\d+%"/g, '"#"')
   .replace(/opacity:[\d.]+/g, 'opacity:#')
   .replace(/transform:[^;|>]+/g, 'transform:#');
