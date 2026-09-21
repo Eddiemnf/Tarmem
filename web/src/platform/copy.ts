@@ -33,6 +33,7 @@ export const PLATFORM_COPY = {
       ? `مرحبًا ${person}، معك فريق ترميم.\nتم توثيق حساب «${company}» وأصبح جاهزًا للاستخدام. سجّل دخولك بالبريد وكلمة المرور اللذين أنشأتهما:\n${link}`
       : `مرحبًا ${person}، معك فريق ترميم.\nتم قبول طلب «${company}». لإكمال التسجيل أنشئ حسابك من صفحة انضمام المقاولين:\n${link.replace('/signin', '/join')}`,
     coPendingTitle: 'حسابك قيد التوثيق', coPendingNote: 'استلمنا طلبك وأنشأنا حسابك. يراجع فريق ترميم بياناتك ويتواصل معك على جوالك، وتصلك رسالة واتساب فور تفعيل الحساب. بعدها تظهر لك المشاريع المفتوحة هنا.',
+    choseNote: 'اخترت عرض «{co}». يتواصل فريق ترميم معك ومع المقاول لإتمام الاتفاقية وبدء العمل.', chosenNote: 'اختار صاحب المنزل عرضك. يتواصل معك فريق ترميم لإتمام الاتفاقية وبدء العمل.',
     coRefresh: 'تحديث الحالة', bidsSoonTitle: 'تقديم العروض يفتح قريبًا', bidsSoonNote: 'حسابك موثّق ويمكنك تصفّح المشاريع المفتوحة. تقديم العروض من الموقع قيد الإطلاق؛ إلى ذلك الحين راسل فريق ترميم بشأن المشروع الذي يهمّك.',
     coPassword: 'اختر كلمة مرور لحسابك', coEmailNeeded: 'اكتب بريدك الإلكتروني: به تسجّل دخولك بعد التوثيق.', coCreate: 'إرسال الطلب وإنشاء الحساب',
     uploading: 'جارٍ رفع الملفات…', uploadFailed: 'تعذّر رفع هذا الملف. حاول مجددًا من تبويب الملفات.',
@@ -69,6 +70,7 @@ export const PLATFORM_COPY = {
       ? `Hello ${person}, this is the Tarmem team.\n${company}'s account is verified and ready to use. Sign in with the email and password you created:\n${link}`
       : `Hello ${person}, this is the Tarmem team.\n${company}'s application is accepted. To finish, create your account on the contractor page:\n${link.replace('/signin', '/join')}`,
     coPendingTitle: 'Your account is being verified', coPendingNote: 'We have your application and your account is created. The Tarmem team reviews your details and contacts you on your mobile; you get a WhatsApp message the moment the account is live. Open projects then appear here.',
+    choseNote: 'You chose the bid from {co}. The Tarmem team will contact you and the contractor to complete the agreement and start the work.', chosenNote: 'The homeowner chose your bid. The Tarmem team will contact you to complete the agreement and start the work.',
     coRefresh: 'Check again', bidsSoonTitle: 'Bidding opens soon', bidsSoonNote: 'Your account is verified and you can browse open projects. Bidding on the site is about to launch; until then, message the Tarmem team about a project you want.',
     coPassword: 'Choose a password for your account', coEmailNeeded: 'Enter your email: you sign in with it once verified.', coCreate: 'Send application and create account',
     uploading: 'Uploading files…', uploadFailed: 'This file could not be uploaded. Try again from the Files tab.',

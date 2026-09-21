@@ -12,7 +12,7 @@ const jwt = (sub) => `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub, role: 'a
 const subOf = (header) => { try { return JSON.parse(Buffer.from(String(header || '').split('.')[1], 'base64url').toString()).sub || null; } catch { return null; } };
 
 export async function installSupabaseMock(context, supabaseUrl) {
-  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], refused: [], unknown: [] };
+  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], refused: [], unknown: [] };
   let nextCode = 2001;
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
   const send = (route, status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
@@ -79,7 +79,7 @@ export async function installSupabaseMock(context, supabaseUrl) {
     }
     if (path === '/rest/v1/projects') {
       const verifiedContractor = db.profiles.some((p) => p.id === me && p.role === 'contractor') && db.applications.some((a) => a.user_id === me && a.status === 'verified');
-      if (method === 'GET') return rows(db.projects.filter((p) => (admin || p.owner_id === me || (verifiedContractor && p.status === 'open')) && (url.searchParams.get('status') !== 'neq.withdrawn' || p.status !== 'withdrawn')).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      if (method === 'GET') return rows(db.projects.filter((p) => (admin || p.owner_id === me || (verifiedContractor && (p.status === 'open' || db.bids.some((b) => b.project_id === p.id && b.contractor_id === me)))) && (url.searchParams.get('status') !== 'neq.withdrawn' || p.status !== 'withdrawn')).sort((a, b) => b.created_at.localeCompare(a.created_at)));
       if (method === 'POST') {
         const assigned = ['id', 'code', 'owner_id', 'status', 'created_at'].filter((k) => k in body);
         if (assigned.length) return refuse(route, 'projects: the database assigns ' + assigned.join(', '));
@@ -91,6 +91,28 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (method === 'PATCH') {
         const row = db.projects.find((p) => p.id === eq('id') && p.owner_id === me);
         if (row) Object.assign(row, body);
+        return route.fulfill({ status: 204, headers: cors });
+      }
+    }
+    const isVerified = (id) => db.profiles.some((p) => p.id === id && p.role === 'contractor') && db.applications.some((a) => a.user_id === id && a.status === 'verified');
+    if (path === '/rest/v1/verified_contractors') return rows(me ? db.applications.filter((a) => a.status === 'verified' && a.user_id).map((a) => ({ user_id: a.user_id, company: a.company, city: a.city, trades: a.trades, since: '2026-09-21' })) : []);
+    if (path === '/rest/v1/bids') {
+      const mayRead = (b) => admin || b.contractor_id === me || db.projects.some((p) => p.id === b.project_id && p.owner_id === me);
+      if (method === 'GET') return rows(db.bids.filter((b) => mayRead(b) && (url.searchParams.get('status') !== 'neq.withdrawn' || b.status !== 'withdrawn')));
+      if (method === 'POST') {
+        const assigned = ['id', 'contractor_id', 'status', 'created_at'].filter((k) => k in body);
+        if (assigned.length) return refuse(route, 'bids: the database assigns ' + assigned.join(', '));
+        if (!isVerified(me) || !db.projects.some((p) => p.id === body.project_id && p.status === 'open') || db.bids.some((b) => b.project_id === body.project_id && b.contractor_id === me)) return refuse(route, 'bids: not allowed to bid here');
+        const row = { id: `20000000-0000-4000-8000-${String(db.bids.length + 1).padStart(12, '0')}`, contractor_id: me, status: 'submitted', created_at: new Date().toISOString(), ...body };
+        db.bids.push(row);
+        return wantsRows ? rows([row]) : send(route, 201);
+      }
+      if (method === 'PATCH') {
+        for (const b of db.bids) {
+          const hit = (!eq('id') || b.id === eq('id')) && (!eq('project_id') || b.project_id === eq('project_id')) && (!url.searchParams.get('status') || 'eq.' + b.status === url.searchParams.get('status')) && (!url.searchParams.get('id')?.startsWith('neq.') || 'neq.' + b.id !== url.searchParams.get('id'));
+          const owner = db.projects.some((p) => p.id === b.project_id && p.owner_id === me);
+          if (hit && owner && Object.keys(body).join() === 'status' && ['submitted', 'chosen'].includes(body.status)) Object.assign(b, body);
+        }
         return route.fulfill({ status: 204, headers: cors });
       }
     }

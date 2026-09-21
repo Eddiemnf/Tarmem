@@ -172,3 +172,22 @@ with that account (`supabase/004_contractor_accounts.sql`).
 Owner step: run `supabase/004_contractor_accounts.sql`. An application made before this (with no
 account) still shows in Verification; approving it sends a message asking the contractor to create
 their account on the join page.
+
+## Bids — 21 September 2026
+
+`supabase/005_bids.sql` + `saveBid` / `chooseBid` in `web/src/platform/session.ts`.
+
+- A verified contractor bids through the design's own form (price, duration, note, inclusions, exclusions,
+  brands, start date, warranty, validity, stage split, VAT, site visit). The whole form is kept, so the bid
+  reads back exactly as written. One bid per project; a contractor never sees another contractor's bid.
+- The homeowner sees the bids on their project in the design's list and compare view, with the bidder's
+  company, city and trades — never the mobile, email or licence number from the application.
+- **Accept** records the homeowner's choice (`status = 'chosen'`) and tells both sides that the Tarmem team
+  completes the agreement with them. The design goes on to a two-party agreement, stages and payment; those
+  are the next slice, and the agreement modal is not opened until its signatures can be saved.
+- The team sees every bid under its project in the contact list (`/inbox`), with the contractor's mobile
+  and a tick on the chosen one.
+
+`supabase/cleanup_test_rows.sql` removes what the security tests left behind, and only that. After it has
+been run, check the database with `RLS_VISITOR_ONLY=1 RLS_NO_WRITES=1 node ../supabase/tests/rls.mjs`, which
+writes nothing.

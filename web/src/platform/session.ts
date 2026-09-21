@@ -10,7 +10,13 @@ import type { PlatformError } from './copy';
 import { runtimeData, type Application, type Profile, type ProjectRow } from './data';
 import { setTrackContext, track } from './track';
 
+export interface BidRow { id: string; project_id: string; contractor_id: string; price: number; days: number; note: string | null; details: Record<string, unknown>; status: 'submitted' | 'withdrawn' | 'chosen'; created_at: string }
+export interface Bidder { user_id: string; company: string; city: string; trades: string[]; since: string }
+
 export interface Account {
+  /** A contractor's own bids; for a homeowner, the bids on their projects and who made them (company and city only). */
+  bids: BidRow[];
+  bidders: Bidder[];
   profile: Profile;
   projects: ProjectRow[];
   /** The `user` object the design's logic sees. One identity per sign-in, so state comparisons stay cheap. */
@@ -87,16 +93,22 @@ async function loadAccount(user: User): Promise<Account | null> {
     const application = (applied.data as Application | null) || null;
     const verified = application?.status === 'verified';
     // Open projects reach a contractor only once an admin has verified them; the database returns none before that.
-    const open = verified ? await supabase.from('projects').select('*').eq('status', 'open').order('created_at', { ascending: false }).limit(200) : null;
+    // (the database returns a contractor the open projects, plus any they have bid on)
+    const open = verified ? await supabase.from('projects').select('*').in('status', ['open', 'active', 'completed']).order('created_at', { ascending: false }).limit(200) : null;
+    const mine = verified ? await supabase.from('bids').select('*').neq('status', 'withdrawn') : null;
     return {
-      profile, application, projects: (open?.data as ProjectRow[]) || [],
+      profile, application, projects: (open?.data as ProjectRow[]) || [], bids: (mine?.data as BidRow[]) || [], bidders: [],
       // the design's "verified through Nafath" flag stands for Tarmem's own verification until Nafath is connected
       logicUser: { role: 'contractor', name: application?.company || profile.company || profile.full_name, nafath: verified, admin: false },
     };
   }
   const rows = await supabase.from('projects').select('*').eq('owner_id', user.id).neq('status', 'withdrawn').order('created_at', { ascending: false });
+  const received = profile.role === 'homeowner' ? await supabase.from('bids').select('*').neq('status', 'withdrawn').order('created_at', { ascending: true }) : null;
+  const bids = (received?.data as BidRow[]) || [];
+  const who = bids.length ? await supabase.from('verified_contractors').select('*') : null;
   return {
-    profile, application: null, projects: (rows.data as ProjectRow[]) || [],
+    profile, application: null, projects: (rows.data as ProjectRow[]) || [], bids,
+    bidders: ((who?.data as Bidder[]) || []).filter((b) => bids.some((x) => x.contractor_id === b.user_id)),
     // An account the owner marked admin in the database gets the design's admin role, and with it the console.
     logicUser: { role: profile.role === 'admin' ? 'admin' : 'homeowner', name: profile.full_name, nafath: false, admin: profile.role === 'admin' },
   };
@@ -207,6 +219,32 @@ export async function withdrawProject(dbId: string): Promise<Result> {
   return { ok: true };
 }
 
+/** A contractor's bid, exactly as the design's form built it; the database stamps whose it is. */
+export async function saveBid(projectId: string, bid: Record<string, unknown>): Promise<Result<BidRow>> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { cid: _cid, price, days, note, ...details } = bid;
+    void _cid;
+    const { data, error } = await supabase.from('bids').insert({
+      project_id: projectId, price: Math.round(Number(price)), days: Math.round(Number(days)),
+      note: String((note as { ar?: string } | null)?.ar || '').slice(0, 2000) || null, details,
+    }).select('*').single();
+    if (error || !data) return { error: failure(error) };
+    track('project', 'bid');
+    return { ok: data as BidRow };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** The homeowner's choice. Choosing another bid later simply moves the choice. */
+export async function chooseBid(projectId: string, bidId: string): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    await supabase.from('bids').update({ status: 'submitted' }).eq('project_id', projectId).eq('status', 'chosen').neq('id', bidId);
+    const { error } = await supabase.from('bids').update({ status: 'chosen' }).eq('id', bidId);
+    return error ? { error: failure(error) } : { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
 export interface ContactFields { name: string; email: string; mobile: string; topic: string; message: string; lang: 'ar' | 'en' }
 
 /* The two public forms. Visitors who are not signed in may add a row and nothing else, so these
@@ -238,7 +276,7 @@ export async function sendApplication(f: ApplicationFields): Promise<Result> {
 }
 
 export interface Inbox {
-  projects: (ProjectRow & { owner: Pick<Profile, 'full_name' | 'mobile' | 'email' | 'city'> | null })[];
+  projects: (ProjectRow & { owner: Pick<Profile, 'full_name' | 'mobile' | 'email' | 'city'> | null; bids: (BidRow & { company: string; mobile: string })[] })[];
   messages: Record<string, unknown>[];
   applications: Record<string, unknown>[];
 }
@@ -255,9 +293,14 @@ export async function loadInbox(): Promise<Result<Inbox>> {
     ]);
     const failed = projects.error || profiles.error || messages.error || applications.error;
     if (failed) return { error: failure(failed) };
+    const bids = ((await supabase.from('bids').select('*').neq('status', 'withdrawn')).data as BidRow[]) || []; // empty until 005 has been run
+    const firm = new Map((applications.data || []).filter((a) => a.user_id).map((a) => [a.user_id as string, a]));
     const owners = new Map((profiles.data || []).map((p) => [p.id as string, p]));
     return { ok: {
-      projects: ((projects.data as ProjectRow[]) || []).map((p) => ({ ...p, owner: (owners.get(p.owner_id) as Inbox['projects'][number]['owner']) || null })),
+      projects: ((projects.data as ProjectRow[]) || []).map((p) => ({
+        ...p, owner: (owners.get(p.owner_id) as Inbox['projects'][number]['owner']) || null,
+        bids: bids.filter((b) => b.project_id === p.id).map((b) => ({ ...b, company: String(firm.get(b.contractor_id)?.company || '—'), mobile: String(firm.get(b.contractor_id)?.mobile || '') })),
+      })),
       messages: messages.data || [], applications: applications.data || [],
     } };
   } catch (e) { return { error: failure(e as Error) }; }

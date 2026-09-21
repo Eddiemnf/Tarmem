@@ -55,7 +55,12 @@ export default function InboxPage({ vm }: { vm: VM }) {
           {inbox.projects.map((p) => (
             <tr key={p.id}>
               <td style={cell} className="num">{p.code}<br /><span className="muted">{when(p.created_at)}</span><br /><span className="tag tag-n">{p.status}</span></td>
-              <td style={cell}><strong style={{ color: '#1B1464' }}>{p.title}</strong><br />{label(vm.trades, p.trade)} · {label(vm.cities, p.city)}{p.district ? ` · ${p.district}` : ''}<br /><span className="num">{p.budget_min.toLocaleString('en-US')} – {p.budget_max.toLocaleString('en-US')} SAR</span> · {p.timing}<br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{p.description}</span><br /><ProjectFiles ownerId={p.owner_id} projectId={p.id} ar={ar} /></td>
+              <td style={cell}><strong style={{ color: '#1B1464' }}>{p.title}</strong><br />{label(vm.trades, p.trade)} · {label(vm.cities, p.city)}{p.district ? ` · ${p.district}` : ''}<br /><span className="num">{p.budget_min.toLocaleString('en-US')} – {p.budget_max.toLocaleString('en-US')} SAR</span> · {p.timing}<br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{p.description}</span><br /><ProjectFiles ownerId={p.owner_id} projectId={p.id} ar={ar} />
+                {p.bids.map((b) => (
+                  <div key={b.id} className="num" style={{ marginTop: '6px', fontSize: '12.5px', color: b.status === 'chosen' ? '#0F7B4B' : '#3A385C' }}>
+                    {b.status === 'chosen' ? '✔ ' : '• '}{b.company} — {b.price.toLocaleString('en-US')} SAR · {b.days} {ar ? 'يوم' : 'days'} · <a dir="ltr" href={`tel:${b.mobile}`}>{b.mobile}</a>{b.status === 'chosen' ? (ar ? ' — اختاره العميل' : ' — chosen by the customer') : ''}
+                  </div>
+                ))}</td>
               <td style={cell}>{p.owner?.full_name || '—'}<br /><a className="num" dir="ltr" href={`tel:${p.owner?.mobile || ''}`}>{p.owner?.mobile}</a><br /><a dir="ltr" href={`mailto:${p.owner?.email || ''}`}>{p.owner?.email}</a></td>
             </tr>
           ))}

@@ -268,9 +268,45 @@ check('…without ever seeing who posted them', (await page.locator('main', { ha
 await open('project/P-9001');
 await page.locator('[role="tab"][data-tab="bids"]').click();
 await settle(300);
-check('…and the bid form does not pretend: it says bidding opens soon', (await pathname()) === '/project/P-9001' && (await page.locator('text=تقديم العروض يفتح قريبًا').count()) === 1 && (await page.locator('input[name="price"]').count()) === 0);
+check('…and gets the designed bid form', (await pathname()) === '/project/P-9001' && (await page.locator('input[name="price"]').count()) === 1);
+await page.locator('input[name="price"]').fill('24000');
+await page.locator('input[name="days"]').fill('18');
+await page.locator('textarea[name="note"], input[name="note"]').first().fill('يشمل العزل والأدوات الصحية.');
+// the design asks for the terms too: warranty, how long the bid is valid, and a start date
+for (const [name, value] of [['warranty', '12'], ['valid', '14']]) await page.locator(`[name="${name}"]`).first().fill(value).catch(() => page.locator(`[name="${name}"]`).first().selectOption({ index: 1 }));
+await page.locator('[name="start"]').first().fill('2026-10-05');
+await page.locator('button', { hasText: 'مراجعة العرض' }).first().click();
+await settle(300);
+await page.locator('button', { hasText: 'إرسال العرض لصاحب المنزل' }).first().click();
+await settle(800);
+const savedBid = db.bids[0];
+check('the bid is saved for real, stamped with the contractor by the database', db.bids.length === 1 && savedBid?.price === 24000 && savedBid?.days === 18 && savedBid?.contractor_id === coUser?.id && savedBid?.note === 'يشمل العزل والأدوات الصحية.' && db.refused.length === 0,
+  db.refused.join('; ') || JSON.stringify(savedBid || null).slice(0, 160));
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForSelector('header'); await settle(700);
+await page.locator('[role="tab"][data-tab="bids"]').click();
+await settle(300);
+check('…it is still there after a reload, and the form is not offered twice', (await page.locator('main', { hasText: '24,000' }).count()) === 1 && (await page.locator('input[name="price"]').count()) === 0);
 await open('dashboard');
 check("a contractor cannot open a homeowner's dashboard or the admin console", (await pathname()) === '/contractor' && (await open('admin'), (await pathname()) === '/contractor'));
+
+// I — the homeowner sees the bid, with the company and never its contact details, and chooses it
+await page.locator('button.acct').click();
+await page.locator('.acctmenu .acctitem').last().click();
+await settle();
+await open('signin');
+await page.locator('#au-email').fill('sara@example.com');
+await page.locator('#au-password').fill('long-enough-1');
+await submit.click();
+await settle(900);
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="bids"]').click();
+await settle(400);
+const bidsText = await page.locator('main').innerText();
+check('the homeowner sees the bid with the contractor\'s company, not their mobile or email', bidsText.includes('مؤسسة البناء المتقن') && bidsText.includes('24,000') && !bidsText.includes('0501112223') && !bidsText.includes('khalid@'));
+await page.locator('button[data-cid]', { hasText: 'قبول العرض' }).first().click();
+await settle(800);
+check('accepting records the choice in the database, and says the team completes the agreement', db.bids[0].status === 'chosen' && (await page.locator('text=يتواصل فريق ترميم معك ومع المقاول').count()) === 1, db.bids[0].status);
 
 check('the site asked the database for nothing the test does not know about', db.unknown.length === 0, db.unknown.join(' · '));
 console.log(results.join('\n'));

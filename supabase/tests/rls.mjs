@@ -33,18 +33,19 @@ check('visitor: cannot read projects', denied(await anon.from('projects').select
 check('visitor: cannot read profiles', denied(await anon.from('profiles').select('*')));
 check('visitor: cannot read the audit record', denied(await anon.from('events').select('*')));
 check('visitor: cannot post a project', Boolean((await anon.from('projects').insert(project)).error));
-const message = await anon.from('contact_messages').insert({ name: 'RLS TEST', mobile: '0500000000', message: 'Automated security test — please ignore.', lang: 'en' });
+const READ_ONLY = Boolean(process.env.RLS_NO_WRITES); // probes only: leaves no test rows behind
+const message = READ_ONLY ? { error: null } : await anon.from('contact_messages').insert({ name: 'RLS TEST', mobile: '0500000000', message: 'Automated security test — please ignore.', lang: 'en' });
 check('visitor: can send a contact message', !message.error, message.error?.message);
 check('visitor: cannot read contact messages back', denied(await anon.from('contact_messages').select('*')));
 check('visitor: cannot mark a message handled while sending it', Boolean((await anon.from('contact_messages').insert({ name: 'RLS TEST', mobile: '0500000000', message: 'x x x', handled: true })).error));
-const application = await anon.from('contractor_applications').insert({ company: 'RLS TEST', person: 'RLS TEST', mobile: '0500000000', city: 'riyadh', trades: ['kitchen'], lang: 'en' });
+const application = READ_ONLY ? { error: null } : await anon.from('contractor_applications').insert({ company: 'RLS TEST', person: 'RLS TEST', mobile: '0500000000', city: 'riyadh', trades: ['kitchen'], lang: 'en' });
 check('visitor: can apply as a contractor', !application.error, application.error?.message);
 check('visitor: cannot read applications back', denied(await anon.from('contractor_applications').select('*')));
 check('visitor: cannot pre-approve their own application', Boolean((await anon.from('contractor_applications').insert({ company: 'RLS TEST', person: 'RLS TEST', mobile: '0500000000', city: 'riyadh', trades: ['kitchen'], status: 'verified' })).error));
 
 // 1b — 002: visits, the analytics function and the console's lists
 const visit = { session_id: 'rlstest' + stamp.slice(-6).padStart(6, '0'), event: 'view', route: 'home', path: '/', lang: 'en', device: 'desktop', referrer: null, city: null };
-const recorded = await anon.from('visits').insert(visit);
+const recorded = READ_ONLY ? { error: null } : await anon.from('visits').insert(visit);
 check('visitor: can record a visit', !recorded.error, recorded.error?.message);
 check('visitor: cannot read visits', denied(await anon.from('visits').select('*')));
 check('visitor: cannot back-date a visit or sign it with a user', Boolean((await anon.from('visits').insert({ ...visit, created_at: '2020-01-01T00:00:00Z' })).error) && Boolean((await anon.from('visits').insert({ ...visit, user_id: '00000000-0000-4000-8000-000000000001' })).error));
@@ -58,6 +59,10 @@ check('visitor: sees no files', ((await anon.storage.from('project-files').list(
 // 1d — 004: contractor accounts
 const probe = await anon.rpc('is_verified_contractor');
 check('004 is installed: the contractor check exists, and is closed to visitors', Boolean(probe.error) && !/PGRST202|could not find/i.test(`${probe.error?.code} ${probe.error?.message}`), `${probe.error?.code} ${probe.error?.message}`);
+// 1e — 005: bids
+const bidsProbe = await anon.from('bids').select('id').limit(1);
+check('005 is installed: bids exist, and are closed to visitors', Boolean(bidsProbe.error) && !/PGRST205|could not find/i.test(`${bidsProbe.error?.code} ${bidsProbe.error?.message}`), `${bidsProbe.error?.code} ${bidsProbe.error?.message}`);
+check('visitor: cannot see the list of verified contractors', denied(await anon.from('verified_contractors').select('*')));
 if (process.env.RLS_VISITOR_ONLY) {
   console.log(results.join('\n'));
   const bad = results.filter((r) => r.startsWith('FAIL')).length;

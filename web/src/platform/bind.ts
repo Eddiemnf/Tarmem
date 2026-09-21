@@ -12,18 +12,27 @@ import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleL
 import { openWhatsAppTo } from '../launch/deliver';
 import { contractorRecord, runtimeData, setEveryone, toLogicProject } from './data';
 import { forgetHeldFiles, heldFile, listFiles, uploadFile, type StoredFile } from './files';
-import { createProject, currentAccount, onAccountChange, sendContact, withdrawProject } from './session';
+import { createProject, currentAccount, onAccountChange, saveBid, sendContact, withdrawProject, type BidRow } from './session';
 import { trackRoutes } from './track';
 
 const langOf = (state: LogicState): 'ar' | 'en' => (state.lang === 'en' ? 'en' : 'ar');
 
 /** The signed-in person and their projects, as the logic's own state. */
+const bidderId = (userId: string) => 'co-' + userId.slice(0, 8);
+/** A saved bid as the design's bid object: what the contractor typed comes back exactly, plus whose it is. */
+const logicBid = (bid: BidRow, cid: string): LogicState => ({ ...bid.details, cid, price: bid.price, days: bid.days, note: both(bid.note || ''), dbId: bid.id, chosen: bid.status === 'chosen' });
+
 function accountState(): LogicState {
   const account = currentAccount();
+  const contractor = account?.profile.role === 'contractor';
   return {
-    user: account?.logicUser ?? null, projects: (account?.projects || []).map((row) => toLogicProject(row)),
-    // a contractor is "c1" to the logic, exactly as a homeowner is "h1"
-    contractors: account?.profile.role === 'contractor' ? [contractorRecord(account.application, account.profile)] : [],
+    user: account?.logicUser ?? null,
+    // a contractor's own bid is "c1"'s, exactly as they are "c1"; a homeowner sees each bidder under a short id
+    projects: (account?.projects || []).map((row) => ({ ...toLogicProject(row),
+      bids: (account?.bids || []).filter((b) => b.project_id === row.id).map((b) => logicBid(b, contractor ? 'c1' : bidderId(b.contractor_id))) })),
+    contractors: !account ? [] : contractor ? [contractorRecord(account.application, account.profile)]
+      : account.bidders.map((b) => ({ id: bidderId(b.user_id), name: both(b.company), city: b.city, trades: b.trades || [], rating: 0, reviews: 0, done: 0, verified: true,
+        since: String(b.since || '').slice(0, 4), onTime: '—', response: '—', bio: both(''), checks: { id: false, cr: true, pf: false } })),
   };
 }
 
@@ -172,6 +181,22 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     if (isAdmin() && s.route === 'admin' && s.atab === 'analytics' && !document.hidden) void refreshAnalytics();
   }, 20000);
 
+  // A contractor's new bid (the design's form adds it to the project in memory) is saved; if the database refuses, it is taken back.
+  const saveNewBids = () => {
+    if (applying || currentAccount()?.profile.role !== 'contractor') return;
+    for (const project of host.logic.state.projects as LogicState[]) {
+      const fresh = (project.bids as LogicState[]).find((b) => b.cid === 'c1' && !b.dbId && !b.saving);
+      if (!fresh || !project.dbId) continue;
+      const mark = (patch: LogicState | null) => put({ projects: (host.logic.state.projects as LogicState[]).map((p) => (p.dbId !== project.dbId ? p
+        : { ...p, bids: (p.bids as LogicState[]).flatMap((b) => (b.cid === 'c1' && !b.dbId ? (patch ? [{ ...b, ...patch }] : []) : [b])) })) });
+      mark({ saving: true });
+      void saveBid(project.dbId, fresh).then((result) => {
+        mark(result.ok ? { dbId: result.ok.id, saving: false } : null);
+        if (!result.ok) host.setLogicState((s) => ({ bidF: { ...s.bidF, error: PLATFORM_COPY[langOf(s)].err[result.error] } }));
+      });
+    }
+  };
+
   // Opening a project loads its real files, for its owner and for the team alike.
   let filesFor = '';
   const loadProjectFiles = () => {
@@ -198,7 +223,8 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   const stopAccount = onAccountChange(apply);
   const stopWatching = host.subscribe(onChange);
   const stopFiles = host.subscribe(loadProjectFiles);
+  const stopBids = host.subscribe(saveNewBids);
   loadProjectFiles();
   const stopTracking = trackRoutes(host);
-  return () => { stopAccount(); stopWatching(); stopFiles(); stopTracking(); window.clearInterval(live); };
+  return () => { stopAccount(); stopWatching(); stopFiles(); stopBids(); stopTracking(); window.clearInterval(live); };
 }
