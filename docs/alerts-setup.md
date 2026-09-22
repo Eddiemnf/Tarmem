@@ -1,20 +1,11 @@
 # Alerts when nothing is open — an email the moment something arrives
 
-**Status (22 September 2026): live.** Alerts go to support@tarmem.sa from `onboarding@resend.dev`, the Resend
-account being registered under support@tarmem.sa. Until tarmem.sa is verified in Resend that is the one address
-Resend will deliver to. Verifying the domain (section 1.2) is optional polish: it lets alerts come from
-`alerts@tarmem.sa`, removes Gmail's "External" label, and allows extra recipients — switched with one line,
-no key needed: `update public.app_secrets set value = 'Tarmem <alerts@tarmem.sa>' where key = 'alert_from';`
-
-While the admin console is open in a tab, it already counts new arrivals and can show a desktop
-notification. To be told with **nothing open at all** — phone in pocket, laptop shut — something on a
-server has to send the message. Tarmem's database does it itself: `supabase/009_alerts.sql` calls
-**Resend** whenever a project, a bid, a contractor application or a contact message is added.
-
-There is no function to deploy and no webhooks to fill in. The owner's part is: create a Resend
-account, verify tarmem.sa there, then paste one script and one line. About 20 minutes, once.
-The Resend key is held in a table **nothing on the website can read** — not a visitor, not a customer,
-not even an admin account. Only the SQL editor can. That is why only the owner can set it up.
+**Status (22 September 2026): live, from the branded sender.** tarmem.sa is verified in Resend (region Tokyo,
+ap-northeast-1); the three DNS records sit at T2 (`resend._domainkey` TXT, `rsend` and `send` CNAMEs → `*.forge.rmta.net`)
+beside the untouched `www` → Vercel and Google mail entries. Alerts go to support@tarmem.sa (the Resend account address)
+from `Tarmem <alerts@tarmem.sa>`. Because the domain is verified, Resend can now deliver to **any** address — which is what
+lets the next slice email customers and contractors. Recipients change with one line, no key needed:
+`update public.app_secrets set value = 'support@tarmem.sa,someone@else.sa' where key = 'alert_to';`
 
 ## 1. Resend
 
