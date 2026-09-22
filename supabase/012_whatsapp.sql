@@ -76,7 +76,7 @@ begin
     return;
   end if;
   execute format('select %I.http_post(url := $1, headers := $2, body := $3, timeout_milliseconds := 5000)', net_schema)
-    using 'https://graph.facebook.com/v21.0/' || phone_id || '/messages',
+    using 'https://graph.facebook.com/v25.0/' || phone_id || '/messages',   -- the version Meta's own setup page shows (Sept 2026)
           jsonb_build_object('Authorization', 'Bearer ' || token, 'Content-Type', 'application/json'),
           jsonb_build_object('messaging_product', 'whatsapp', 'to', num, 'type', 'template',
             'template', jsonb_build_object('name', coalesce(tmpl, 'tarmem_update'), 'language', jsonb_build_object('code', case when p_lang = 'en' then 'en' else 'ar' end),
