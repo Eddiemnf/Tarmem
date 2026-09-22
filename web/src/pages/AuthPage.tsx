@@ -68,7 +68,7 @@ export default function AuthPage({ vm }: { vm: VM }) {
           
     {vm.auth.step3 ? (<>
             <div className="authfield"><label className="authlbl">{vm.t.auth.fullName}</label><input className="authinput" name="name" value={vm.auth.f.name} onChange={vm.setAuthField} /></div>
-            <div className="authfield"><label className="authlbl">{vm.t.auth.city}</label><select className="authinput" name="city" value={vm.auth.f.city} onChange={vm.setAuthField}>
+            <div className="authfield"><label className="authlbl">{vm.t.auth.city}</label><select className="authinput" name="city" value={vm.auth.f.city} onChange={vm.setAuthField} aria-label={vm.dir === 'ltr' ? 'City' : 'المدينة'}>
       {((vm.cities) || []).map((c: any, _i0: number) => (
         <React.Fragment key={_i0}><option value={c.id}>{c.label}</option></React.Fragment>
       ))}

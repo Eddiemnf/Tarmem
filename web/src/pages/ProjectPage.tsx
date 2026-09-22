@@ -543,10 +543,10 @@ export default function ProjectPage({ vm }: { vm: VM }) {
           
       {vm.crOpen ? (<>
             <div className="card" style={{ padding: '26px', gap: '16px' }}>
-              <div><label className="lbl">{vm.t.ws.cr.fDesc}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" value={vm.crF.desc} onChange={vm.crSet} placeholder={vm.t.ws.cr.fDescPh} /></div>
+              <div><label className="lbl" htmlFor="a11y-desc">{vm.t.ws.cr.fDesc}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" value={vm.crF.desc} onChange={vm.crSet} placeholder={vm.t.ws.cr.fDescPh} id="a11y-desc" /></div>
               <div className="g2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div><label className="lbl">{vm.t.ws.cr.fAmount}</label><input className="input num" type="number" name="amount" value={vm.crF.amount} onChange={vm.crSet} placeholder="0" /><span className="muted" style={{ fontSize: '11.5px', display: 'block', marginTop: '5px' }}>{vm.t.ws.cr.fAmountNote}</span></div>
-                <div><label className="lbl">{vm.t.ws.cr.fDays}</label><input className="input num" type="number" name="days" value={vm.crF.days} onChange={vm.crSet} placeholder="0" /></div>
+                <div><label className="lbl" htmlFor="a11y-amount">{vm.t.ws.cr.fAmount}</label><input className="input num" type="number" name="amount" value={vm.crF.amount} onChange={vm.crSet} placeholder="0" id="a11y-amount" /><span className="muted" style={{ fontSize: '11.5px', display: 'block', marginTop: '5px' }}>{vm.t.ws.cr.fAmountNote}</span></div>
+                <div><label className="lbl" htmlFor="a11y-days">{vm.t.ws.cr.fDays}</label><input className="input num" type="number" name="days" value={vm.crF.days} onChange={vm.crSet} placeholder="0" id="a11y-days" /></div>
               </div>
               
         {vm.crError ? (<><p className="autherr">{vm.crError}</p></>) : null}

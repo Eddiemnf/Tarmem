@@ -14,7 +14,7 @@ export default function ContractorEditModal({ vm }: { vm: VM }) {
         <p className="muted" style={{ fontSize: '13px', lineHeight: '1.7' }}>{vm.t.profile.editSub}</p>
       </div>
       <div><label className="lbl" htmlFor="ed-name">{vm.t.profile.fName}</label><input id="ed-name" className="input" name="name" value={vm.ed.f.name} readOnly style={{ background: '#F4F3FA', color: '#5B5A7A' }} /><div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginTop: '6px' }}><span className="muted" style={{ fontSize: '11.5px' }}>{vm.t.profile.nameLocked}</span><a className="lnkbtn" style={{ fontSize: '11.5px' }} data-route="help" onClick={vm.go}>{vm.t.profile.nameReq}</a></div></div>
-      <div><label className="lbl">{vm.t.profile.fCity}</label><select className="input" name="city" value={vm.ed.f.city} onChange={vm.setEdit}>
+      <div><label className="lbl" htmlFor="a11y-city">{vm.t.profile.fCity}</label><select className="input" name="city" value={vm.ed.f.city} onChange={vm.setEdit} id="a11y-city">
       {((vm.cities) || []).map((c: any, _i0: number) => (
         <React.Fragment key={_i0}><option value={c.id}>{c.label}</option></React.Fragment>
       ))}

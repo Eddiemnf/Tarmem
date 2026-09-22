@@ -337,6 +337,9 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
             props.append(f"{prop}={{false}}")
         elif prop == "style":
             props.append(f"style={style_object(scope, value)}")
+        elif value.startswith("JSX:"):
+            # an expression the converter itself decided on (see a11y_pass): emitted as written
+            props.append(f"{prop}={{{value[4:]}}}")
         elif "{{" in value:
             props.append(f"{prop}={{{interpolate(scope, value)}}}")
         elif prop in NUMERIC_ATTRS and re.fullmatch(r"-?\d+", value):
@@ -428,6 +431,51 @@ LAUNCH_INSERTS = {
     "pay-table": ("<WalletRequests vm={vm} />", "import WalletRequests from '../platform/WalletRequests';"),
 }
 _launch_inserts_applied: set[str] = set()
+
+
+"""Accessibility the design leaves implicit, made explicit for screen readers (and for tapping a label on a phone):
+
+- a `<label class="lbl">` followed by a control gets `for`, and the control the matching id;
+- a control with no label at all — the search filters, the pricing slider — gets a spoken name;
+- the home page's hero video is chosen per device (src/state/viewModel.ts): the 720p file on
+  desktops, the 480p file on phones, and none at all when the visitor asked to save data.
+
+The parity test ignores these additions (tests/parity.mjs), so the demo still compares equal."""
+CONTROL_NAMES = {
+    "city": ("City", "المدينة"), "trade": ("Trade", "التخصص"), "topic": ("Topic", "الموضوع"), "min": ("Minimum budget", "الحد الأدنى للميزانية"),
+    "bank": ("Bank", "البنك"), "sort": ("Sort by", "الترتيب"), "q": ("Search", "بحث"), "range": ("Project value", "قيمة المشروع"),
+}
+_a11y_ids: dict[str, int] = {}
+
+
+def a11y_pass(kids: list, parent_tag: str = "root") -> None:
+    for i, child in enumerate(kids):
+        if not isinstance(child, Element):
+            continue
+        attrs = dict(child.attrs)
+        classes = (attrs.get("class") or "").split()
+        if child.tag == "label" and "lbl" in classes and "for" not in attrs:
+            following = next((k for k in kids[i + 1:] if isinstance(k, Element)), None)
+            if following is not None and following.tag in ("input", "select", "textarea"):
+                f_attrs = dict(following.attrs)
+                name = f_attrs.get("name")
+                if name and "id" not in f_attrs:
+                    _a11y_ids[name] = _a11y_ids.get(name, 0) + 1
+                    ident = f"a11y-{name}" + ("" if _a11y_ids[name] == 1 else f"-{_a11y_ids[name]}")
+                    child.attrs.append(("for", ident))
+                    following.attrs.append(("id", ident))
+        if child.tag == "video" and attrs.get("src") == "assets/hero.mp4":
+            child.attrs = [(k, v) for k, v in child.attrs if k != "src"] + [("src", "JSX:vm.heroVideo === undefined ? 'assets/hero.mp4' : (vm.heroVideo || undefined)")]
+        a11y_pass(child.children, child.tag)
+    # second look, once labels are linked: what is still nameless gets a spoken name
+    for child in kids:
+        if isinstance(child, Element) and child.tag in ("select", "input"):
+            attrs = dict(child.attrs)
+            classes = (attrs.get("class") or "").split()
+            key = "range" if "range" in classes else "range" if "calcin" in classes else attrs.get("name")
+            if key in CONTROL_NAMES and "id" not in attrs and "aria-label" not in attrs and parent_tag != "label":
+                en, ar = CONTROL_NAMES[key]
+                child.attrs.append(("aria-label", f"JSX:vm.dir === 'ltr' ? {en!r} : {ar!r}"))
 
 
 def launch_insert(node: "Element") -> str:
@@ -527,6 +575,8 @@ def component(name: str, body: str, uses_slot: bool) -> str:
 
 
 def render(nodes: list[Node]) -> str:
+    _a11y_ids.clear()
+    a11y_pass(nodes)
     return emit_children(nodes, Scope(), 2)
 
 

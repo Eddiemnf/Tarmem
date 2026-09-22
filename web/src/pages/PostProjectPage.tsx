@@ -19,8 +19,8 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
       <div className="card" style={{ padding: '32px', gap: '18px' }}>
         
     {vm.post.step1 ? (<>
-          <div><label className="lbl">{vm.t.post.ptitle}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" name="title" value={vm.post.f.title} onChange={vm.setPostField} placeholder={vm.t.post.ptitlePh} /></div>
-          <div><label className="lbl">{vm.t.post.category}</label><select className="input" name="trade" value={vm.post.f.trade} onChange={vm.setPostField}>
+          <div><label className="lbl" htmlFor="a11y-title">{vm.t.post.ptitle}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" name="title" value={vm.post.f.title} onChange={vm.setPostField} placeholder={vm.t.post.ptitlePh} id="a11y-title" /></div>
+          <div><label className="lbl" htmlFor="a11y-trade">{vm.t.post.category}</label><select className="input" name="trade" value={vm.post.f.trade} onChange={vm.setPostField} id="a11y-trade">
       {((vm.tradeGroups) || []).map((g: any, _i0: number) => (
         <React.Fragment key={_i0}><optgroup label={g.label}>
         {((g.items) || []).map((c: any, _i1: number) => (
@@ -29,20 +29,20 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
         </optgroup></React.Fragment>
       ))}
       </select></div>
-          <div><label className="lbl">{vm.t.post.desc}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" value={vm.post.f.desc} onChange={vm.setPostField} placeholder={vm.t.post.descPh} /></div>
+          <div><label className="lbl" htmlFor="a11y-desc">{vm.t.post.desc}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" value={vm.post.f.desc} onChange={vm.setPostField} placeholder={vm.t.post.descPh} id="a11y-desc" /></div>
         </>) : null}
     
         
     {vm.post.step2 ? (<>
-          <div><label className="lbl">{vm.t.auth.city}</label><select className="input" name="city" value={vm.post.f.city} onChange={vm.setPostField}>
+          <div><label className="lbl" htmlFor="a11y-city">{vm.t.auth.city}</label><select className="input" name="city" value={vm.post.f.city} onChange={vm.setPostField} id="a11y-city">
       {((vm.cities) || []).map((c: any, _i0: number) => (
         <React.Fragment key={_i0}><option value={c.id}>{c.label}</option></React.Fragment>
       ))}
       </select></div>
-          <div><label className="lbl">{vm.t.post.address}</label><input className="input" name="address" value={vm.post.f.address} onChange={vm.setPostField} /></div>
+          <div><label className="lbl" htmlFor="a11y-address">{vm.t.post.address}</label><input className="input" name="address" value={vm.post.f.address} onChange={vm.setPostField} id="a11y-address" /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div><label className="lbl">{vm.t.post.budgetMin}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="min" value={vm.post.f.min} onChange={vm.setPostField} placeholder="20000" /></div>
-            <div><label className="lbl">{vm.t.post.budgetMax}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="max" max="1000000" value={vm.post.f.max} onChange={vm.setPostField} placeholder="60000" /></div>
+            <div><label className="lbl" htmlFor="a11y-min">{vm.t.post.budgetMin}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="min" value={vm.post.f.min} onChange={vm.setPostField} placeholder="20000" id="a11y-min" /></div>
+            <div><label className="lbl" htmlFor="a11y-max">{vm.t.post.budgetMax}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="max" max="1000000" value={vm.post.f.max} onChange={vm.setPostField} placeholder="60000" id="a11y-max" /></div>
           </div>
           <div className="sugbox">
             <span className="evlbl">{vm.t.post.sugTitle}</span>

@@ -957,3 +957,19 @@
    they must not look like a Nafath prompt. */
 [data-launch] .nafmark { display: none; }
 [data-launch] .card > div:has(> .nafmark) { display: none; }
+
+/* Two colours the design uses for small text fell short of the 4.5:1 contrast that WCAG AA asks of body text:
+   the language switch (#8B8AA3 on white, 3.4:1) and the small orange kickers (#B0612F, 3.9:1). Darkened on the
+   public site only; over the home hero the switch stays white on its dark pill. */
+[data-launch] .langbtn { color: #6B6986; }
+[data-launch] .hdr[data-over="true"] .langbtn { color: #fff; }
+[data-launch] .skick { color: #9A4F1E; }
+
+/* The brand orange (#FF5A3C) is 3:1 on white — fine for buttons and headings, short of WCAG AA (4.5:1) for small
+   text. Small orange text on the public site uses a deeper shade of the same orange: the kickers above headings,
+   the small in-page links (some carry the colour inline, hence !important), and phone / email links in the inbox. */
+[data-launch] main .kick, [data-launch] main .skick, [data-launch] main .lnkbtn { color: #C53B1C; }
+[data-launch] main a.lnk[style*="rgb(255, 90, 60)"] { color: #C53B1C !important; }
+[data-launch] main a[href^="tel:"], [data-launch] main a[href^="mailto:"] { color: #C53B1C; text-decoration: underline; }
+/* Table headers and inactive tab labels use the design's lighter grey (4.2:1); one step darker clears 4.5:1. */
+[data-launch] main th, [data-launch] main .tab[aria-selected="false"] { color: #6B6986; }

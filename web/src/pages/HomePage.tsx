@@ -10,7 +10,7 @@ export default function HomePage({ vm }: { vm: VM }) {
   return (<>
     <section className="fade" style={{ background: '#fff' }}>
       <div className="ph">
-        <video className="ph-vid" src="assets/hero.mp4" poster="assets/hero-poster.webp" autoPlay={true} muted={true} loop={true} playsInline={true} preload="auto" aria-hidden="true" tabIndex={-1}></video>
+        <video className="ph-vid" poster="assets/hero-poster.webp" autoPlay={true} muted={true} loop={true} playsInline={true} preload="auto" aria-hidden="true" tabIndex={-1} src={vm.heroVideo === undefined ? 'assets/hero.mp4' : (vm.heroVideo || undefined)}></video>
         
         <div className="ph-in">
           <div>

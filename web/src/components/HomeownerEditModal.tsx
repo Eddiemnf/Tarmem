@@ -13,13 +13,13 @@ export default function HomeownerEditModal({ vm }: { vm: VM }) {
         <h2 style={{ fontSize: '22px', color: '#1B1464' }}>{vm.t.hprofile.editTitle}</h2>
         <p className="muted" style={{ fontSize: '13px', lineHeight: '1.7' }}>{vm.t.hprofile.editSub}</p>
       </div>
-      <div><label className="lbl">{vm.t.hprofile.fName}</label><input className="input" name="name" value={vm.hed.f.name} onChange={vm.setHoEdit} /></div>
-      <div><label className="lbl">{vm.t.hprofile.fCity}</label><select className="input" name="city" value={vm.hed.f.city} onChange={vm.setHoEdit}>
+      <div><label className="lbl" htmlFor="a11y-name">{vm.t.hprofile.fName}</label><input className="input" name="name" value={vm.hed.f.name} onChange={vm.setHoEdit} id="a11y-name" /></div>
+      <div><label className="lbl" htmlFor="a11y-city">{vm.t.hprofile.fCity}</label><select className="input" name="city" value={vm.hed.f.city} onChange={vm.setHoEdit} id="a11y-city">
       {((vm.cities) || []).map((c: any, _i0: number) => (
         <React.Fragment key={_i0}><option value={c.id}>{c.label}</option></React.Fragment>
       ))}
       </select></div>
-      <div><label className="lbl">{vm.t.hprofile.fAbout}</label><textarea className="input" name="about" value={vm.hed.f.about} onChange={vm.setHoEdit} placeholder={vm.t.hprofile.fAboutPh} style={{ minHeight: '110px' }} /></div>
+      <div><label className="lbl" htmlFor="a11y-about">{vm.t.hprofile.fAbout}</label><textarea className="input" name="about" value={vm.hed.f.about} onChange={vm.setHoEdit} placeholder={vm.t.hprofile.fAboutPh} style={{ minHeight: '110px' }} id="a11y-about" /></div>
       <p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.7' }}>{vm.t.hprofile.lockedNote}</p>
       
       {vm.hed.error ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.hed.error}</p></>) : null}

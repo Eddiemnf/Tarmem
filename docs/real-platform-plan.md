@@ -288,3 +288,28 @@ the same settings as the emails apply; at most 20 an hour per number; failures n
 `set_whatsapp(token, phone_number_id, template)`, which refuses a malformed token; off with `set_whatsapp(null)`. The token lives in
 `app_secrets`. Owner's guide with drawn screens: the "Tarmem WhatsApp" artifact. Still to do when it is on: make the design's
 WhatsApp card on the settings page real (opt-out toggle), a line in the Terms about WhatsApp updates, and later a receiver for replies.
+
+## A walk through the site as a customer, a contractor and the team — 22 September 2026
+
+Checked: every kind of page on desktop and phone, WCAG 2.1 AA with axe-core (`scratchpad/audit.mjs`, not in the repo),
+every link on the public pages, what a visitor sees when the database is unreachable, bundle and asset sizes.
+
+Fixed:
+- **The hero video was 6.6 MB** on every home visit. Re-encoded (no tool on the Mac; ffmpeg via npm in a scratch folder):
+  1.05 MB at 720p for desktops, 0.41 MB at 480p for phones, and none at all when the browser asks to save data
+  (`heroVideo` in viewModel.ts; the converter rewrites the video's `src`). The frame quality was checked by eye.
+- **Accessibility**: 27 form labels are now linked to their controls and 5 nameless controls (search filters, the
+  pricing slider and calculator) have spoken names — done in the converter (`a11y_pass`), so it survives every
+  regeneration; parity ignores those additions. Contrast: the language switch, small orange text (kickers, in-page
+  links, phone/email links), table headers and inactive tabs were between 3:1 and 4.4:1; on the public site they use
+  one step deeper shades (#6B6986 grey, #C53B1C orange). The demo keeps the design's exact colours. Result: 0 violations.
+- A brand-new contractor's bid read "★ 0.0 · 0 projects" — now "★ New". An open project's headline figure is its
+  budget range, not the top figure alone. Signed-in and transactional pages carry `noindex`. The early-access notice
+  says contractors are verified by hand for now.
+- Confirmed already fine: the home page renders without the database; sign-in and the contact form explain a
+  failure in a sentence; all links work (x.com answers 403 to robots, which is X, not us).
+
+For the owner (not changed): the public how / pricing / FAQ / rules pages describe Nafath verification and money held
+with a payment provider as facts — true of the full product, not of early access. Worth a sentence per page, or a
+lawyer's pass, before real volume. The JS bundle is one 303 kB (gzipped) file; splitting the admin console out would
+trim a visitor's first load, at some risk to the generated-page architecture — left as is.

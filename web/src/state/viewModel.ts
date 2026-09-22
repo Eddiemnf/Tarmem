@@ -220,6 +220,15 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   };
 }
 
+/* The home page's background video, chosen once per visit: 1 MB at 720p on a desktop, 0.4 MB at 480p on a phone,
+   and only the still poster when the visitor's browser asks to save data. */
+const HERO_VIDEO: string = (() => {
+  try {
+    if ((navigator as { connection?: { saveData?: boolean } }).connection?.saveData) return '';
+    return window.matchMedia('(max-width: 768px)').matches ? 'assets/hero-480.mp4' : 'assets/hero.mp4';
+  } catch { return 'assets/hero.mp4'; }
+})();
+
 function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
@@ -233,6 +242,20 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     uploads: platformOn,
     /** The wallet opens only once the owner has switched payments on in the database. */
     wallet: Boolean(platformOn && currentAccount()?.paymentsLive),
+    heroVideo: HERO_VIDEO,
+    // an open project's headline figure is its budget range, not the top of it alone; a contractor with no finished
+    // work yet reads "new", not a rating of 0.0
+    ...(vm.pj?.id && !state.projects?.find((p: LogicState) => p.id === state.curId)?.amount ? (() => {
+      const pr = state.projects.find((p: LogicState) => p.id === state.curId);
+      const f = (n: number) => Number(n || 0).toLocaleString('en-US');
+      return pr ? { pj: { ...vm.pj, amount: `${f(pr.min)} – ${f(pr.max)}` } } : {};
+    })() : {}),
+    ...(vm.pj?.bidRows ? { pj: { ...(vm.pj), ...(vm.pj?.id && !state.projects?.find((p: LogicState) => p.id === state.curId)?.amount ? (() => {
+      const pr = state.projects.find((p: LogicState) => p.id === state.curId);
+      const f = (n: number) => Number(n || 0).toLocaleString('en-US');
+      return pr ? { amount: `${f(pr.min)} – ${f(pr.max)}` } : {};
+    })() : {}),
+      bidRows: vm.pj.bidRows.map((b: LogicState) => (b.rating === 0 && !b.done ? { ...b, rating: vm.dir === 'ltr' ? 'New' : 'جديد' } : b)) } } : {}),
     ...(real ? filePickers(host, real) : {}),
     justPosted: state.justPosted,
     /** The request last written into WhatsApp, for the page that follows it (src/launch/SentPage.tsx). */

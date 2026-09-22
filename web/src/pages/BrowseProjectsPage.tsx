@@ -12,12 +12,12 @@ export default function BrowseProjectsPage({ vm }: { vm: VM }) {
       <p style={{ color: '#5B5A7A', maxWidth: '60ch', marginTop: '8px' }}>{vm.t.browse.sub}</p>
       <div className="bfil">
         <span className="evlbl">{vm.t.bfilter.title}</span>
-        <select className="input" name="city" value={vm.bf.city} onChange={vm.setBFilter} style={{ maxWidth: '190px' }}><option value="">{vm.t.bfilter.anyCity}</option>
+        <select className="input" name="city" value={vm.bf.city} onChange={vm.setBFilter} style={{ maxWidth: '190px' }} aria-label={vm.dir === 'ltr' ? 'City' : 'المدينة'}><option value="">{vm.t.bfilter.anyCity}</option>
     {((vm.cities) || []).map((c: any, _i0: number) => (
       <React.Fragment key={_i0}><option value={c.id}>{c.label}</option></React.Fragment>
     ))}
     </select>
-        <select className="input" name="trade" value={vm.bf.trade} onChange={vm.setBFilter} style={{ maxWidth: '210px' }}><option value="">{vm.t.bfilter.anyTrade}</option>
+        <select className="input" name="trade" value={vm.bf.trade} onChange={vm.setBFilter} style={{ maxWidth: '210px' }} aria-label={vm.dir === 'ltr' ? 'Trade' : 'التخصص'}><option value="">{vm.t.bfilter.anyTrade}</option>
     {((vm.tradeGroups) || []).map((g: any, _i0: number) => (
       <React.Fragment key={_i0}><optgroup label={g.label}>
       {((g.items) || []).map((c: any, _i1: number) => (
@@ -26,7 +26,7 @@ export default function BrowseProjectsPage({ vm }: { vm: VM }) {
       </optgroup></React.Fragment>
     ))}
     </select>
-        <select className="input" name="min" value={vm.bf.min} onChange={vm.setBFilter} style={{ maxWidth: '180px' }}><option value="">{vm.t.bfilter.anyBudget}</option><option value="20000">{vm.curPre}20,000+{vm.curPost}</option><option value="50000">{vm.curPre}50,000+{vm.curPost}</option><option value="100000">{vm.curPre}100,000+{vm.curPost}</option></select>
+        <select className="input" name="min" value={vm.bf.min} onChange={vm.setBFilter} style={{ maxWidth: '180px' }} aria-label={vm.dir === 'ltr' ? 'Minimum budget' : 'الحد الأدنى للميزانية'}><option value="">{vm.t.bfilter.anyBudget}</option><option value="20000">{vm.curPre}20,000+{vm.curPost}</option><option value="50000">{vm.curPre}50,000+{vm.curPost}</option><option value="100000">{vm.curPre}100,000+{vm.curPost}</option></select>
         
     {vm.bf.any ? (<><button className="clearall" onClick={vm.clearBFilter}>{vm.t.bfilter.clear}</button></>) : null}
     

@@ -67,11 +67,11 @@ export default function PricingPage({ vm }: { vm: VM }) {
           <div><h2 style={{ fontSize: '26px', color: '#1B1464' }}>{vm.t.pricing2.calcTitle}</h2><p className="muted" style={{ fontSize: '14px', marginTop: '6px' }}>{vm.t.pricing2.calcSub}</p></div>
           <div style={{ textAlign: 'end' }}><span className="muted" style={{ fontSize: '12.5px', display: 'block' }}>{vm.t.pricing2.calcValue}</span><span className="num" style={{ fontSize: '34px', fontWeight: '600', color: '#FF5A3C', lineHeight: '1.1' }}>{vm.curPre}{vm.calc.value}{vm.curPost}</span></div>
         </div>
-        <input className="range" type="range" min="10000" max="1000000" step="10000" value={vm.calc.raw} onChange={vm.setCalc} onInput={vm.setCalc} />
+        <input className="range" type="range" min="10000" max="1000000" step="10000" value={vm.calc.raw} onChange={vm.setCalc} onInput={vm.setCalc} aria-label={vm.dir === 'ltr' ? 'Project value' : 'قيمة المشروع'} />
         <div className="num muted" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px' }}><span>{vm.curPre}10,000{vm.curPost}</span><span>{vm.curPre}1,000,000{vm.curPost}</span></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '2px' }}>
           <label className="muted" style={{ fontSize: '12.5px' }}>{vm.t.pricing2.calcEdit}</label>
-          <input className="calcin num" type="number" min="10000" step="1000" value={vm.calc.draft} onInput={vm.setCalcDraft} onBlur={vm.commitCalc} />
+          <input className="calcin num" type="number" min="10000" step="1000" value={vm.calc.draft} onInput={vm.setCalcDraft} onBlur={vm.commitCalc} aria-label={vm.dir === 'ltr' ? 'Project value' : 'قيمة المشروع'} />
         </div>
         
     {vm.calc.big ? (<>

@@ -4,7 +4,7 @@
 
 export const PLATFORM_COPY = {
   ar: {
-    notice: 'إطلاق مبكر: انشر مشروعك، واستقبل عروض مقاولين موثّقين، ووقّع الاتفاقية عبر الموقع. الدفع عبر الموقع قيد التفعيل.',
+    notice: 'إطلاق مبكر: انشر مشروعك، واستقبل عروض مقاولين موثّقين، ووقّع الاتفاقية عبر الموقع. يوثّق فريق ترميم المقاولين يدويًا حاليًا، والدفع عبر الموقع قيد التفعيل.',
     signInTitle: 'سجّل دخولك', signUpTitle: 'أنشئ حسابك',
     signInLede: 'ادخل ببريدك الإلكتروني وكلمة المرور لمتابعة مشاريعك.',
     signUpLede: 'حساب واحد لنشر مشاريعك ومتابعتها. يستغرق دقيقة.',
@@ -49,7 +49,7 @@ export const PLATFORM_COPY = {
     joinSent: 'وصلنا طلبك. يتواصل معك فريق ترميم لاستكمال التوثيق.', joinSend: 'إرسال الطلب', inbox: 'الوارد', inboxOpen: 'افتح الوارد: المشاريع والطلبات والرسائل ←',
   },
   en: {
-    notice: 'Early access: post your project, receive bids from verified contractors, and sign the agreement on the site. Payment on the site is being set up.',
+    notice: 'Early access: post your project, receive bids from verified contractors, and sign the agreement on the site. The Tarmem team verifies contractors by hand for now, and payment on the site is being set up.',
     signInTitle: 'Sign in', signUpTitle: 'Create your account',
     signInLede: 'Use your email and password to follow your projects.',
     signUpLede: 'One account to post and follow your projects. It takes a minute.',

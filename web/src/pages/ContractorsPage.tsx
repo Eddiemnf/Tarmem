@@ -23,13 +23,13 @@ export default function ContractorsPage({ vm }: { vm: VM }) {
     {vm.hasFilters ? (<><button className="clearall" onClick={vm.clearFilters}>{vm.t.search.clearAll}</button></>) : null}
     
           </div>
-          <div className="fgrp"><label className="lbl">{vm.t.search.keyword}</label><input className="input" name="q" value={vm.filt.q} onChange={vm.setFilter} placeholder={vm.t.search.keywordPh} /></div>
-          <div className="fgrp"><label className="lbl">{vm.t.auth.city}</label><select className="input" name="city" value={vm.filt.city} onChange={vm.setFilter}><option value="">{vm.t.search.allCities}</option>
+          <div className="fgrp"><label className="lbl" htmlFor="a11y-q">{vm.t.search.keyword}</label><input className="input" name="q" value={vm.filt.q} onChange={vm.setFilter} placeholder={vm.t.search.keywordPh} id="a11y-q" /></div>
+          <div className="fgrp"><label className="lbl" htmlFor="a11y-city">{vm.t.auth.city}</label><select className="input" name="city" value={vm.filt.city} onChange={vm.setFilter} id="a11y-city"><option value="">{vm.t.search.allCities}</option>
     {((vm.cities) || []).map((c: any, _i0: number) => (
       <React.Fragment key={_i0}><option value={c.id}>{c.label}</option></React.Fragment>
     ))}
     </select></div>
-          <div className="fgrp"><label className="lbl">{vm.t.search.trade}</label><select className="input" name="trade" value={vm.filt.trade} onChange={vm.setFilter}><option value="">{vm.t.search.allTrades}</option>
+          <div className="fgrp"><label className="lbl" htmlFor="a11y-trade">{vm.t.search.trade}</label><select className="input" name="trade" value={vm.filt.trade} onChange={vm.setFilter} id="a11y-trade"><option value="">{vm.t.search.allTrades}</option>
     {((vm.tradeGroups) || []).map((g: any, _i0: number) => (
       <React.Fragment key={_i0}><optgroup label={g.label}>
       {((g.items) || []).map((c: any, _i1: number) => (

@@ -13,8 +13,8 @@ export default function SettingsPage({ vm }: { vm: VM }) {
 
       <div className="card" style={{ marginTop: '28px', padding: '26px', gap: '16px' }}>
         <span className="kick">{vm.t.settings.contact}</span>
-        <div><label className="lbl">{vm.t.settings.mobile}</label><input className="input num" name="mobile" type="tel" value={vm.st.mobile} onChange={vm.setSetting} style={{ direction: 'ltr', textAlign: 'start' }} placeholder="+966 5X XXX XXXX" /><span className="muted" style={{ fontSize: '11.5px' }}>{vm.t.settings.mobileNote}</span></div>
-        <div><label className="lbl">{vm.t.settings.email}</label><input className="input" type="email" name="email" value={vm.st.email} onChange={vm.setSetting} style={{ direction: 'ltr', textAlign: 'start' }} /></div>
+        <div><label className="lbl" htmlFor="a11y-mobile">{vm.t.settings.mobile}</label><input className="input num" name="mobile" type="tel" value={vm.st.mobile} onChange={vm.setSetting} style={{ direction: 'ltr', textAlign: 'start' }} placeholder="+966 5X XXX XXXX" id="a11y-mobile" /><span className="muted" style={{ fontSize: '11.5px' }}>{vm.t.settings.mobileNote}</span></div>
+        <div><label className="lbl" htmlFor="a11y-email">{vm.t.settings.email}</label><input className="input" type="email" name="email" value={vm.st.email} onChange={vm.setSetting} style={{ direction: 'ltr', textAlign: 'start' }} id="a11y-email" /></div>
       </div>
 
       {vm.launch ? null : (<div className="card wa-card" style={{ marginTop: '16px', padding: '26px', gap: '18px' }}>

@@ -24,17 +24,17 @@ export default function ContactPage({ vm }: { vm: VM }) {
     
         
     {vm.ct.form ? (<>
-          <div><label className="lbl">{vm.t.pages.cName}</label><input className="input" name="name" value={vm.ct.f.name} onChange={vm.setContact} /></div>
+          <div><label className="lbl" htmlFor="a11y-name">{vm.t.pages.cName}</label><input className="input" name="name" value={vm.ct.f.name} onChange={vm.setContact} id="a11y-name" /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div><label className="lbl">{vm.t.pages.cEmail}</label><input className="input" type="email" name="email" value={vm.ct.f.email} onChange={vm.setContact} /></div>
-            <div><label className="lbl">{vm.t.pages.cPhone}</label><input className="input" name="phone" value={vm.ct.f.phone} onChange={vm.setContact} /></div>
+            <div><label className="lbl" htmlFor="a11y-email">{vm.t.pages.cEmail}</label><input className="input" type="email" name="email" value={vm.ct.f.email} onChange={vm.setContact} id="a11y-email" /></div>
+            <div><label className="lbl" htmlFor="a11y-phone">{vm.t.pages.cPhone}</label><input className="input" name="phone" value={vm.ct.f.phone} onChange={vm.setContact} id="a11y-phone" /></div>
           </div>
-          <div><label className="lbl">{vm.t.pages.cTopic}</label><select className="input" name="topic" value={vm.ct.f.topic} onChange={vm.setContact}>
+          <div><label className="lbl" htmlFor="a11y-topic">{vm.t.pages.cTopic}</label><select className="input" name="topic" value={vm.ct.f.topic} onChange={vm.setContact} id="a11y-topic">
       {((vm.t.pages.topics) || []).map((o: any, _i0: number) => (
         <React.Fragment key={_i0}><option value={o}>{o}</option></React.Fragment>
       ))}
       </select></div>
-          <div><label className="lbl">{vm.t.pages.cMsg}</label><textarea className="input" name="msg" value={vm.ct.f.msg} onChange={vm.setContact} placeholder={vm.t.pages.cMsgPh} /></div>
+          <div><label className="lbl" htmlFor="a11y-msg">{vm.t.pages.cMsg}</label><textarea className="input" name="msg" value={vm.ct.f.msg} onChange={vm.setContact} placeholder={vm.t.pages.cMsgPh} id="a11y-msg" /></div>
           
       {vm.ct.error ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.ct.error}</p></>) : null}
       

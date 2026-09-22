@@ -117,13 +117,13 @@ export default function WalletPage({ vm }: { vm: VM }) {
       
               
       {vm.pa.editing ? (<>
-                <div><label className="lbl">{vm.t.wallet.selectBank}</label><select className="input" name="bank" value={vm.pa.f.bank} onChange={vm.setAccount}><option value="">{vm.t.wallet.selectBankPh}</option>
+                <div><label className="lbl" htmlFor="a11y-bank">{vm.t.wallet.selectBank}</label><select className="input" name="bank" value={vm.pa.f.bank} onChange={vm.setAccount} id="a11y-bank"><option value="">{vm.t.wallet.selectBankPh}</option>
         {((vm.t.wallet.banks) || []).map((bk: any, _i0: number) => (
           <React.Fragment key={_i0}><option value={bk}>{bk}</option></React.Fragment>
         ))}
         </select></div>
-                <div><label className="lbl">{vm.t.wallet.accountName}</label><input className="input" name="holder" value={vm.pa.f.holder} onChange={vm.setAccount} placeholder={vm.t.wallet.holderPh} /></div>
-                <div><label className="lbl">{vm.t.wallet.iban}</label><input className="input num" name="iban" value={vm.pa.f.iban} onChange={vm.setAccount} placeholder={vm.t.wallet.ibanPh} style={{ direction: 'ltr', textAlign: 'start' }} /><span className="muted" style={{ fontSize: '11px' }}>{vm.t.wallet.ibanHint}</span></div>
+                <div><label className="lbl" htmlFor="a11y-holder">{vm.t.wallet.accountName}</label><input className="input" name="holder" value={vm.pa.f.holder} onChange={vm.setAccount} placeholder={vm.t.wallet.holderPh} id="a11y-holder" /></div>
+                <div><label className="lbl" htmlFor="a11y-iban">{vm.t.wallet.iban}</label><input className="input num" name="iban" value={vm.pa.f.iban} onChange={vm.setAccount} placeholder={vm.t.wallet.ibanPh} style={{ direction: 'ltr', textAlign: 'start' }} id="a11y-iban" /><span className="muted" style={{ fontSize: '11px' }}>{vm.t.wallet.ibanHint}</span></div>
                 
         {vm.pa.error ? (<><p style={{ fontSize: '12.5px', color: '#D9401F' }}>{vm.pa.error}</p></>) : null}
         

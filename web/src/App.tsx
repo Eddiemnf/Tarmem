@@ -40,7 +40,14 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = state.lang;
     document.documentElement.dir = vm.dir;
-    if (isLaunch) document.title = titleFor(vm, state.route);
+    if (isLaunch) {
+      document.title = titleFor(vm, state.route);
+      // only the public content pages are for search engines; forms, sign-in and every signed-in page are not
+      const indexable = ['home', 'how', 'pricing', 'about', 'help', 'faq', 'contact', 'rules', 'terms', 'privacy', 'join'].includes(state.route);
+      let meta = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
+      if (!meta) { meta = document.createElement('meta'); meta.name = 'robots'; document.head.appendChild(meta); }
+      meta.content = indexable ? 'index,follow' : 'noindex,nofollow';
+    }
   }, [state.lang, state.route, vm]);
 
   // The logic seeds itself when it mounts; until then there is nothing to bind to.

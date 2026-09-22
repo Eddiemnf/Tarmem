@@ -107,6 +107,8 @@ const snapshot = () => {
     const attrs = [];
     for (const key of KEEP) {
       if (!node.hasAttribute(key)) continue;
+      // spoken names the converter gives the design's nameless selects and sliders (a11y_pass) are not in the prototype
+      if (key === 'aria-label' && (tag === 'select' || tag === 'input')) continue;
       let value = clean(node.getAttribute(key));
       if (key === 'style') {
         value = value.split(';').map((d) => d.trim().replace(/\s*:\s*/, ':')).filter(Boolean).sort().join(';');
