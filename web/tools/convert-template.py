@@ -391,10 +391,10 @@ LAUNCH_HIDDEN_CLASSES = {
     "ai2-stats": "headline figures (contractors, projects, satisfaction) that are not real yet",
     "drop": "a file picker that uploads nothing, until photos have somewhere to go (vm.uploads: src/platform/files.ts)",
     "ai2-att": "the same, on the home page's description box: it feeds the assistant, which is not public",
-    "wa-card": "WhatsApp notifications (verify a number, quiet hours): nothing can send them until the WhatsApp Business API is connected",
+    "wa-card": "the WhatsApp card (the number, a test message, the channel, quiet hours): shown once the owner has switched WhatsApp updates on in the database (vm.whatsapp, supabase/013)",
 }
 # When a marker above is hidden; anything not listed here is hidden on the whole public site.
-LAUNCH_HIDDEN_CONDITIONS = {"drop": "vm.launch && !vm.uploads"}
+LAUNCH_HIDDEN_CONDITIONS = {"drop": "vm.launch && !vm.uploads", "wa-card": "vm.launch && !vm.whatsapp"}
 # The indicative price range per trade ("sugbox") was hidden at first as the design's placeholder
 # figures. The owner asked for it back on 21 September 2026: the ranges are his to stand behind,
 # and they are edited in the design's data file (BUDGETS in project/tarmem-i18n.js).

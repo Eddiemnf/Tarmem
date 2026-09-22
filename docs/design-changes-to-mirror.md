@@ -103,3 +103,14 @@ projects here". Sources and method: `docs/price-guide.md`.
 
 Why: the public site inserts its own pieces after those two elements (the contractor's photo uploader, and the team's
 list of wallet requests awaiting confirmation). Nothing renders differently in the design.
+
+
+## Added 22 September 2026 — a Terms paragraph on notifications
+
+> In `pages.terms` (both languages), after "Accounts and identity": **Notifications** — Tarmem sends project updates to
+> the mobile number and email on the account, by email and by WhatsApp; payment and dispute alerts are always sent; the
+> other updates, and WhatsApp itself, can be switched off on the settings page, where quiet hours hold ordinary WhatsApp
+> updates from 11pm to 8am; no marketing on WhatsApp.
+
+Why: the WhatsApp updates are live (supabase/012, 013), and Meta's rules need the customer's agreement to be on record.
+Wording for the lawyer's pass; it describes exactly what the database does.

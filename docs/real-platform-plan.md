@@ -328,3 +328,20 @@ says v25.0. Then a real test: post a project from an account whose mobile is the
 Still to do on the site once messages flow: a WhatsApp switch on the settings page (the email switches already apply to
 WhatsApp), a line in the Terms, and later a receiver for replies.
 
+## The WhatsApp card on the settings page — 22 September 2026
+
+`supabase/013_whatsapp_settings.sql` (22 local checks in `supabase/tests/local-whatsapp-settings.mjs`). The design's card is now
+real: the account's mobile with a **Send test message** button that really sends (`whatsapp_test()`, three a day); the channel
+choice — WhatsApp with the emails, or the emails alone (`prefs.channel = 'email'`; SMS is not offered, it does not exist);
+**quiet hours** — between 11pm and 8am Riyadh an ordinary update waits in `wa_queue` until 8am (`prefs.quiet = false` turns
+this off; payment and dispute alerts and test messages go at once), emptied by pg_cron every 10 minutes and by any other send.
+`set_whatsapp` keeps `platform_flags.whatsapp_live` in step, which is what shows the card (`vm.whatsapp`; the converter's
+`LAUNCH_HIDDEN_CONDITIONS`). The card's two untrue lines ("reply to open the project", "a new verification code") are replaced
+on the public site (`waSub`, `waNumberNote` in copy.ts). The Terms gained a Notifications paragraph (design-changes-to-mirror.md).
+
+A gotcha that cost an hour: `npm run typecheck` was `tsc -b --noEmit false`, which wrote a compiled `.js` next to every source
+file; Vite then served those stale copies and every browser test failed in ways that pointed nowhere. The script is now plain
+`tsc -b`. If tests fail inexplicably, `git status` for untracked `.js` under `web/src`.
+
+Owner steps: run 013; the card appears on /settings for every signed-in person the moment the templates are Active.
+

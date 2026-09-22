@@ -29,7 +29,7 @@ import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { VIDEO_MAX_BYTES, VIDEO_TYPES, acceptFiles, holdFiles, uploadFile } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { currentAccount, normalizeMobile, refreshAccount, sendContact, stageStep, updateProfile, validMobile } from '../platform/session';
+import { currentAccount, normalizeMobile, refreshAccount, sendContact, sendWhatsAppTest, stageStep, updateProfile, validMobile } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -197,8 +197,40 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   if (!account || !vm.t?.settings) return vm;
   const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const note = (notice: string) => host.setLogicState((s) => ({ setg: { ...s.setg, email: account.profile.email || '', notice } }));
+  // The design's WhatsApp card, on real data: the account's mobile, the person's channel and quiet-hours choices
+  // (profiles.prefs, read by the database before every send), and a test button that really sends.
+  const prefs = (state.setg?.prefs || {}) as Record<string, unknown>;
+  const channel = prefs.channel === 'email' ? 'email' : 'wa';
+  const waNumber = String(state.setg?.waNumber ?? state.setg?.mobile ?? account.profile.mobile ?? '');
+  const pretty = (digits: string) => `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
   return {
     ...vm,
+    ...(vm.wa && vm.t.wa ? {
+      t: { ...vm.t, wa: { ...vm.t.wa, sub: copy.waSub, numberNote: copy.waNumberNote } },
+      wa: {
+        ...vm.wa, on: account.whatsappLive && channel === 'wa', number: waNumber, sentTo: state.setg?.waSent || '', quiet: prefs.quiet !== false,
+        // SMS does not exist: the choice is WhatsApp (with the emails) or the emails alone
+        channels: [['wa', vm.t.wa.channels[0]], ['email', vm.t.wa.channels[2]]].map(([id, l]) => ({ id, l, on: channel === id ? 'true' : 'false' })),
+        previewMsg: copy.waPreview,
+      },
+    } : {}),
+    waVerify: () => {
+      const mobile = normalizeMobile(waNumber);
+      if (!validMobile(mobile)) return note(copy.err.mobile);
+      void (async () => {
+        if (mobile !== account.profile.mobile) {
+          const saved = await updateProfile({ mobile });
+          if (saved.error) return note(copy.err[saved.error]);
+        }
+        const sent = await sendWhatsAppTest();
+        host.setLogicState((s) => ({ setg: { ...s.setg, mobile, waNumber: mobile, ...(sent.error ? { waSent: '', notice: copy.err[sent.error] } : { waSent: pretty(sent.ok || ''), notice: '' }) } }));
+      })();
+    },
+    waChannel: (e: { currentTarget: { dataset: { v?: string } } }) => {
+      const next = { ...prefs, channel: e.currentTarget.dataset.v === 'email' ? 'email' : 'wa' } as Record<string, boolean | string>;
+      host.setLogicState((s) => ({ setg: { ...s.setg, prefs: next } }));
+      void updateProfile({ prefs: next }).then((result) => note(result.ok ? copy.settingsSaved : copy.err[result.error]));
+    },
     saveSettings: () => {
       const mobile = normalizeMobile(state.setg?.mobile);
       if (!validMobile(mobile)) return note(copy.err.mobile);
@@ -242,6 +274,8 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     uploads: platformOn,
     /** The wallet opens only once the owner has switched payments on in the database. */
     wallet: Boolean(platformOn && currentAccount()?.paymentsLive),
+    /** The settings page's WhatsApp card shows once the owner has switched WhatsApp updates on in the database (supabase/013). */
+    whatsapp: Boolean(platformOn && currentAccount()?.whatsappLive),
     heroVideo: HERO_VIDEO,
     // an open project's headline figure is its budget range, not the top of it alone; a contractor with no finished
     // work yet reads "new", not a rating of 0.0

@@ -27,6 +27,8 @@ export interface Account {
   /** Stages exist for every awarded project, but nothing moves until the owner switches payments on in the database. */
   stages: StageRow[];
   paymentsLive: boolean;
+  /** The owner has switched WhatsApp updates on in the database (supabase/013): the settings page shows the designed card. */
+  whatsappLive: boolean;
   /** Reviews this person wrote (a homeowner) or received (a contractor). */
   reviews: ReviewRow[];
   /** The wallet, once payments are live: this person's deposits or payouts, and a contractor's bank account. */
@@ -85,6 +87,9 @@ function failure(error: { message?: string; status?: number; code?: string } | n
   if (/only homeowners/.test(text)) return 'notHomeowner';
   if (/open projects/.test(text)) return 'tooMany';
   if (/failed to fetch|network|load failed/.test(text)) return 'network';
+  if (/not switched on/.test(text)) return 'waOff';
+  if (/three test messages/.test(text)) return 'waLimit';
+  if (/not a saudi mobile/.test(text)) return 'waNumber';
   return 'generic';
 }
 
@@ -195,6 +200,16 @@ export async function updateProfile(patch: Partial<Pick<Profile, 'full_name' | '
   } catch (e) { return { error: failure(e as Error) }; }
 }
 
+/** The settings card's "Send test message": one real WhatsApp to the person's own number (the database allows three a day). */
+export async function sendWhatsAppTest(): Promise<Result<string>> {
+  if (!supabase || !account) return { error: 'generic' };
+  try {
+    const { data, error } = await supabase.rpc('whatsapp_test');
+    if (error) return { error: failure(error) };
+    return { ok: String(data) };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
 /** Ask the database again who this is — a contractor waiting to be verified presses this to see whether they have been. */
 export async function refreshAccount(): Promise<void> {
   if (!supabase) return;
@@ -281,21 +296,22 @@ async function loadAgreements(): Promise<AgreementRow[]> {
 }
 
 /** (empty, and off, until 007 has been run) */
-async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | 'reviews' | 'wallet' | 'payout' | 'standing'>> {
-  if (!supabase) return { stages: [], paymentsLive: false, reviews: [], wallet: [], payout: null, standing: null };
+async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | 'whatsappLive' | 'reviews' | 'wallet' | 'payout' | 'standing'>> {
+  if (!supabase) return { stages: [], paymentsLive: false, whatsappLive: false, reviews: [], wallet: [], payout: null, standing: null };
   const [flag, rows] = await Promise.all([
-    supabase.from('platform_flags').select('enabled').eq('key', 'payments_live').maybeSingle(),
+    supabase.from('platform_flags').select('key, enabled').in('key', ['payments_live', 'whatsapp_live']),
     supabase.from('stages').select('project_id, idx, status').order('idx', { ascending: true }),
   ]);
   const { data: who } = await supabase.auth.getUser();
   const mine = who.user ? await supabase.from('reviews').select('*').or(`homeowner_id.eq.${who.user.id},contractor_id.eq.${who.user.id}`) : null;
-  const live = Boolean(flag.data?.enabled);
+  const flags = new Map(((flag.data as { key: string; enabled: boolean }[] | null) || []).map((f) => [f.key, f.enabled]));
+  const live = Boolean(flags.get('payments_live'));
   const [wallet, payout, standing] = who.user ? await Promise.all([
     live ? supabase.from('wallet_txns').select('*').eq('user_id', who.user.id).order('created_at', { ascending: false }).limit(200) : null,
     live ? supabase.from('payout_accounts').select('holder, bank, iban').eq('user_id', who.user.id).maybeSingle() : null,
     supabase.from('verified_contractors').select('*').eq('user_id', who.user.id).maybeSingle(),
   ]) : [null, null, null];
-  return { stages: (rows.data as StageRow[]) || [], paymentsLive: live, reviews: (mine?.data as ReviewRow[]) || [],
+  return { stages: (rows.data as StageRow[]) || [], paymentsLive: live, whatsappLive: Boolean(flags.get('whatsapp_live')), reviews: (mine?.data as ReviewRow[]) || [],
     wallet: (wallet?.data as WalletTxn[]) || [], payout: (payout?.data as PayoutAccount | null) || null, standing: (standing?.data as Bidder | null) || null };
 }
 

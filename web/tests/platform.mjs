@@ -117,7 +117,7 @@ const menu = await page.locator('.acctmenu .acctitem').allInnerTexts();
 check('the account menu offers their profile, settings and sign-out — no wallet or contractor search yet', menu.length === 3 && (await page.locator('[data-route="wallet"], [data-route="contractors"]').count()) === 0, menu.join(' | '));
 await page.keyboard.press('Escape');
 await open('settings');
-check('the designed settings page opens with their own mobile and email, without the WhatsApp card that nothing can send yet',
+check('the designed settings page opens with their own mobile and email, without the WhatsApp card while WhatsApp updates are switched off',
   (await pathname()) === '/settings' && (await page.locator('input[name="mobile"]').inputValue()) === '055 1234567' && (await page.locator('input[name="email"]').inputValue()) === 'sara@example.com' && (await page.locator('.wa-card').count()) === 0);
 await page.locator('input[name="mobile"]').fill('0559998877');
 await page.locator('input[name="pNews"]').check({ force: true }).catch(() => undefined);
@@ -125,6 +125,20 @@ await page.locator('button', { hasText: 'حفظ' }).first().click();
 await settle(700);
 check('saving writes the new mobile and notification choices to their profile, and says so', db.profiles[0].mobile === '0559998877' && typeof db.profiles[0].prefs === 'object' && (await page.locator('text=حُفظت إعداداتك').count()) === 1 && db.refused.length === 0,
   db.refused.join('; ') || JSON.stringify({ m: db.profiles[0].mobile, p: db.profiles[0].prefs }));
+// once the owner has switched WhatsApp on in the database (supabase/013), the designed WhatsApp card is real
+db.whatsappLive = true;
+await open('settings');
+check('with WhatsApp switched on, the card shows the account\u2019s mobile, WhatsApp as the channel (no SMS), quiet hours on, and "connected"',
+  (await page.locator('.wa-card').count()) === 1 && (await page.locator('#wa-num').inputValue()) === '0559998877' && (await page.locator('.wa-card .an-seg button').allInnerTexts()).join('|') === 'واتساب|بريد'
+  && (await page.locator('.wa-card .an-seg button[data-v="wa"]').getAttribute('aria-pressed')) === 'true' && (await page.locator('input[name="quiet"]').isChecked()) && (await page.locator('.wa-card .tag-g').count()) === 1,
+  (await page.locator('.wa-card .an-seg button').allInnerTexts()).join('|'));
+await page.locator('.wa-card button.btn-p').click();
+await settle(600);
+check('"Send test message" really asks the database to send one, and shows the number it went to', db.waTests === 1 && (await page.locator('.wa-card', { hasText: '+966 55 999 8877' }).count()) === 1, db.refused.join('; '));
+await page.locator('.wa-card .an-seg button[data-v="email"]').click();
+await settle(600);
+check('choosing email alone is saved to their profile at once, and the card no longer says connected', db.profiles[0].prefs?.channel === 'email' && (await page.locator('.wa-card .tag-g').count()) === 0 && (await page.locator('text=حُفظت إعداداتك').count()) === 1, JSON.stringify(db.profiles[0].prefs));
+db.whatsappLive = false;
 await open('profile');
 await page.locator('button', { hasText: /تعديل/ }).first().click();
 await settle(300);

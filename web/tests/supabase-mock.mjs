@@ -133,7 +133,17 @@ export async function installSupabaseMock(context, supabaseUrl) {
       (db.reviews ||= []).push({ ...body, homeowner_id: me, created_at: new Date().toISOString() });
       return send(route, 201);
     }
-    if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }] : []);
+    if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }, { key: 'whatsapp_live', enabled: Boolean(db.whatsappLive) }] : []);
+    if (path === '/rest/v1/rpc/whatsapp_test' && method === 'POST') {
+      if (!me) return refuse(route, 'sign in first');
+      if (!db.whatsappLive) return refuse(route, 'WhatsApp updates are not switched on yet');
+      const digits = String(db.profiles.find((p) => p.id === me)?.mobile || '').replace(/\D/g, '');
+      const num = /^05\d{8}$/.test(digits) ? '966' + digits.slice(1) : /^9665\d{8}$/.test(digits) ? digits : null;
+      if (!num) return send(route, 400, { code: '22023', message: 'not a Saudi mobile number' });
+      db.waTests = (db.waTests || 0) + 1;
+      if (db.waTests > 3) return refuse(route, 'three test messages a day');
+      return send(route, 200, num);
+    }
     if (path === '/rest/v1/stages') return rows((db.stages || []).filter((st) => admin || db.projects.some((p) => p.id === st.project_id && (p.owner_id === me || p.contractor_id === me))));
     if (path === '/rest/v1/rpc/mark_funded' && method === 'POST') { const p = db.projects.find((x) => x.id === body.p_project && x.status === 'active'); if (!admin || !db.paymentsLive || !p) return refuse(route, 'mark_funded: refused'); p.funded_at = new Date().toISOString(); return send(route, 200, p.funded_at); }
     if (path === '/rest/v1/rpc/stage_step' && method === 'POST') {
