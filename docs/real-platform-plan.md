@@ -374,3 +374,9 @@ bids", "account status: verified", "the number linked to your account is confirm
 under `_2` names (`wa_template_name(event)` resolves the name; `wa_submit_templates(p_events)` submits a subset). All eighteen
 were accepted as Utility on submission. Lesson for Arabic utility templates: avoid عرض, name the transaction and its status.
 
+**017 (same night):** one template was re-filed once more, the Arabic bid message. It still said "a new bid arrived" with a
+plural of bids — the shape of an offer. `017_bid_template_as_record.sql` writes it as a status record ("status update for
+project no. …: bid number {{2}} was received from {{3}}, {{4}} riyals, {{5}} days"), the bid's number on the project being a
+new variable that `notify_people` counts; both languages under `tarmem_new_bid_3`. Rules that held for Meta's Arabic checker:
+no عرض, no جديد, no plurals, and name the transaction and its status.
+

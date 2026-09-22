@@ -153,6 +153,21 @@ await db.exec(readFileSync(repo + '016_arabic_templates_reworded.sql', 'utf8'));
   check('…and the test message with the pretty number and the settings button', m2?.body.template.name === 'tarmem_wa_test_2' && m2.body.template.components[0].parameters[0].text === '+966 52 222 2222' && m2.body.template.components[1].parameters[0].text === 'settings', JSON.stringify(m2?.body.template.components));
 }
 
+// 017: the bid message as a numbered record
+await db.exec(readFileSync(repo + '017_bid_template_as_record.sql', 'utf8'));
+{
+  const after = await rows(`select * from public.sent where to_addr like 'meta:%' order by id desc limit 2`);
+  check('017 submits only the bid template, both languages, as tarmem_new_bid_3 with five variables', after.length === 2 && after.every((r) => r.subject === 'tarmem_new_bid_3' && JSON.parse(r.html).components[0].example.body_text[0].length === 5) && (await rows(`select count(*)::int n from public.sent where to_addr like 'meta:%'`))[0].n === 66);
+  const spec = (await rows(`select public.wa_template_specs() s`))[0].s.find((x) => x.event === 'new_bid');
+  check('…its Arabic has no "new" and no plural of bid', !/جديد|عطاءات|عروض|عرض/.test(spec.ar.body) && /تم استلام العطاء رقم/.test(spec.ar.body));
+  await db.exec(day);
+  const P4 = (await rows(`select id, code from public.projects order by created_at desc limit 1`))[0];
+  await as('authenticated', CO2);
+  await db.exec(`insert into public.bids (project_id, price, days, note, details) values ('${P4.id}', 8500, 6, '', '{}')`);
+  const m3 = await lastWa();
+  check('a bid now sends tarmem_new_bid_3 with the project, the bid number on it, the company, the amount and the days', m3?.body.template.name === 'tarmem_new_bid_3' && m3.body.template.components[0].parameters.map((p) => p.text).join('|') === `${P4.code}|2|Other Co|8,500|6`, JSON.stringify(m3?.body.template.components[0]).slice(0, 220));
+}
+
 console.log(results.join('\n'));
 const failed = results.filter((r) => r.startsWith('FAIL')).length;
 console.log(`\n${results.length - failed}/${results.length} passed`);
