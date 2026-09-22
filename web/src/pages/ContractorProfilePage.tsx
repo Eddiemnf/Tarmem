@@ -3,6 +3,7 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import PortfolioManager from '../platform/PortfolioManager';
 
 export default function ContractorProfilePage({ vm }: { vm: VM }) {
   return (<>
@@ -89,13 +90,13 @@ export default function ContractorProfilePage({ vm }: { vm: VM }) {
       </div>
 
       <h3 style={{ fontSize: '20px', color: '#1B1464', marginTop: '36px' }}>{vm.t.profile.ownGallery}</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '20px', marginTop: '16px' }}>
+      <div className="own-work" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '20px', marginTop: '16px' }}>
         
     {((vm.prof.ownWork) || []).map((p: any, _i0: number) => (
       <React.Fragment key={_i0}><figure style={{ margin: '0' }}><div style={{ aspectRatio: '4/3', borderRadius: '14px', overflow: 'hidden', background: '#F4F3FA' }}><img src={p.src} alt={p.caption} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div><figcaption className="muted" style={{ fontSize: '12.5px', marginTop: '8px' }}>{p.caption}</figcaption></figure></React.Fragment>
     ))}
     
-      </div>
+      </div><PortfolioManager vm={vm} />
 
       <hr className="hair" style={{ margin: '44px 0 0' }} />
 

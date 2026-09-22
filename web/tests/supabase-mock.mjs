@@ -15,7 +15,7 @@ const subOf = (header) => { try { return JSON.parse(Buffer.from(String(header ||
 export const recoveryFragment = (userId) => `#access_token=${jwt(userId)}&refresh_token=refresh-${userId}&expires_in=3600&token_type=bearer&type=recovery`;
 
 export async function installSupabaseMock(context, supabaseUrl) {
-  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], agreements: [], refused: [], unknown: [] };
+  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], agreements: [], portfolio: [], captions: [], refused: [], unknown: [] };
   let nextCode = 2001;
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
   const send = (route, status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
@@ -55,8 +55,26 @@ export async function installSupabaseMock(context, supabaseUrl) {
     if (path === '/auth/v1/user') { const user = db.users.find((u) => u.id === me); return user ? send(route, 200, publicUser(user)) : send(route, 401, { msg: 'no session' }); }
 
     const admin = db.profiles.some((p) => p.id === me && p.role === 'admin');
+    const isVerified = (id) => db.profiles.some((p) => p.id === id && p.role === 'contractor') && db.applications.some((a) => a.user_id === id && a.status === 'verified');
     // storage: a private bucket, <owner>/<project>/<file>; owners add to their own projects, owners and admins read
     const BUCKET = '/storage/v1/object/';
+    const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    if (path.startsWith(BUCKET + 'public/portfolio/') && method === 'GET') return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'image/png' }, body: PNG });
+    if (path.startsWith(BUCKET + 'list/portfolio')) {
+      const prefix = body.prefix.replace(/\/$/, '') + '/';
+      return send(route, 200, db.portfolio.filter((f) => f.path.startsWith(prefix)).map((f, i) => ({ id: 'pf-' + i, name: f.path.slice(prefix.length), created_at: f.created_at })));
+    }
+    if (path.startsWith(BUCKET + 'portfolio/') && method === 'POST') {
+      const key = decodeURIComponent(path.slice((BUCKET + 'portfolio/').length));
+      if (!isVerified(me) || key.split('/')[0] !== me || db.portfolio.filter((f) => f.path.startsWith(me + '/')).length >= 12) return refuse(route, 'portfolio: refused');
+      db.portfolio.push({ path: key, created_at: new Date().toISOString() });
+      return send(route, 200, { Key: 'portfolio/' + key, Id: 'obj' });
+    }
+    if (path === BUCKET + 'portfolio' && method === 'DELETE') {
+      const mine = (body.prefixes || []).filter((k) => k.split('/')[0] === me);
+      db.portfolio = db.portfolio.filter((f) => !mine.includes(f.path));
+      return send(route, 200, mine.map((k) => ({ name: k })));
+    }
     if (path.startsWith(BUCKET + 'list/project-files')) {
       const prefix = body.prefix.replace(/\/$/, '') + '/';
       return send(route, 200, db.files.filter((f) => f.path.startsWith(prefix) && (admin || f.path.startsWith(me + '/'))).map((f, i) => ({ id: 'obj-' + i, name: f.path.slice(prefix.length), created_at: f.created_at })));
@@ -75,7 +93,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
       return send(route, 200, { Key: 'project-files/' + key, Id: 'obj' });
     }
     if (path === '/rest/v1/profiles') {
-      if (method === 'GET') return rows(db.profiles.filter((p) => (admin || p.id === me) && (!eq('id') || p.id === eq('id'))));
+      const inIds = (url.searchParams.get('id') || '').startsWith('in.(') ? url.searchParams.get('id').slice(4, -1).split(',') : null;
+      if (method === 'GET') return rows(db.profiles.filter((p) => (admin || p.id === me) && (!eq('id') || p.id === eq('id') || (inIds && inIds.includes(p.id)))));
       if (method === 'PATCH') {
         const forbidden = Object.keys(body).filter((k) => !['full_name', 'mobile', 'city', 'company', 'lang', 'prefs', 'about', 'trades'].includes(k));
         if (forbidden.length || eq('id') !== me) return refuse(route, 'profiles: may not change ' + (forbidden.join(', ') || "somebody else's row"));
@@ -91,7 +110,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
     }
     if (path === '/rest/v1/projects') {
       const verifiedContractor = db.profiles.some((p) => p.id === me && p.role === 'contractor') && db.applications.some((a) => a.user_id === me && a.status === 'verified');
-      if (method === 'GET') return rows(db.projects.filter((p) => (admin || p.owner_id === me || (verifiedContractor && (p.status === 'open' || db.bids.some((b) => b.project_id === p.id && b.contractor_id === me)))) && (url.searchParams.get('status') !== 'neq.withdrawn' || p.status !== 'withdrawn')).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      const inProj = (url.searchParams.get('id') || '').startsWith('in.(') ? url.searchParams.get('id').slice(4, -1).split(',') : null;
+      if (method === 'GET') return rows(db.projects.filter((p) => (!inProj || inProj.includes(p.id)) && (admin || p.owner_id === me || (verifiedContractor && (p.status === 'open' || db.bids.some((b) => b.project_id === p.id && b.contractor_id === me)))) && (url.searchParams.get('status') !== 'neq.withdrawn' || p.status !== 'withdrawn')).sort((a, b) => b.created_at.localeCompare(a.created_at)));
       if (method === 'POST') {
         const assigned = ['id', 'code', 'owner_id', 'status', 'created_at'].filter((k) => k in body);
         if (assigned.length) return refuse(route, 'projects: the database assigns ' + assigned.join(', '));
@@ -106,7 +126,6 @@ export async function installSupabaseMock(context, supabaseUrl) {
         return route.fulfill({ status: 204, headers: cors });
       }
     }
-    const isVerified = (id) => db.profiles.some((p) => p.id === id && p.role === 'contractor') && db.applications.some((a) => a.user_id === id && a.status === 'verified');
     if (path === '/rest/v1/reviews') {
       if (method === 'GET') return rows(me ? (db.reviews || []) : []);
       const project = db.projects.find((p) => p.id === body.project_id && p.owner_id === me && p.status === 'completed' && p.contractor_id === body.contractor_id);
@@ -147,13 +166,25 @@ export async function installSupabaseMock(context, supabaseUrl) {
       db.stages = [...(db.stages || []), ...[0, 1, 2].map((idx) => ({ project_id: row.project_id, idx, status: 'pending' }))];
       return send(route, 200, row);
     }
+    if (path === '/rest/v1/portfolio') {
+      if (method === 'GET') return rows(db.captions.filter((c) => !eq('user_id') || c.user_id === eq('user_id')));
+      if (!isVerified(me) || String(body.path || '').split('/')[0] !== me) return refuse(route, 'portfolio captions: refused');
+      if (method === 'POST') { db.captions = [...db.captions.filter((c) => c.path !== body.path), { ...body, user_id: me }]; return send(route, 201); }
+      if (method === 'DELETE') { db.captions = db.captions.filter((c) => !(c.path === eq('path') && c.user_id === me)); return route.fulfill({ status: 204, headers: cors }); }
+    }
+    if (path === '/rest/v1/rpc/wallet_decide' && method === 'POST') {
+      const t = (db.wallet || []).find((x) => x.id === body.p_id && x.status === 'pending');
+      if (!t || (body.p_status === 'cancelled' ? t.user_id !== me : !admin)) return refuse(route, 'wallet_decide: refused');
+      t.status = body.p_status; t.decided_at = new Date().toISOString();
+      return send(route, 200, t);
+    }
     if (path === '/rest/v1/verified_contractors') {
       const all = me ? db.applications.filter((a) => a.status === 'verified' && a.user_id).map((a) => { const p = db.profiles.find((x) => x.id === a.user_id) || {}; const theirs = (db.reviews || []).filter((r) => r.contractor_id === a.user_id);
         return { user_id: a.user_id, company: a.company, city: p.city || a.city, trades: p.trades || a.trades, since: '2026-09-21', rating: theirs.length ? theirs.reduce((t, r) => t + r.stars, 0) / theirs.length : null, reviews: theirs.length, done: db.projects.filter((x) => x.contractor_id === a.user_id && x.status === 'completed').length, bio: p.about || null }; }) : [];
       return rows(all.filter((c) => !eq('user_id') || c.user_id === eq('user_id')));
     }
     if (path === '/rest/v1/contractor_reviews') return rows(me ? (db.reviews || []).filter((r) => r.contractor_id === eq('contractor_id')).map((r) => ({ contractor_id: r.contractor_id, stars: r.stars, body: r.body, created_at: r.created_at, reviewer: String(db.profiles.find((p) => p.id === r.homeowner_id)?.full_name || '').split(' ')[0] })) : []);
-    if (path === '/rest/v1/wallet_txns') return rows((db.wallet || []).filter((t) => admin || t.user_id === me));
+    if (path === '/rest/v1/wallet_txns') return rows((db.wallet || []).filter((t) => (admin || t.user_id === me) && (!eq('status') || t.status === eq('status'))));
     if (path === '/rest/v1/payout_accounts') {
       if (method === 'GET') return rows((db.payouts || []).filter((a) => a.user_id === me));
       if (!db.paymentsLive || !db.profiles.some((p) => p.id === me && p.role === 'contractor') || !/^SA\d{22}$/.test(body.iban || '') || 'user_id' in body) return refuse(route, 'payout_accounts: refused');

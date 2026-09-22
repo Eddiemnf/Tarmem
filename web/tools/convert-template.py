@@ -423,6 +423,9 @@ outside the public site, so the demo stays identical to the design."""
 LAUNCH_INSERTS = {
     "section:ph": ("<LaunchNotice vm={vm} home />", "import LaunchNotice from '../launch/LaunchNotice';"),
     "ph-ctas": ("<HeroJoinLink vm={vm} />", "import HeroJoinLink from '../launch/HeroJoinLink';"),
+    # real accounts (src/platform/): a contractor manages their portfolio photos; the team confirms wallet requests
+    "own-work": ("<PortfolioManager vm={vm} />", "import PortfolioManager from '../platform/PortfolioManager';"),
+    "pay-table": ("<WalletRequests vm={vm} />", "import WalletRequests from '../platform/WalletRequests';"),
 }
 _launch_inserts_applied: set[str] = set()
 

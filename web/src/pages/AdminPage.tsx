@@ -3,6 +3,7 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import WalletRequests from '../platform/WalletRequests';
 
 export default function AdminPage({ vm }: { vm: VM }) {
   return (<>
@@ -566,12 +567,12 @@ export default function AdminPage({ vm }: { vm: VM }) {
     {vm.atab.payments ? (<>
           <h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464' }}>{vm.t.admin.payments}</h1>
           <p style={{ color: '#5B5A7A', maxWidth: '60ch', margin: '8px 0 24px' }}>{vm.t.admin.paySub}</p>
-          <div className="card" style={{ padding: '8px' }}><table className="table"><thead><tr><th>{vm.t.project}</th><th>{vm.t.ws.milestone}</th><th>{vm.t.ws.amount}</th><th>{vm.t.status}</th></tr></thead>
+          <div className="card pay-table" style={{ padding: '8px' }}><table className="table"><thead><tr><th>{vm.t.project}</th><th>{vm.t.ws.milestone}</th><th>{vm.t.ws.amount}</th><th>{vm.t.status}</th></tr></thead>
             <tbody>
       {((vm.payRows) || []).map((p: any, _i0: number) => (
         <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}>{p.project}</td><td>{p.ms}</td><td className="num">{vm.curPre}{p.amount}{vm.curPost}</td><td><span className={`tag ${p.cls}`}>{p.status}</span></td></tr></React.Fragment>
       ))}
-      </tbody></table></div>
+      </tbody></table></div><WalletRequests vm={vm} />
         </>) : null}
     
         

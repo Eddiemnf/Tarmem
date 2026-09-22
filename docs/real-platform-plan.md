@@ -261,3 +261,20 @@ alerts with no tab open, automatic WhatsApp on approval (needs the WhatsApp Busi
   **Before switching on**: the bank-transfer details the design shows for deposits (escrow IBAN, bank, beneficiary, reference)
   are the design's placeholders and must be replaced with the payment partner's real account; the provider integration that
   actually takes and releases money is still to be written against that partner's API.
+
+## Emails to customers and contractors, portfolios, and the wallet-approval screen — 22 September 2026
+
+- **`supabase/010_customer_emails.sql`** (21 local checks). The database emails, the moment it happens: a posted project → its
+  owner; a bid → the owner (settings: bids); the owner's signature → the chosen contractor ("review and sign"); the
+  counter-signature → the owner ("awarded"); a verified application → the contractor ("sign in"); a contact message with an
+  email → a receipt (once a day per address); a stage moving → the other party (settings: stages; only once payments are
+  live). In the person's language; nobody's contact details ever appear in somebody else's email; every send in `email_log`;
+  at most 20 an hour per address; a failure never blocks the action. The team's own bid alert now names the project and company.
+- **`supabase/011_portfolio.sql`** (11 local checks). A second, public bucket `portfolio`: a verified contractor adds up to
+  12 photos of their work under their own id (8 MB, images only), captions them, removes their own; nobody touches anyone
+  else's. The design's "own work" grid on the profile shows them; the uploader sits under it, only for the profile's owner.
+- **The wallet-approval screen**: under the admin console's payments table, every deposit or payout awaiting confirmation,
+  with who asked and which project; Confirm / Reject call `wallet_decide`. It exists only while payments are live.
+- Two class markers were added to the design file for the inserts (`own-work`, `pay-table`): docs/design-changes-to-mirror.md.
+
+Browser test: 91 checks. Owner steps: run 010 and 011 in the SQL editor.

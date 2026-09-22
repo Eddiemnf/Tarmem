@@ -78,3 +78,52 @@ export async function fileLink(path: string): Promise<string | null> {
   if (!supabase) return null;
   try { return (await supabase.storage.from(BUCKET).createSignedUrl(path, 3600)).data?.signedUrl || null; } catch { return null; }
 }
+
+/* ---- a contractor's portfolio: photos of their own work, in a PUBLIC bucket (supabase/011) ---- */
+
+const PORTFOLIO = 'portfolio';
+export const PORTFOLIO_RULES = { maxPhotos: 12, maxBytes: 8 * 1024 * 1024, types: ['image/jpeg', 'image/png', 'image/webp'] };
+export interface PortfolioPhoto { path: string; url: string; caption: string; createdAt: string }
+
+export async function listPortfolio(userId: string): Promise<PortfolioPhoto[]> {
+  if (!supabase) return [];
+  try {
+    const [objects, captions] = await Promise.all([
+      supabase.storage.from(PORTFOLIO).list(userId, { limit: 50, sortBy: { column: 'created_at', order: 'asc' } }),
+      supabase.from('portfolio').select('path, caption').eq('user_id', userId),
+    ]);
+    const caption = new Map(((captions.data || []) as { path: string; caption: string | null }[]).map((r) => [r.path, r.caption || '']));
+    return ((objects.data || []).filter((o) => o.id)).map((o) => {
+      const path = `${userId}/${o.name}`;
+      return { path, url: supabase!.storage.from(PORTFOLIO).getPublicUrl(path).data.publicUrl, caption: caption.get(path) || '', createdAt: o.created_at || '' };
+    });
+  } catch { return []; }
+}
+
+export async function addPortfolioPhoto(userId: string, file: File, caption: string, n = 0): Promise<boolean> {
+  if (!supabase) return false;
+  const path = `${userId}/${keyFor(file.name || 'photo.jpg', n)}`;
+  try {
+    const up = await supabase.storage.from(PORTFOLIO).upload(path, file, { contentType: file.type || undefined, upsert: false });
+    if (up.error) return false;
+    await supabase.from('portfolio').insert({ path, caption: caption.trim().slice(0, 120) || null });
+    return true;
+  } catch { return false; }
+}
+
+export async function removePortfolioPhoto(path: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    await supabase.from('portfolio').delete().eq('path', path);
+    const { error } = await supabase.storage.from(PORTFOLIO).remove([path]);
+    return !error;
+  } catch { return false; }
+}
+
+export async function recaptionPortfolioPhoto(path: string, caption: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('portfolio').upsert({ path, caption: caption.trim().slice(0, 120) || null });
+    return !error;
+  } catch { return false; }
+}

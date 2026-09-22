@@ -150,7 +150,8 @@ function profileVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVa
   const when = (iso: string) => new Date(iso).toLocaleDateString(ar ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { month: 'long', year: 'numeric' });
   return {
     ...vm,
-    ...(shown && vm.prof ? { prof: { ...vm.prof, tmWork: [], ownWork: [], stats: [], moreReviews: false, reviewTotal: rows.length,
+    ...(shown && vm.prof ? { prof: { ...vm.prof, tmWork: [], stats: [], moreReviews: false, reviewTotal: rows.length,
+      ownWork: ((state.contractorPortfolio?.[shown.id] || []) as { url: string; caption: string }[]).map((p) => ({ src: p.url, caption: p.caption })),
       reviewList: rows.map((r) => ({ who: r.reviewer, when: when(r.created_at), stars: '★★★★★'.slice(0, r.stars) + '☆☆☆☆☆'.slice(0, 5 - r.stars), text: r.body })) },
       t: { ...vm.t, profile: { ...vm.t.profile, tmProjects: `${vm.t.profile.tmProjects} — ${copy.noWorkYet}`, ...(rows.length ? {} : { reviews: `${vm.t.profile.reviews} — ${copy.noReviewsYet}` }) } } } : {}),
     saveEdit: () => {

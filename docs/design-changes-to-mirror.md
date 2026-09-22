@@ -94,3 +94,12 @@ Paste-ready for Claude Design:
 
 Why: the ranges were placeholders, and the English note claimed they were "the average actually paid on similar
 projects here". Sources and method: `docs/price-guide.md`.
+
+
+## Added 22 September 2026 — two class markers, no visible change
+
+> On the contractor profile page, the grid that lists `prof.ownWork` gets `class="own-work"`. In the admin console's
+> payments tab, the card holding the payments table gets `class="card pay-table"`.
+
+Why: the public site inserts its own pieces after those two elements (the contractor's photo uploader, and the team's
+list of wallet requests awaiting confirmation). Nothing renders differently in the design.

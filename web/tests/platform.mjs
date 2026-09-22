@@ -446,6 +446,12 @@ await page.locator('[name="bio"]').first().fill('نُنفّذ المطابخ و�
 await page.locator('button', { hasText: 'حفظ' }).last().click();
 await settle(900);
 check('their introduction, city and trades are saved, and show on the profile', String(db.profiles.find((p) => p.id === coUser.id).about).includes('بطاقم خاص') && (await page.locator('main', { hasText: 'بطاقم خاص' }).count()) === 1 && db.refused.length === 0, db.refused.join('; '));
+// J5 — the contractor's portfolio: real photos of their work on the public profile
+await page.locator('#pf-caption').fill('مطبخ في حي العارض، 2026');
+await page.locator('label.btn input[type="file"][accept*="image"]').setInputFiles({ name: 'kitchen.png', mimeType: 'image/png', buffer: PNG });
+await settle(900);
+check('the contractor adds a portfolio photo with a caption, into their own folder of the public bucket', db.portfolio.length === 1 && db.portfolio[0].path.startsWith(coUser.id + '/') && db.captions[0]?.caption === 'مطبخ في حي العارض، 2026' && db.refused.length === 0, db.refused.join('; ') || JSON.stringify(db.portfolio));
+check('…and it shows in the design\'s "own work" grid', (await page.locator('main figure img[src*="/portfolio/"]').count()) === 1 && (await page.locator('main figcaption', { hasText: 'حي العارض' }).count()) === 1);
 await open('wallet');
 await page.locator('button', { hasText: /إضافة حساب|أضف حساب|حساب بنكي|تعديل/ }).first().click().catch(() => undefined);
 await settle(300);
@@ -459,6 +465,31 @@ db.paymentsLive = false;
 await open('wallet');
 check('with payments off, there is no wallet to open', (await pathname()) === '/contractor' && (await page.locator('[data-route="wallet"]').count()) === 0, await pathname());
 await signInAs('sara@example.com', 'long-enough-1');
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="bids"]').click();
+await settle(300);
+await page.locator('main [data-route="contractor"]').first().click();
+await settle(900);
+check('the homeowner sees the contractor\'s portfolio photo on their profile — and no uploader', (await page.locator('main figure img[src*="/portfolio/"]').count()) === 1 && (await page.locator('#pf-caption').count()) === 0);
+
+// J6 — the team's wallet-approval screen, only while payments are switched on
+db.paymentsLive = true;
+db.wallet = [{ id: 7, user_id: db.users[0].id, project_id: db.projects.find((p) => p.code === 'P-9001').id, type: 'deposit', method: 'mada', amount: 24000, status: 'pending', created_at: new Date().toISOString() }];
+db.profiles[0].role = 'admin';
+await open('admin');
+await page.locator('.side[data-tab="payments"]').click();
+await settle(900);
+check('with payments on, the admin\'s payments tab lists the deposit awaiting confirmation, with who and which project', (await page.locator('main', { hasText: 'طلبات بانتظار التأكيد' }).count()) === 1 && (await page.locator('main', { hasText: 'سارة العتيبي' }).count()) === 1 && (await page.locator('main', { hasText: 'P-9001' }).count()) === 1);
+await page.locator('button', { hasText: 'تأكيد الوصول' }).first().click();
+await settle(700);
+check('…and confirming it records the money as received', db.wallet[0].status === 'confirmed' && (await page.locator('text=لا طلبات بانتظار التأكيد').count()) === 1, db.wallet[0].status);
+db.paymentsLive = false;
+await open('admin');
+await page.locator('.side[data-tab="payments"]').click();
+await settle(500);
+check('with payments off, that section does not exist', (await page.locator('main', { hasText: 'طلبات بانتظار التأكيد' }).count()) === 0);
+db.profiles[0].role = 'homeowner';
+await open('dashboard');
 
 // K — a forgotten password
 await page.locator('button.acct').click();

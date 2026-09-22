@@ -11,7 +11,7 @@ import { PLATFORM_COPY } from './copy';
 import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleList, setApplicationStatus, setMessageHandled } from './admin';
 import { openWhatsAppTo } from '../launch/deliver';
 import { contractorRecord, runtimeData, setEveryone, toLogicProject } from './data';
-import { forgetHeldFiles, heldFile, listFiles, uploadFile, type StoredFile } from './files';
+import { forgetHeldFiles, heldFile, listFiles, listPortfolio, uploadFile, type StoredFile } from './files';
 import { createProject, currentAccount, loadContractorReviews, onAccountChange, refreshAccount, saveBid, savePayoutAccount, saveReview, sendContact, signAgreement, walletRequest, withdrawProject, type AgreementRow, type BidRow } from './session';
 import { trackRoutes } from './track';
 
@@ -85,6 +85,11 @@ export async function uploadToProject(host: LogicHost, projectCode: string, file
   const stored = await uploadFile(owner, project.dbId, file, project.files.length);
   const row = stored ? fileRow(stored) : { name: `⚠ ${file.name} — ${copy.uploadFailed}`, by: 'h', date: both(''), failed: true };
   host.setLogicState((s) => ({ projects: (s.projects as LogicState[]).map((p) => (p.id === projectCode ? { ...p, files: [...p.files.filter((f: LogicState) => !f.failed), row] } : p)) }));
+}
+
+/** Read a contractor's portfolio into the logic's state (the profile page and its uploader both use this). */
+export function reloadPortfolio(host: LogicHost, id: string, userId: string): void {
+  void listPortfolio(userId).then((photos) => host.setLogicState((s) => ({ contractorPortfolio: { ...(s.contractorPortfolio || {}), [id]: photos } })));
 }
 
 export function bindPlatform(host: LogicHost, initialPost: LogicState): () => void {
@@ -278,7 +283,7 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     }
   };
 
-  // A contractor's profile page shows real reviews: read when the page is opened.
+  // A contractor's profile page shows real reviews and real portfolio photos: read when the page is opened.
   let reviewsFor = '';
   const loadProfileReviews = () => {
     const s = host.logic.state;
@@ -286,6 +291,7 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     if (!shown?.userId || reviewsFor === shown.userId) return;
     reviewsFor = shown.userId;
     void loadContractorReviews(shown.userId).then((rows) => put({ contractorReviews: { ...(host.logic.state.contractorReviews || {}), [shown.id]: rows } }));
+    reloadPortfolio(host, shown.id, shown.userId);
   };
 
   // The design signs an agreement in memory. Each signature is asked of the database; if it refuses, the truth is loaded back.

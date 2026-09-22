@@ -315,6 +315,26 @@ export async function walletRequest(type: 'deposit' | 'payout', amount: number, 
     return error ? { error: failure(error) } : { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }
+export interface WalletRequest extends WalletTxn { person: string; role: string; code: string | null }
+
+/** Every deposit or payout still waiting for confirmation, with who asked. The database returns these rows only to an admin. */
+export async function loadWalletRequests(): Promise<WalletRequest[]> {
+  if (!supabase) return [];
+  try {
+    const { data } = await supabase.from('wallet_txns').select('*').eq('status', 'pending').order('created_at', { ascending: true }).limit(200);
+    const rows = (data as WalletTxn[]) || [];
+    if (!rows.length) return [];
+    const ids = [...new Set(rows.map((r) => r.user_id))];
+    const [people, projects] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, company, role').in('id', ids),
+      supabase.from('projects').select('id, code').in('id', rows.map((r) => r.project_id).filter(Boolean) as string[]),
+    ]);
+    const who = new Map(((people.data || []) as { id: string; full_name: string; company: string | null; role: string }[]).map((p) => [p.id, p]));
+    const codes = new Map(((projects.data || []) as { id: string; code: string }[]).map((p) => [p.id, p.code]));
+    return rows.map((r) => ({ ...r, person: who.get(r.user_id)?.company || who.get(r.user_id)?.full_name || '—', role: who.get(r.user_id)?.role || '', code: r.project_id ? codes.get(r.project_id) || null : null }));
+  } catch { return []; }
+}
+
 export async function walletDecide(id: number, status: 'cancelled' | 'confirmed' | 'paid' | 'rejected'): Promise<Result> {
   if (!supabase) return { error: 'generic' };
   const { error } = await supabase.rpc('wallet_decide', { p_id: id, p_status: status });
