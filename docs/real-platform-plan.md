@@ -360,3 +360,9 @@ Meta's answers to the submission are in `net._http_response`. If Meta's reply sa
 "Generate token" has messaging rights only, and a system-user token with `whatsapp_business_management` is needed — or the
 nine templates are typed in by hand from `wa_template_specs()`.
 
+**015 (same night):** the first submission never reached Meta — pg_net logged "A libcurl function was given a bad argument"
+with no status code. Cause: the switch-on block trimmed spaces around the pasted token, and `trim()` leaves line breaks alone,
+so the stored token carried the line's newline and libcurl refused the Authorization header. `015_secret_whitespace.sql` strips
+whitespace from the stored secrets, makes `set_whatsapp` strip and validate (`^[A-Za-z0-9]{40,}$`), and resubmits the templates.
+Lesson for every pasted secret: strip `\s`, then validate the shape; `set_alerts` already did (its regex would have refused).
+

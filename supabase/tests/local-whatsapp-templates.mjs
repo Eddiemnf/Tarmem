@@ -117,6 +117,14 @@ check('at 23:30 the bid waits in the queue with its specifics', (await lastLog()
 await db.exec(morning);
 check('at 08:05 it goes out as the right template with them', (await rows(`select public.wa_flush() n`))[0].n === 1 && (await lastWa()).body.template.name === 'tarmem_new_bid' && (await lastWa()).body.template.components[0].parameters[1].text === 'Other Co' && (await rows(`select count(*)::int n from public.sent where to_addr like 'wa:%'`))[0].n === before + 1);
 
+// 015: a token pasted with its line break
+await db.exec(`reset role; update public.app_secrets set value = E'\\nEAAtestTOKENxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\n' where key = 'wa_token'`);
+await db.exec(readFileSync(repo + '015_secret_whitespace.sql', 'utf8'));
+check('015 strips the line break a paste left on the stored token, and resubmits the templates', (await rows(`select value from public.app_secrets where key = 'wa_token'`))[0].value === 'EAAtestTOKENxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' && (await rows(`select count(*)::int n from public.sent where to_addr like 'meta:%'`))[0].n === 54);
+await db.exec(`select public.set_whatsapp(E'\\n EAAtestTOKENyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy \\n', E' 1377051788817873\\n', 'x')`);
+check('…set_whatsapp now stores a pasted token clean, whatever surrounds it', (await rows(`select value from public.app_secrets where key = 'wa_token'`))[0].value === 'EAAtestTOKENyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy' && (await rows(`select value from public.app_secrets where key = 'wa_phone_id'`))[0].value === '1377051788817873');
+check('…and refuses anything that is not letters and digits', /does not look like/.test(await fails(`select public.set_whatsapp('EAA-bad/token+with*punctuation=======================', '1377051788817873', 'x')`)));
+
 console.log(results.join('\n'));
 const failed = results.filter((r) => r.startsWith('FAIL')).length;
 console.log(`\n${results.length - failed}/${results.length} passed`);
