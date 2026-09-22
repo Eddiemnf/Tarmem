@@ -59,12 +59,20 @@ select public.set_alerts('re_KEY', 'Tarmem <alerts@tarmem.sa>', 'a@tarmem.sa,b@t
   built-in limit of a few an hour: Supabase → **Authentication → Emails → SMTP settings**, with Resend's
   SMTP host, port 465, user `resend`, password = the same key.
 
-## WhatsApp, later
+## WhatsApp, switched on 22 September 2026
 
-The WhatsApp Business **app** on a phone cannot be automated; the **API** (Meta → WhatsApp → API Setup) can.
-Once it is set up — a Meta business account, a verified number, and a message template with one variable
-approved by Meta — the same `send_alert` function can post to it alongside the email. That API is also what
-would let **Approve** tell a contractor their account is live without anyone pressing send.
+The WhatsApp Business **app** on a phone cannot be automated; the **API** can, and now does (`supabase/012_whatsapp.sql`).
+Meta side, all done by the owner: business portfolio *Tarmem*, a WhatsApp app, the number **+966 53 450 7400** (a new SIM; the
+main number 053 037 3026 stays on the WhatsApp Business app — a number can live in one place only), registered with a 6-digit
+PIN the owner keeps, phone number ID `1377051788817873`, WhatsApp Business account `2162520270999056`, a permanent token
+from the API Setup page's *Generate token*, and the template `tarmem_update` (Utility) submitted in Arabic and English.
+The database was switched on with `set_whatsapp(token, '1377051788817873', 'tarmem_update')`; until the templates are
+Active and a card is on the account, Meta refuses each attempt (visible in `net._http_response`) and the email still goes.
+
+Lessons: Meta's category checker reads a closing line like "the team is with you at every step" as a slogan and files the
+template as **Marketing** (five times the price, rationed per person) — written as an account update ("An update on your
+project on Tarmem: … Tap the button below to see the details in your account.") it passes as Utility. Choose the language
+"English", not "English (US)": the database asks for `en`. The owner's guide, kept current: the "Tarmem WhatsApp" artifact.
 
 ## What the first run taught us
 

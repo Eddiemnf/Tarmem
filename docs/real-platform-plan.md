@@ -313,3 +313,18 @@ For the owner (not changed): the public how / pricing / FAQ / rules pages descri
 with a payment provider as facts — true of the full product, not of early access. Worth a sentence per page, or a
 lawyer's pass, before real volume. The JS bundle is one 303 kB (gzipped) file; splitting the admin console out would
 trim a visitor's first load, at some risk to the generated-page architecture — left as is.
+
+## WhatsApp switched on — 22 September 2026
+
+Done live with the owner, screen by screen, in Safari (Chrome is not connected; Safari is view-only for Claude): a new
+SIM **+966 53 450 7400** registered on Meta's Cloud API (PIN kept by the owner), a permanent token pasted by the owner into
+the SQL editor (`set_whatsapp`, phone number ID `1377051788817873`), and `tarmem_update` submitted in Arabic and English.
+Meta's category checker rejected the first wording as Marketing because of the closing slogan; the template now reads as an
+account update (the exact texts are in `supabase/012_whatsapp.sql`'s header and the owner's guide). Still the owner's:
+a card on the WhatsApp account (Meta refuses business-initiated messages without one), business verification (Security Center),
+and re-running 012 once — the copy in the database calls Graph API v21.0, which Meta retires around October 2026; the file
+says v25.0. Then a real test: post a project from an account whose mobile is the owner's number.
+
+Still to do on the site once messages flow: a WhatsApp switch on the settings page (the email switches already apply to
+WhatsApp), a line in the Terms, and later a receiver for replies.
+

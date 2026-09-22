@@ -5,15 +5,22 @@
 -- Safe to run more than once. Needs 001–011 to have been run first.
 --
 -- Every update the database emails (010) it can also send to the person's WhatsApp, through Meta's
--- official Cloud API, using one approved message template with two lines and a button:
+-- official Cloud API, using one approved message template (category Utility, submitted 22 Sept 2026 in
+-- Arabic and English) with two variables and a button:
 --
+--     تحديث على مشروعك في منصة ترميم:
 --     {{1}}                       e.g.  عرض جديد على مشروعك P-2005
 --     {{2}}                       e.g.  مؤسسة البناء المتقن قدّم عرضًا بقيمة 52,000 ريال خلال 30 يوم.
+--     اضغط على الزر أدناه لعرض التفاصيل في حسابك.
 --     [ افتح ]  → https://www.tarmem.sa/{{1}}
 --
--- Nothing is sent until the three settings exist. AFTER Meta's setup, one line in this editor:
+-- (A closing line that read like a slogan made Meta's checker file it as Marketing — five times the price.)
+-- Nothing is sent until the three settings exist. AFTER Meta's setup, in this editor, with the token on its
+-- own line (triple-click the line, paste; never a partial selection):
 --
---   select public.set_whatsapp('YOUR_PERMANENT_TOKEN', 'YOUR_PHONE_NUMBER_ID', 'tarmem_update');
+--   select public.set_whatsapp(trim(both from $t$
+--   PASTE-THE-TOKEN-ON-THIS-LINE
+--   $t$), 'YOUR_PHONE_NUMBER_ID', 'tarmem_update');
 --
 -- To stop:  select public.set_whatsapp(null, null, null);   Log: public.email_log (channel = 'whatsapp').
 -- The token lives in app_secrets, which nothing on the website can read. Messages go only to people
