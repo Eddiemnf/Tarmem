@@ -1,34 +1,39 @@
 -- =======================================================================================
--- Tarmem — 016: two templates reworded for Meta's Arabic checker, resubmitted under new names
+-- Tarmem — 016: the five templates Meta's Arabic checker re-filed, reworded and resubmitted
 --
 -- HOW TO RUN: Supabase → SQL Editor → paste this whole file → Run. Safe to run more than once
--- (a second run re-submits the two; Meta answers "already exists", which is harmless).
+-- (a second run re-submits; Meta answers "already exists" for what it has, which is harmless).
 --
--- Of the eighteen submitted by 014, Meta filed two Arabic ones as Marketing: "project posted" (its second
--- sentence read like a pitch for the service) and the test message (nothing tied it to an account). Both are
--- reworded as a confirmation of the person's own transaction — "confirmation… status: open for bids", and
--- "the WhatsApp number {{1}} linked to your account is confirmed" — and resubmitted in both languages under
--- new names (a Meta template name cannot be reused for a while once deleted). The old two are deleted.
+-- Of the eighteen submitted by 014, Meta filed five Arabic ones as Marketing (project posted, new bid,
+-- account verified, agreement signed) and the test message in both languages. The pattern: the Arabic word
+-- عرض/عروض means both "bid" and "promotional offer", so "عرض جديد" reads as "new offer" and "تقديم عروضك"
+-- as "make offers"; every flagged Arabic template had it, every Arabic one that passed did not. The test
+-- message referred to no account or transaction at all.
+--
+-- Reworded here: عطاء (tender) instead of عرض, and the status wording Meta's utility rules describe
+-- ("confirmation", "status: open for bids", "account status: verified"), for both languages, under new
+-- names (a Meta template name cannot be reused once deleted). The old five are deleted, the new five
+-- submitted. The four Arabic templates that passed are untouched.
 -- =======================================================================================
 
 create or replace function public.wa_template_specs() returns jsonb
 language sql immutable as $$
 select jsonb_build_array(
   jsonb_build_object('event', 'project_posted', 'name', 'tarmem_project_posted_2',
-    'ar', jsonb_build_object('body', 'تأكيد نشر مشروعك رقم {{1}} في ترميم: «{{2}}». حالة المشروع الآن: مفتوح لاستقبال العروض، وتصلك رسالة عند وصول كل عرض.', 'samples', jsonb_build_array('P-2001', 'تجديد مطبخ 4×5'), 'button', 'افتح المشروع', 'path', 'project/P-2001'),
+    'ar', jsonb_build_object('body', 'تأكيد نشر مشروعك رقم {{1}} في ترميم: «{{2}}». حالة المشروع الآن: مفتوح لاستقبال العطاءات. تصلك رسالة عند وصول كل عطاء.', 'samples', jsonb_build_array('P-2001', 'تجديد مطبخ 4×5'), 'button', 'افتح المشروع', 'path', 'project/P-2001'),
     'en', jsonb_build_object('body', 'Confirmation: your project {{1}} is posted on Tarmem: {{2}}. Its status is now open for bids, and you get a message when each bid arrives.', 'samples', jsonb_build_array('P-2001', 'Kitchen renovation 4x5'), 'button', 'Open the project', 'path', 'project/P-2001')),
-  jsonb_build_object('event', 'new_bid',
-    'ar', jsonb_build_object('body', 'عرض جديد على مشروعك {{1}} في ترميم: قدّم {{2}} عرضًا بقيمة {{3}} ريال خلال {{4}} يوم. قارن العروض واقبل ما يناسبك حين تكون جاهزًا.', 'samples', jsonb_build_array('P-2001', 'مؤسسة البناء المتقن', '52,000', '30'), 'button', 'قارن العروض', 'path', 'project/P-2001'),
-    'en', jsonb_build_object('body', 'New bid on your project {{1}} on Tarmem: {{2}} bid SAR {{3}} for {{4}} days. Compare the bids and accept one when you are ready.', 'samples', jsonb_build_array('P-2001', 'Build Co', '52,000', '30'), 'button', 'Compare the bids', 'path', 'project/P-2001')),
+  jsonb_build_object('event', 'new_bid', 'name', 'tarmem_new_bid_2',
+    'ar', jsonb_build_object('body', 'تحديث على مشروعك رقم {{1}} في ترميم: وصل عطاء جديد من {{2}} بقيمة {{3}} ريال ومدة تنفيذ {{4}} يوم. تفاصيل العطاء وباقي العطاءات في صفحة المشروع.', 'samples', jsonb_build_array('P-2001', 'مؤسسة البناء المتقن', '52,000', '30'), 'button', 'افتح المشروع', 'path', 'project/P-2001'),
+    'en', jsonb_build_object('body', 'Update on your project {{1}} on Tarmem: a new bid arrived from {{2}}, SAR {{3}}, {{4}} days. The details and the other bids are on the project page.', 'samples', jsonb_build_array('P-2001', 'Build Co', '52,000', '30'), 'button', 'Open the project', 'path', 'project/P-2001')),
   jsonb_build_object('event', 'agreement_accepted',
     'ar', jsonb_build_object('body', 'اختار صاحب المنزل عرضك على المشروع {{1}} في ترميم بقيمة {{2}} ريال. راجع الاتفاقية ووقّعها؛ يُسند المشروع إليك فور توقيعك.', 'samples', jsonb_build_array('P-2001', '52,000'), 'button', 'راجع الاتفاقية', 'path', 'project/P-2001'),
     'en', jsonb_build_object('body', 'The homeowner accepted your bid on project {{1}} on Tarmem, SAR {{2}}. Review and sign the agreement; the project is awarded to you the moment you do.', 'samples', jsonb_build_array('P-2001', '52,000'), 'button', 'Review the agreement', 'path', 'project/P-2001')),
-  jsonb_build_object('event', 'agreement_signed',
-    'ar', jsonb_build_object('body', 'وقّع المقاول الاتفاقية: أُسند مشروعك {{1}} في ترميم إلى {{2}} بمبلغ {{3}} ريال. يتواصل معكما فريق ترميم لترتيب الدفعة الأولى وموعد البدء.', 'samples', jsonb_build_array('P-2001', 'مؤسسة البناء المتقن', '52,000'), 'button', 'افتح المشروع', 'path', 'project/P-2001'),
-    'en', jsonb_build_object('body', 'The contractor signed: your project {{1}} on Tarmem is awarded to {{2}} for SAR {{3}}. The Tarmem team will contact you both to arrange the first payment and the start date.', 'samples', jsonb_build_array('P-2001', 'Build Co', '52,000'), 'button', 'Open the project', 'path', 'project/P-2001')),
-  jsonb_build_object('event', 'application_verified',
-    'ar', jsonb_build_object('body', 'تم توثيق حساب «{{1}}» في ترميم وأصبح جاهزًا للاستخدام. سجّل دخولك لتصفّح المشاريع المفتوحة وتقديم عروضك.', 'samples', jsonb_build_array('مؤسسة البناء المتقن'), 'button', 'سجّل دخولك', 'path', 'signin'),
-    'en', jsonb_build_object('body', 'Your Tarmem account for {{1}} is verified and ready to use. Sign in to browse open projects and send your bids.', 'samples', jsonb_build_array('Build Co'), 'button', 'Sign in', 'path', 'signin')),
+  jsonb_build_object('event', 'agreement_signed', 'name', 'tarmem_agreement_signed_2',
+    'ar', jsonb_build_object('body', 'وقّع المقاول الاتفاقية. حالة مشروعك رقم {{1}} في ترميم الآن: مُسند إلى {{2}} بمبلغ {{3}} ريال. الخطوة التالية: يتواصل معكما فريق ترميم لتحديد موعد البدء.', 'samples', jsonb_build_array('P-2001', 'مؤسسة البناء المتقن', '52,000'), 'button', 'افتح المشروع', 'path', 'project/P-2001'),
+    'en', jsonb_build_object('body', 'The contractor signed the agreement. Status of your project {{1}} on Tarmem: awarded to {{2}} for SAR {{3}}. Next step: the Tarmem team contacts you both to set the start date.', 'samples', jsonb_build_array('P-2001', 'Build Co', '52,000'), 'button', 'Open the project', 'path', 'project/P-2001')),
+  jsonb_build_object('event', 'application_verified', 'name', 'tarmem_application_verified_2',
+    'ar', jsonb_build_object('body', 'تم توثيق حساب «{{1}}» في ترميم. حالة الحساب الآن: موثّق ومفعّل. سجّل دخولك بالبريد وكلمة المرور اللذين أنشأتهما.', 'samples', jsonb_build_array('مؤسسة البناء المتقن'), 'button', 'سجّل دخولك', 'path', 'signin'),
+    'en', jsonb_build_object('body', 'Your Tarmem account for {{1}} is verified. Account status: verified and active. Sign in with the email and password you created.', 'samples', jsonb_build_array('Build Co'), 'button', 'Sign in', 'path', 'signin')),
   jsonb_build_object('event', 'stage_submitted',
     'ar', jsonb_build_object('body', 'المرحلة {{1}} من مشروعك {{2}} في ترميم بانتظار اعتمادك: قدّم المقاول صور العمل والفيديو. راجع العمل واعتمد المرحلة، أو سجّل ملاحظة.', 'samples', jsonb_build_array('1', 'P-2001'), 'button', 'راجع المرحلة', 'path', 'project/P-2001'),
     'en', jsonb_build_object('body', 'Stage {{1}} of your project {{2}} on Tarmem is ready for your approval: the contractor submitted photos and a video of the work. Review it and approve the stage, or raise an issue.', 'samples', jsonb_build_array('1', 'P-2001'), 'button', 'Review the stage', 'path', 'project/P-2001')),
@@ -137,7 +142,10 @@ $$;
 revoke all on function public.whatsapp_test() from public, anon;
 grant execute on function public.whatsapp_test() to authenticated;
 
--- out with the two Meta filed as Marketing, in with their rewording
+-- out with the five Meta re-filed, in with their rewording
 select public.wa_delete_template('tarmem_project_posted');
+select public.wa_delete_template('tarmem_new_bid');
+select public.wa_delete_template('tarmem_application_verified');
+select public.wa_delete_template('tarmem_agreement_signed');
 select public.wa_delete_template('tarmem_wa_test');
-select public.wa_submit_templates(p_events := array['project_posted', 'wa_test']);
+select public.wa_submit_templates(p_events := array['project_posted', 'new_bid', 'application_verified', 'agreement_signed', 'wa_test']);
