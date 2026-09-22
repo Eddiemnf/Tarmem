@@ -1,5 +1,7 @@
 -- =======================================================================================
 -- Tarmem — 012: the same updates on WhatsApp (built now, switched OFF until Meta's API is set up)
+-- (The single generic template described here was filed as Marketing by Meta; 014 replaces it with one
+--  template per event, submitted by the database itself. 012 still installs the channel and the switch.)
 --
 -- HOW TO RUN: Supabase → SQL Editor → paste this whole file → Run ("Run without RLS" if asked).
 -- Safe to run more than once. Needs 001–011 to have been run first.

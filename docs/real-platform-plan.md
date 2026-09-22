@@ -345,3 +345,18 @@ file; Vite then served those stale copies and every browser test failed in ways 
 
 Owner steps: run 013; the card appears on /settings for every signed-in person the moment the templates are Active.
 
+## One WhatsApp template per event, submitted by the database — 22 September 2026
+
+Meta's classifier moved both `tarmem_update` templates from Utility to Marketing ("did not meet our utility guidelines"):
+a body that is almost entirely variables reads as a blank cheque. `supabase/014_whatsapp_templates.sql` (22 local checks in
+`supabase/tests/local-whatsapp-templates.mjs`) defines nine templates that name their event in fixed words — project posted,
+new bid, bid accepted, agreement signed, account verified, stage submitted / released / disputed, and the test message — in
+Arabic and English (`wa_template_specs()`), and `wa_submit_templates()` posts all eighteen to Meta's template API through
+pg_net with the stored token, as Utility with `allow_category_change: false` (a mismatch now rejects instead of silently
+re-filing). The last line of 014 runs it. Sending changed with it: `send_whatsapp(mobile, lang, event, params[], path)`,
+and `notify_people` passes the specifics (code, company, amount, days…); the Meta template is `tarmem_<event>`. Quiet hours,
+the channel choice, the throttle and the test button are unchanged; `wa_delete_template('tarmem_update')` removes the old pair.
+Meta's answers to the submission are in `net._http_response`. If Meta's reply says the token lacks permission, the token from
+"Generate token" has messaging rights only, and a system-user token with `whatsapp_business_management` is needed — or the
+nine templates are typed in by hand from `wa_template_specs()`.
+
