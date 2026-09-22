@@ -125,6 +125,26 @@ await db.exec(`select public.set_whatsapp(E'\\n EAAtestTOKENyyyyyyyyyyyyyyyyyyyy
 check('…set_whatsapp now stores a pasted token clean, whatever surrounds it', (await rows(`select value from public.app_secrets where key = 'wa_token'`))[0].value === 'EAAtestTOKENyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy' && (await rows(`select value from public.app_secrets where key = 'wa_phone_id'`))[0].value === '1377051788817873');
 check('…and refuses anything that is not letters and digits', /does not look like/.test(await fails(`select public.set_whatsapp('EAA-bad/token+with*punctuation=======================', '1377051788817873', 'x')`)));
 
+// 016: two reworded, under new names, submitted alone
+await db.exec(readFileSync(repo + '016_two_templates_reworded.sql', 'utf8'));
+{
+  const after = await rows(`select * from public.sent where to_addr like 'meta:%' order by id desc limit 4`);
+  check('016 submits only the two reworded events, both languages, under their new names', after.length === 4 && after.every((r) => ['tarmem_project_posted_2', 'tarmem_wa_test_2'].includes(r.subject)) && (await rows(`select count(*)::int n from public.sent where to_addr like 'meta:%'`))[0].n === 58, after.map((r) => r.subject).join(','));
+  check('…and asked Meta to delete the two it re-filed', (await rows(`select count(*)::int n from public.sent where to_addr in ('delete:https://graph.facebook.com/v25.0/2162520270999056/message_templates?name=tarmem_project_posted', 'delete:https://graph.facebook.com/v25.0/2162520270999056/message_templates?name=tarmem_wa_test')`))[0].n === 2);
+  const spec = (await rows(`select public.wa_template_specs() s`))[0].s.find((x) => x.event === 'wa_test');
+  check('the test message now carries the confirmed number as its one variable', spec.ar.samples.length === 1 && /\{\{1\}\}/.test(spec.ar.body) && /confirmed/.test(spec.en.body));
+  await db.exec(day);
+  await as('authenticated', HO);
+  await db.exec(`insert into public.projects (title, trade, description, city, budget_min, budget_max, timing) values ('حمام','kitchen','بلاط','riyadh',10000,20000,'month')`);
+  const m1 = await lastWa();
+  check('a posted project is now sent with the reworded template\u2019s name', m1?.body.template.name === 'tarmem_project_posted_2' && m1.body.template.components[0].parameters[1].text === 'حمام');
+  await as('authenticated', HOEN);
+  await db.exec(`update public.profiles set mobile = '0522222222' where id = '${HOEN}'`);
+  await db.exec(`select public.whatsapp_test()`);
+  const m2 = await lastWa();
+  check('…and the test message with the pretty number and the settings button', m2?.body.template.name === 'tarmem_wa_test_2' && m2.body.template.components[0].parameters[0].text === '+966 52 222 2222' && m2.body.template.components[1].parameters[0].text === 'settings', JSON.stringify(m2?.body.template.components));
+}
+
 console.log(results.join('\n'));
 const failed = results.filter((r) => r.startsWith('FAIL')).length;
 console.log(`\n${results.length - failed}/${results.length} passed`);
