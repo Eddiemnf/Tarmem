@@ -1,5 +1,11 @@
 # Alerts when nothing is open — an email the moment something arrives
 
+**Status (22 September 2026): live.** Alerts go to support@tarmem.sa from `onboarding@resend.dev`, the Resend
+account being registered under support@tarmem.sa. Until tarmem.sa is verified in Resend that is the one address
+Resend will deliver to. Verifying the domain (section 1.2) is optional polish: it lets alerts come from
+`alerts@tarmem.sa`, removes Gmail's "External" label, and allows extra recipients — switched with one line,
+no key needed: `update public.app_secrets set value = 'Tarmem <alerts@tarmem.sa>' where key = 'alert_from';`
+
 While the admin console is open in a tab, it already counts new arrivals and can show a desktop
 notification. To be told with **nothing open at all** — phone in pocket, laptop shut — something on a
 server has to send the message. Tarmem's database does it itself: `supabase/009_alerts.sql` calls
@@ -68,3 +74,16 @@ The WhatsApp Business **app** on a phone cannot be automated; the **API** (Meta 
 Once it is set up — a Meta business account, a verified number, and a message template with one variable
 approved by Meta — the same `send_alert` function can post to it alongside the email. That API is also what
 would let **Approve** tell a contractor their account is live without anyone pressing send.
+
+## What the first run taught us
+
+- **Paste the key on its own line.** Double-clicking a placeholder like `re_YOUR_KEY_HERE` selects only part of it in
+  the SQL editor; the key was pasted after the leftover `re_YOU`, and Resend answered *API key is invalid* for a key
+  that was, underneath, correct. `set_alerts` now refuses anything that is not shaped like a Resend key.
+- **"sent" in `alert_log` means handed to pg_net, not delivered.** Resend's real answer is in
+  `select created, status_code, content from net._http_response order by created desc limit 3;` — and pg_net only
+  sends after the transaction commits, so a check in the same run as the send always shows the previous attempt.
+- **Resend's API keys page has a "Last used" column.** "No activity" on a key that should have been used means the
+  key Resend received was not that key.
+- **Copying Arabic to the clipboard from this shell needs `LC_CTYPE=en_US.UTF-8`**, or the Arabic in a pasted script
+  arrives as `ÿ±ÿ≥ÿßŸÑÿ©…`. Only 009 contains Arabic; 001–008 were unaffected.

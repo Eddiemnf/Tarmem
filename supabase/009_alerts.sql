@@ -10,7 +10,12 @@
 --
 -- AFTER running this, switch it on with your own details — one line, in this same editor:
 --
---   select public.set_alerts('re_YOUR_RESEND_KEY', 'Tarmem <alerts@tarmem.sa>', 'support@tarmem.sa');
+--   select public.set_alerts(trim(both from $key$
+--   PASTE-YOUR-KEY-ON-THIS-LINE
+--   $key$), 'Tarmem <alerts@tarmem.sa>', 'support@tarmem.sa');
+--
+--   (the key goes on its own line: triple-click the PASTE line so the whole line is highlighted, then paste —
+--    that way no fragment of the placeholder can be left behind, which is exactly what happened the first time)
 --
 -- To stop the emails:        select public.set_alerts(null, null, null);
 -- To see whether it works:   select * from public.alert_log order by at desc limit 20;
@@ -49,6 +54,10 @@ begin
   if p_key is null then
     delete from public.app_secrets where key in ('resend_key', 'alert_from', 'alert_to');
     return 'alerts are off';
+  end if;
+  -- a Resend key is re_ plus about 33 letters, digits and underscores; anything else is a paste gone wrong
+  if p_key !~ '^re_[A-Za-z0-9_]{30,45}$' then
+    raise exception 'That does not look like a Resend key (% characters). Paste it on its own line, replacing the whole PASTE line.', length(p_key);
   end if;
   insert into public.app_secrets (key, value) values ('resend_key', p_key), ('alert_from', coalesce(p_from, 'Tarmem <alerts@tarmem.sa>')), ('alert_to', coalesce(p_to, 'support@tarmem.sa'))
     on conflict (key) do update set value = excluded.value;
