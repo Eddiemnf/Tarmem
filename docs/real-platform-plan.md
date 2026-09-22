@@ -366,3 +366,11 @@ so the stored token carried the line's newline and libcurl refused the Authoriza
 whitespace from the stored secrets, makes `set_whatsapp` strip and validate (`^[A-Za-z0-9]{40,}$`), and resubmits the templates.
 Lesson for every pasted secret: strip `\s`, then validate the shape; `set_alerts` already did (its regex would have refused).
 
+**016 (same night):** Meta's Arabic checker re-filed five of the eighteen as Marketing: project posted, new bid, account verified,
+agreement signed (Arabic only) and the test message (both languages). The pattern was the word عرض/عروض — "bid" but also
+"promotional offer" — present in every flagged Arabic body and absent from every Arabic one that passed; the test message named
+no account. `016_arabic_templates_reworded.sql` rewords the five with عطاء and status wording ("confirmation", "status: open for
+bids", "account status: verified", "the number linked to your account is confirmed"), deletes the old five and resubmits them
+under `_2` names (`wa_template_name(event)` resolves the name; `wa_submit_templates(p_events)` submits a subset). All eighteen
+were accepted as Utility on submission. Lesson for Arabic utility templates: avoid عرض, name the transaction and its status.
+
