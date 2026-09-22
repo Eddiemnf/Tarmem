@@ -1,48 +1,70 @@
-# Alerts when no tab is open — email now, WhatsApp when its API is ready
+# Alerts when nothing is open — an email the moment something arrives
 
-While the admin console is open, its tab already counts new arrivals and can show a desktop notification.
-To be told with **no tab open**, something on a server has to send the message. That is the small function in
-`supabase/functions/notify/index.ts`. It holds two kinds of secret (an email key, later a WhatsApp token), which is why
-**only the owner sets it up**: they are typed into Supabase and never pass through the website, this repository, or Claude.
+While the admin console is open in a tab, it already counts new arrivals and can show a desktop
+notification. To be told with **nothing open at all** — phone in pocket, laptop shut — something on a
+server has to send the message. Tarmem's database does it itself: `supabase/009_alerts.sql` calls
+**Resend** whenever a project, a bid, a contractor application or a contact message is added.
 
-About 20 minutes, once.
+There is no function to deploy and no webhooks to fill in. The owner's part is: create a Resend
+account, verify tarmem.sa there, then paste one script and one line. About 20 minutes, once.
+The Resend key is held in a table **nothing on the website can read** — not a visitor, not a customer,
+not even an admin account. Only the SQL editor can. That is why only the owner can set it up.
 
-## 1. An email sender (Resend)
+## 1. Resend
 
-Your official mailbox receives the alerts; a sending service delivers them reliably (mailbox passwords must not be put in code).
+1. Sign up at **resend.com** (the free plan sends 3,000 emails a month — far more than Tarmem needs).
+2. **Domains → Add domain →** `tarmem.sa`. Resend shows 3–4 DNS records. Add them wherever tarmem.sa's
+   DNS lives (the same place the domain was pointed at Vercel), then press **Verify**. It can take a few
+   minutes. Sending works only once the domain says *Verified*.
+3. **API Keys → Create API key**, permission *Sending access*. Copy it (it starts `re_`) — it is shown once.
+   Paste it only into the Supabase SQL editor, never into a chat, a file, or the website.
 
-1. Create an account at **resend.com** (the free plan is enough).
-2. **Domains → Add domain →** `tarmem.sa`. It shows 3–4 DNS records. Add them where tarmem.sa's DNS is managed (the same
-   place the site's domain was pointed at Vercel), then press **Verify**.
-3. **API Keys → Create API key** (Sending access). Copy it for step 2.4 — paste it only into Supabase.
+## 2. The script
 
-The same Resend account can also replace Supabase's built-in mailer for password-reset emails
-(Supabase → Authentication → Emails → SMTP settings → Resend's SMTP details), which removes its few-emails-an-hour limit.
+Supabase → **SQL Editor** → paste all of `supabase/009_alerts.sql` → **Run** ("Run without RLS" if asked).
 
-## 2. The function
+## 3. Switch it on
 
-1. Supabase → **Edge Functions → Deploy a new function → Via editor**. Name it `notify`.
-2. Replace the editor's contents with the whole of `supabase/functions/notify/index.ts`, and press **Deploy**.
-3. In the function's **Details**, turn **off** "Verify JWT" (the webhooks identify themselves with the secret below instead).
-4. **Edge Functions → Secrets**, add:
-   - `WEBHOOK_SECRET` — any long random text (for example from a password generator). Keep it for step 3.
-   - `RESEND_API_KEY` — the key from step 1.3
-   - `ALERT_FROM` — `Tarmem <alerts@tarmem.sa>`
-   - `ALERT_TO` — the mailbox that should receive alerts, e.g. `support@tarmem.sa`
+In the same editor, one line, with the key from step 1.3 and the mailbox that should receive alerts:
 
-## 3. The four triggers
+```sql
+select public.set_alerts('re_YOUR_KEY_HERE', 'Tarmem <alerts@tarmem.sa>', 'support@tarmem.sa');
+```
 
-Supabase → **Database → Webhooks → Create a new hook**, four times — tables `projects`, `bids`,
-`contractor_applications`, `contact_messages`. For each: Events = **Insert** · Type = **Supabase Edge Functions** ·
-Function = `notify` · HTTP Headers: add `x-tarmem-secret` with the same text as `WEBHOOK_SECRET`.
+It answers `alerts are on, going to support@tarmem.sa`.
 
-Test: send a message from the site's contact form. An email titled "رسالة جديدة من …" should arrive within a minute.
-(Rows written by the security tests, named "RLS TEST", are ignored on purpose.)
+## 4. Check it
 
-## 4. WhatsApp, later
+Send a message through the site's contact form. An email titled **رسالة جديدة من …** should arrive within
+a minute. If nothing comes, look at the log — it records every attempt:
 
-The WhatsApp Business **app** on a phone cannot be automated; the WhatsApp Business **API** (Meta → WhatsApp → API Setup) can.
-When it is set up, create a message template with one variable (for example: "ترميم: {{1}}"), wait for Meta to approve it,
-and add four more secrets to the same function — nothing else changes:
-`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TO` (the team's number, digits only, e.g. 9665…), `WHATSAPP_TEMPLATE` (the template's name).
-The same API is what will let "Approve" tell a contractor their account is live without anyone pressing send.
+```sql
+select at, what, status, detail from public.alert_log order by at desc limit 20;
+```
+
+- `failed · pg_net is not installed` → run step 2 again; the first line of the script installs it.
+- `sent`, but no email → the domain is not verified in Resend yet, or the key was pasted with a space.
+  Resend's own **Logs** page shows what it received.
+
+## Turning it off, or changing where it goes
+
+```sql
+select public.set_alerts(null, null, null);                          -- stop the emails
+select public.set_alerts('re_KEY', 'Tarmem <alerts@tarmem.sa>', 'a@tarmem.sa,b@tarmem.sa');  -- two recipients
+```
+
+## Good to know
+
+- Rows the security tests leave behind ("RLS TEST") are ignored on purpose.
+- If Resend is ever down, the visitor's action still succeeds and the failure is written to `alert_log`.
+  Nothing on the website waits for an email.
+- The same Resend account can also send Tarmem's password-reset emails, which removes Supabase's
+  built-in limit of a few an hour: Supabase → **Authentication → Emails → SMTP settings**, with Resend's
+  SMTP host, port 465, user `resend`, password = the same key.
+
+## WhatsApp, later
+
+The WhatsApp Business **app** on a phone cannot be automated; the **API** (Meta → WhatsApp → API Setup) can.
+Once it is set up — a Meta business account, a verified number, and a message template with one variable
+approved by Meta — the same `send_alert` function can post to it alongside the email. That API is also what
+would let **Approve** tell a contractor their account is live without anyone pressing send.
