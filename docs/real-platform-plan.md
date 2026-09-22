@@ -278,3 +278,13 @@ alerts with no tab open, automatic WhatsApp on approval (needs the WhatsApp Busi
 - Two class markers were added to the design file for the inserts (`own-work`, `pay-table`): docs/design-changes-to-mirror.md.
 
 Browser test: 91 checks. Owner steps: run 010 and 011 in the SQL editor.
+
+## WhatsApp, built and waiting — 22 September 2026
+
+`supabase/012_whatsapp.sql` (with 010, 29 local checks). Every update the database emails it can also send to the person's
+WhatsApp through Meta's official Cloud API, with one approved template (`tarmem_update`: two lines + a URL button) in Arabic and
+English. Saudi numbers are normalised (`wa_number`); non-Saudi numbers are skipped and logged; contact-form senders never get one;
+the same settings as the emails apply; at most 20 an hour per number; failures never block. Switched on with
+`set_whatsapp(token, phone_number_id, template)`, which refuses a malformed token; off with `set_whatsapp(null)`. The token lives in
+`app_secrets`. Owner's guide with drawn screens: the "Tarmem WhatsApp" artifact. Still to do when it is on: make the design's
+WhatsApp card on the settings page real (opt-out toggle), a line in the Terms about WhatsApp updates, and later a receiver for replies.
