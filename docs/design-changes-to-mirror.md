@@ -141,3 +141,14 @@ bidder, supabase/019). The demo keeps the single in-memory thread as designed.
 
 Why: the owner's call — a contractor's button belongs next to the customer's, not in the corner of the header. Same glass
 look as before, fully rounded to match the primary pill. The public site's phone-only text link under the hero is retired.
+
+
+## Changed 23 September 2026 — the post page's confirmation state, and the console's project rows
+
+> `post` gains a `done` object (`{id, first, files}`) set by `publishPost`; the page shows `.post-done` (a check, the
+> `t.post.done*` copy, the project number, three "what happens next" lines, two buttons: `postOpenDone`, `postAnother`)
+> and the form only while `post.editing`. Styles `.post-done*`. In the admin console the "all projects" rows carry
+> `data-id` and `onClick="{{ openAdminProject }}"` (opens the project page).
+
+Why: the owner asked for a proper confirmation after publishing, and for the team to reach a project's photos from the
+console. Both are in the design so the site keeps generating from it.

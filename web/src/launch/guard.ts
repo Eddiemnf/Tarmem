@@ -125,11 +125,13 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
   }
 
   // Somebody who opened a "reset your password" link chooses the new password before anything else.
-  if (platformOn && isRecovering() && user) return state.route === 'auth' ? state : { ...state, route: 'auth' };
+  if (platformOn && isRecovering() && user) return state.route === 'reset' ? state : { ...state, route: 'reset' };
 
   const wantsContractorSignup = state.route === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor';
   const allowed = PUBLIC_ROUTES.has(state.route) || (platformOn && !wantsContractorSignup && (
     (state.route === 'auth' && !user)
+    // the reset-password page itself says when its link has expired
+    || state.route === 'reset'
     || (state.route === 'hdash' && user?.role === 'homeowner')
     // a contractor has their dashboard from the moment they apply; the open projects once an admin has verified them
     || (state.route === 'settings' && (user?.role === 'homeowner' || user?.role === 'contractor'))

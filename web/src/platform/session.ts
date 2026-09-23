@@ -81,6 +81,7 @@ export const validEmail = (email: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e
 function failure(error: { message?: string; status?: number; code?: string } | null | undefined): PlatformError {
   const text = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
   if (/invalid login|invalid_credentials/.test(text)) return 'wrong';
+  if (/mobile_taken/.test(text)) return 'mobileTaken';
   if (/already registered|user_already_exists/.test(text)) return 'exists';
   if (/not confirmed|email_not_confirmed/.test(text)) return 'unconfirmed';
   if (/rate limit|too many|over_request|over_email/.test(text) || error?.status === 429) return 'rate';
@@ -161,10 +162,21 @@ export async function initSession(timeoutMs = 4000): Promise<void> {
 
 export interface SignUpFields { email: string; password: string; name: string; mobile: string; city: string; lang: 'ar' | 'en' }
 
+/** One account per mobile number (supabase/021): asked before the account is created, so the form can say so.
+    If the database cannot answer, sign-up goes ahead and the database's own rule still stands. */
+export async function mobileTaken(mobile: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase.rpc('mobile_taken', { p_mobile: mobile });
+    return !error && data === true;
+  } catch { return false; }
+}
+
 /** Resolves to 'confirm' when the project still requires the email to be confirmed before signing in. */
 export async function signUp(f: SignUpFields): Promise<Result<true | 'confirm'>> {
   if (!supabase) return { error: 'generic' };
   try {
+    if (await mobileTaken(f.mobile)) return { error: 'mobileTaken' };
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
       options: { data: { full_name: f.name, mobile: f.mobile, city: f.city, lang: f.lang } },
@@ -225,6 +237,7 @@ export interface ContractorSignUp extends ApplicationFields { password: string }
 export async function signUpContractor(f: ContractorSignUp): Promise<Result<true | 'confirm'>> {
   if (!supabase) return { error: 'generic' };
   try {
+    if (await mobileTaken(normalizeMobile(f.mobile))) return { error: 'mobileTaken' };
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
       options: { data: { role: 'contractor', full_name: f.person.trim(), company: f.company.trim(), mobile: normalizeMobile(f.mobile), city: f.city, lang: f.lang } },

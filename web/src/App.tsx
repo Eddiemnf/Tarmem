@@ -23,6 +23,7 @@ import RealAuthPage from './platform/AuthPage';
 import { platformOn } from './platform/client';
 import { PLATFORM_COPY } from './platform/copy';
 import InboxPage from './platform/InboxPage';
+import ResetPage from './platform/ResetPage';
 import { PAGES, type Route } from './routes';
 import { LAUNCH_COPY } from './launch/copy';
 import { useLaunchActions, useLogicState, useViewModel, type VM } from './state/viewModel';
@@ -31,7 +32,7 @@ import { useLaunchActions, useLogicState, useViewModel, type VM } from './state/
 const LAUNCH_PAGES: Record<string, (props: { vm: VM }) => React.ReactNode> = {
   join: JoinPage, sent: SentPage,
   // real accounts (src/platform/): email sign-in stands in for the design's mobile code and Nafath
-  ...(platformOn ? { auth: RealAuthPage, inbox: InboxPage } : {}),
+  ...(platformOn ? { auth: RealAuthPage, inbox: InboxPage, reset: ResetPage } : {}),
 };
 
 export default function App() {

@@ -521,7 +521,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
           <table className="table"><thead><tr><th>ID</th><th>{vm.t.project}</th><th>{vm.t.roles.homeowner}</th><th>{vm.t.roles.contractor}</th><th>{vm.t.status}</th><th>{vm.t.ws.amount}</th></tr></thead>
             <tbody>
       {((vm.allProjects) || []).map((p: any, _i0: number) => (
-        <React.Fragment key={_i0}><tr className="row-h"><td className="muted num">{p.id}</td><td style={{ fontWeight: '500' }}>{p.title}</td><td>{p.ownerName}</td><td>{p.contractorName}</td><td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td><td className="num">{vm.curPre}{p.amount}{vm.curPost}</td></tr></React.Fragment>
+        <React.Fragment key={_i0}><tr className="row-h" style={{ cursor: 'pointer' }} data-id={p.id} onClick={vm.openAdminProject}><td className="muted num">{p.id}</td><td style={{ fontWeight: '500' }}>{p.title}</td><td>{p.ownerName}</td><td>{p.contractorName}</td><td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td><td className="num">{vm.curPre}{p.amount}{vm.curPost}</td></tr></React.Fragment>
       ))}
       </tbody></table></div>
         </>) : null}

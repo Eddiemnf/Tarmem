@@ -132,8 +132,14 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
       publishing = false;
       forgetHeldFiles();
     }
-    host.setLogicState((s) => ({ projects: [project, ...s.projects], post: initialPost, pendingPost: false, justPosted: project.id }));
-    logic.nav('project', { curId: project.id, tab: project.files.some((f: LogicState) => f.failed) ? 'files' : 'overview' });
+    const failed = project.files.some((f: LogicState) => f.failed);
+    host.setLogicState((s) => ({
+      projects: [project, ...s.projects], pendingPost: false, justPosted: project.id,
+      // the design's confirmation page: the project's number and what happens next (a failed upload opens the files tab instead, so it is seen)
+      post: failed ? initialPost : { ...initialPost, done: { id: project.id, first: !(s.projects || []).some((p: LogicState) => p.ownerId === 'h1'), files: project.files.length } },
+    }));
+    if (failed) logic.nav('project', { curId: project.id, tab: 'files' });
+    else { logic.nav('post'); window.scrollTo({ top: 0 }); }
   };
 
   /* ---- the admin console (src/platform/admin.ts) ---- */
@@ -318,10 +324,14 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     }
   };
 
-  // Opening a project loads its real files, for its owner and for the team alike.
+  // Opening a project loads its real files, for its owner and for the team alike: once per opening of the page
+  // (state changes while it is open do not list again; opening it again, or as somebody else, does).
   let filesFor = '';
+  let lastVisit = '';
   const loadProjectFiles = () => {
     const s = host.logic.state;
+    const visit = s.route === 'project' ? `${s.curId}|${currentAccount()?.profile.id || ''}` : '';
+    if (visit !== lastVisit) { lastVisit = visit; filesFor = ''; }
     const project = s.route === 'project' ? (s.projects as LogicState[]).find((p) => p.id === s.curId) : null;
     if (!project?.dbId || !currentAccount() || filesFor === project.dbId) return;
     filesFor = project.dbId;

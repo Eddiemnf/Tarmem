@@ -76,8 +76,16 @@ export async function installSupabaseMock(context, supabaseUrl) {
       return send(route, 200, mine.map((k) => ({ name: k })));
     }
     if (path.startsWith(BUCKET + 'list/project-files')) {
+      // like Storage itself: one level only — a file directly under the prefix is a row, a sub-folder is a row with no id
       const prefix = body.prefix.replace(/\/$/, '') + '/';
-      return send(route, 200, db.files.filter((f) => f.path.startsWith(prefix) && (admin || f.path.startsWith(me + '/'))).map((f, i) => ({ id: 'obj-' + i, name: f.path.slice(prefix.length), created_at: f.created_at })));
+      const seen = new Set(); const out = [];
+      for (const [i, f] of db.files.entries()) {
+        if (!f.path.startsWith(prefix) || !(admin || f.path.startsWith(me + '/'))) continue;
+        const rest = f.path.slice(prefix.length);
+        if (rest.includes('/')) { const folder = rest.split('/')[0]; if (!seen.has(folder)) { seen.add(folder); out.push({ id: null, name: folder, created_at: null }); } }
+        else out.push({ id: 'obj-' + i, name: rest, created_at: f.created_at });
+      }
+      return send(route, 200, out);
     }
     if (path.startsWith(BUCKET + 'sign/project-files/')) {
       const key = decodeURIComponent(path.slice((BUCKET + 'sign/project-files/').length));
@@ -146,6 +154,7 @@ export async function installSupabaseMock(context, supabaseUrl) {
         return send(route, 201);
       }
     }
+    if (path === '/rest/v1/rpc/mobile_taken' && method === 'POST') { const key = (m) => { const d = String(m || '').replace(/[^0-9]/g, ''); return !d ? null : d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '966' + d.slice(1) : d.length === 9 && d.startsWith('5') ? '966' + d : d; }; return send(route, 200, key(body.p_mobile) !== null && db.profiles.some((p) => key(p.mobile) === key(body.p_mobile))); }
     if (path === '/rest/v1/rpc/my_performance' && method === 'POST') { if (!me) return refuse(route, 'sign in first'); return send(route, 200, { views: (db.visits || []).filter((v) => v.path === '/firm/co-' + String(me).slice(0, 8) && v.user_id !== me).length, bids: (db.bids || []).filter((b) => b.contractor_id === me && b.status !== 'withdrawn').length, won: (db.bids || []).filter((b) => b.contractor_id === me && b.status === 'chosen').length }); }
     if (path === '/rest/v1/rpc/mark_messages_read' && method === 'POST') { let n = 0; for (const r of db.messages || []) if (r.project_id === body.p_project && r.contractor_id === body.p_contractor && r.from_id !== me && !r.read_at) { r.read_at = new Date().toISOString(); n += 1; } return send(route, 200, n); }
     if (path === '/rest/v1/email_log') return rows(admin ? (db.emailLog || []) : []);

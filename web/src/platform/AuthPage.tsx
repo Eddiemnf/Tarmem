@@ -8,7 +8,7 @@
 import { useState, type FormEvent } from 'react';
 import { useLaunchActions, type VM } from '../state/viewModel';
 import { PLATFORM_COPY } from './copy';
-import { currentAccount, isRecovering, normalizeMobile, requestPasswordReset, setNewPassword, signIn, signUp, validEmail, validMobile } from './session';
+import { currentAccount, normalizeMobile, requestPasswordReset, signIn, signUp, validEmail, validMobile } from './session';
 
 export default function AuthPage({ vm }: { vm: VM }) {
   const lang = vm.dir === 'ltr' ? 'en' : 'ar';
@@ -22,7 +22,6 @@ export default function AuthPage({ vm }: { vm: VM }) {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
-  const recovering = isRecovering();
 
   const set = (e: { currentTarget: { name: string; value: string } }) => setForm({ ...form, [e.currentTarget.name]: e.currentTarget.value });
 
@@ -37,15 +36,6 @@ export default function AuthPage({ vm }: { vm: VM }) {
     e.preventDefault();
     if (busy) return;
     setNotice('');
-    if (recovering) {
-      if (form.password.length < 8) return setError(copy.err.password);
-      setBusy(true); setError('');
-      const saved = await setNewPassword(form.password);
-      setBusy(false);
-      if (!saved.ok) return setError(copy.err[saved.error]);
-      window.history.replaceState(null, '', window.location.pathname);
-      return enter();
-    }
     if (forgot) {
       const address = form.email.trim().toLowerCase();
       if (!validEmail(address)) return setError(copy.err.email);
@@ -74,27 +64,22 @@ export default function AuthPage({ vm }: { vm: VM }) {
     enter();
   };
 
-  if (recovering || forgot) {
+  if (forgot) {
     return (
       <section className="fade" style={{ display: 'flex', justifyContent: 'center', padding: '64px 24px 88px' }}>
         <div style={{ width: '100%', maxWidth: '432px', display: 'flex', flexDirection: 'column', gap: '26px' }}>
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <h1 style={{ fontSize: '27px', lineHeight: 1.3, color: '#1B1464', fontWeight: 600 }}>{recovering ? copy.newPassTitle : copy.forgotTitle}</h1>
-            <p style={{ color: '#7A7994', fontSize: '14px', lineHeight: 1.7, maxWidth: '38ch', margin: '0 auto' }}>{recovering ? copy.newPassLede : copy.forgotLede}</p>
+            <h1 style={{ fontSize: '27px', lineHeight: 1.3, color: '#1B1464', fontWeight: 600 }}>{copy.forgotTitle}</h1>
+            <p style={{ color: '#7A7994', fontSize: '14px', lineHeight: 1.7, maxWidth: '38ch', margin: '0 auto' }}>{copy.forgotLede}</p>
           </div>
           <form className="authcard" onSubmit={submit} noValidate>
-            {recovering ? (
-              <div className="authfield"><label className="authlbl" htmlFor="au-password">{copy.password}</label>
-                <input id="au-password" className="authinput" name="password" type="password" dir="ltr" autoComplete="new-password" placeholder={copy.passwordHint} value={form.password} onChange={set} /></div>
-            ) : (
-              <div className="authfield"><label className="authlbl" htmlFor="au-email">{copy.email}</label>
-                <input id="au-email" className="authinput" name="email" type="email" dir="ltr" autoComplete="email" value={form.email} onChange={set} /></div>
-            )}
+            <div className="authfield"><label className="authlbl" htmlFor="au-email">{copy.email}</label>
+              <input id="au-email" className="authinput" name="email" type="email" dir="ltr" autoComplete="email" value={form.email} onChange={set} /></div>
             {error ? <p className="autherr" role="alert">{error}</p> : null}
             {notice ? <p role="status" style={{ fontSize: '13.5px', lineHeight: 1.7, color: '#1B1464', background: '#F7F6FC', border: '1px solid #E6E5F0', borderRadius: '12px', padding: '12px 14px' }}>{notice}</p> : null}
-            <button className="btn btn-p" type="submit" disabled={busy} style={{ width: '100%', padding: '14px' }}>{busy ? copy.working : recovering ? copy.newPassSave : copy.forgotSend}</button>
+            <button className="btn btn-p" type="submit" disabled={busy} style={{ width: '100%', padding: '14px' }}>{busy ? copy.working : copy.forgotSend}</button>
           </form>
-          {recovering ? null : <p className="muted" style={{ textAlign: 'center', fontSize: '13px' }}><a className="lnk" onClick={() => { setForgot(false); setError(''); setNotice(''); }} style={{ color: '#FF5A3C', cursor: 'pointer' }}>{copy.backToSignIn}</a></p>}
+          {<p className="muted" style={{ textAlign: 'center', fontSize: '13px' }}><a className="lnk" onClick={() => { setForgot(false); setError(''); setNotice(''); }} style={{ color: '#FF5A3C', cursor: 'pointer' }}>{copy.backToSignIn}</a></p>}
         </div>
       </section>
     );

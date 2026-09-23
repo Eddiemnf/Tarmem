@@ -18,6 +18,7 @@ const PATHS: Record<string, string> = {
   contact: 'contact', rules: 'rules', terms: 'terms', privacy: 'privacy', post: 'post', join: 'join',
   // real accounts (src/platform/): the guard sends anyone who is not signed in to /signin
   auth: 'signin', hdash: 'dashboard', cdash: 'contractor', browse: 'projects', admin: 'admin', inbox: 'inbox', settings: 'settings', homeowner: 'profile', wallet: 'wallet',
+  reset: 'reset-password',
 };
 const BASE = import.meta.env.BASE_URL;
 

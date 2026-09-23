@@ -625,8 +625,9 @@ Rules:
     const {post} = this.state; const f=post.f;
     const id = 'P-'+(1060+this.state.projects.filter(p=>p.ownerId==='h1').length);
     const np = {id, title:{en:f.title,ar:f.title}, desc:{en:f.desc,ar:f.desc}, trade:f.trade, city:f.city, min:+f.min, max:+f.max, timing:f.timing, status:'open', ownerId:'h1', contractorId:null, amount:0, funded:false, posted:{en:this.D.T.en.ws.today,ar:this.D.T.ar.ws.today}, bids:[], ms:[], msgs:[], files:post.files.map(n=>({name:n,by:'h',date:{en:this.D.T.en.ws.today,ar:this.D.T.ar.ws.today}})), ledger:[]};
-    this.setState(s=>({projects:[np,...s.projects], post:{step:1,f:{title:'',trade:'kitchen',desc:'',city:'riyadh',address:'',min:'',max:'',timing:'month'},files:[],error:''}, pendingPost:false}));
-    this.nav('project', {curId:id, tab:'overview'});
+    const first = !this.state.projects.some(p=>p.ownerId==='h1');
+    this.setState(s=>({projects:[np,...s.projects], post:{step:1,f:{title:'',trade:'kitchen',desc:'',city:'riyadh',address:'',min:'',max:'',timing:'month'},files:[],error:'',done:{id, first, files:post.files.length}}, pendingPost:false}));
+    if(this.state.route!=='post') this.nav('post'); else window.scrollTo({top:0});
   }
 
   renderVals(){
@@ -737,7 +738,7 @@ Rules:
     const authSteps = t.auth.steps.map((label,i)=>({n:i+1,label,on:i+1<=a.step?'true':'false',color:i+1<=a.step?'#FF5A3C':'#B9B7D0'}));
 
     // post
-    const p=s.post; const post = {step1:p.step===1,step2:p.step===2,step3:p.step===3,step4:p.step===4,f:p.f,tAsap:p.f.timing==='asap',tMonth:p.f.timing==='month',tFlex:p.f.timing==='flexible',files:p.files,hasFiles:p.files.length>0,fileCount:(p.files.length||t.post.noFiles),
+    const p=s.post; const post = {step1:p.step===1,step2:p.step===2,step3:p.step===3,step4:p.step===4,done:!!p.done,editing:!p.done,doneId:p.done?.id||'',doneTitle:p.done?.first?t.post.doneTitleFirst:t.post.doneTitle,doneSteps:(t.post.doneSteps||[]).map((text,i)=>({n:i+1,text})),f:p.f,tAsap:p.f.timing==='asap',tMonth:p.f.timing==='month',tFlex:p.f.timing==='flexible',files:p.files,hasFiles:p.files.length>0,fileCount:(p.files.length||t.post.noFiles),
       addressLabel:(p.f.address||'').trim()||t.post.unset,
       nextDisabled: p.step===4 && !p.pledge,
       secDetails:String(t.post.steps[0]||'').split(' · ')[0],
@@ -1385,11 +1386,14 @@ Rules:
       useSuggestion: () => { const S=this.sugFor(s.post.f); if(!S) return;
         this.setState({post:{...s.post, f:{...s.post.f, min:String(S.lo), max:String(S.hi)}, error:''}}); },
       postBack: () => this.setState({post:{...s.post,step:s.post.step-1,error:''}}),
+      postOpenDone: () => { const id=s.post.done?.id; this.setState({post:{...s.post,done:null}}); if(id) this.nav('project',{curId:id,tab:'overview'}); },
+      postAnother: () => { this.setState({post:{...s.post,done:null,step:1,error:''}}); window.scrollTo({top:0}); },
       postGoStep: e => this.setState({post:{...s.post,step:+e.currentTarget.dataset.step,error:''}}),
       togglePledge: e => this.setState({post:{...s.post,pledge:e.target.checked,error:''}}),
       postNext: () => { const f=s.post.f; if(s.post.step===1 && (!f.title||!f.desc)) return this.setState({post:{...s.post,error:t.post.errTitle}}); if(s.post.step===2 && (!f.min||!f.max)) return this.setState({post:{...s.post,error:t.post.errBudget}}); if(s.post.step<4) return this.setState({post:{...s.post,step:s.post.step+1,error:''}}); if((+f.max||0) > 1000000) return this.setState({post:{...s.post,error:t.post.capNote}}); if(!s.post.pledge) return this.setState({post:{...s.post,error:t.post.pledgeErr}}); if(role!=='homeowner'){ this.setState({pendingPost:true, auth:{...s.auth,mode:'signup',role:'homeowner',step:1}}); this.nav('auth'); return; } this.publishPost(); },
       setTab: e => this.setState({tab:e.currentTarget.dataset.tab}),
       setAdminTab: e => this.setState({atab:e.currentTarget.dataset.tab}),
+      openAdminProject: e => this.nav('project',{curId:e.currentTarget.dataset.id, tab:'overview'}),
       setBidField: e => { const {name,value}=e.target; this.setState({bidF:{...s.bidF,[name]:value,error:''}}); },
       setBidToggle: e => { const {name,checked}=e.target; this.setState({bidF:{...s.bidF,[name]:checked,error:''}}); },
       reviewBid: () => { const b=s.bidF;

@@ -901,6 +901,12 @@
     }
     .v-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(22px,3vw,52px);border-top:1px solid #E4E0DA;padding-top:clamp(22px,2.6vw,32px);padding-bottom:clamp(30px,3.4vw,48px)}
     @media (max-width:820px){.v-strip{grid-template-columns:minmax(0,1fr);gap:20px}}
+    .post-done{align-items:center;text-align:center}
+    .post-done-ic{width:72px;height:72px;border-radius:50%;background:#E8F5EE;color:#1F7A4D;display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+    .post-done-code{display:flex;gap:10px;align-items:baseline;padding:10px 18px;border:1px dashed #D9D8E6;border-radius:12px;color:#1B1464;font-size:18px}
+    .post-done-next{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-direction:column;gap:10px;text-align:start;max-width:52ch;width:100%}
+    .post-done-next li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:#5B5A7A;line-height:1.7}
+    .post-done-next .num{flex:none;width:26px;height:26px;border-radius:50%;background:#F3F2FA;color:#1B1464;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600}
   </style>
 </helmet>
 <div dir="{{ dir }}" style="min-height:100vh;display:flex;flex-direction:column">
@@ -2256,6 +2262,25 @@
 
   <!-- POST -->
   <sc-if value="{{ r.post }}">
+    <sc-if value="{{ post.done }}">
+    <section class="wrap fade" style="padding-block:56px 80px;max-width:760px">
+      <div class="card post-done" style="padding:40px 32px;gap:16px">
+        <span class="post-done-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"></path></svg></span>
+        <span class="kick">{{ t.post.doneKicker }}</span>
+        <h1 style="font-size:clamp(26px,3vw,34px);color:#1B1464;margin-top:2px;text-wrap:balance">{{ post.doneTitle }}</h1>
+        <p style="color:#5B5A7A;font-size:15.5px;line-height:1.8;max-width:52ch;margin:0">{{ t.post.doneLede }}</p>
+        <div class="post-done-code"><span class="muted">{{ t.post.doneCode }}</span><strong class="num">{{ post.doneId }}</strong></div>
+        <ol class="post-done-next">
+          <sc-for list="{{ post.doneSteps }}" as="d" hint-placeholder-count="3"><li><span class="num">{{ d.n }}</span><span>{{ d.text }}</span></li></sc-for>
+        </ol>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px">
+          <button class="btn btn-p" onClick="{{ postOpenDone }}">{{ t.post.doneOpen }}</button>
+          <button class="btn btn-s" onClick="{{ postAnother }}">{{ t.post.doneAnother }}</button>
+        </div>
+      </div>
+    </section>
+    </sc-if>
+    <sc-if value="{{ post.editing }}">
     <section class="wrap fade" style="padding-block:56px 80px;max-width:760px">
       <span class="kick">{{ t.post.kicker }}</span>
       <h1 style="font-size:clamp(26px,3vw,34px);color:#1B1464;margin-top:10px">{{ t.post.title }}</h1>
@@ -2337,6 +2362,7 @@
         </div>
       </div>
     </section>
+    </sc-if>
   </sc-if>
 
   <!-- HOMEOWNER DASHBOARD -->
@@ -3351,7 +3377,7 @@
 
           <div class="card" style="padding:8px"><h3 style="font-size:18px;color:#1B1464;padding:12px 12px 4px">{{ t.admin.allProjects }}</h3>
           <table class="table"><thead><tr><th>ID</th><th>{{ t.project }}</th><th>{{ t.roles.homeowner }}</th><th>{{ t.roles.contractor }}</th><th>{{ t.status }}</th><th>{{ t.ws.amount }}</th></tr></thead>
-            <tbody><sc-for list="{{ allProjects }}" as="p" hint-placeholder-count="4"><tr class="row-h"><td class="muted num">{{ p.id }}</td><td style="font-weight:500">{{ p.title }}</td><td>{{ p.ownerName }}</td><td>{{ p.contractorName }}</td><td><span class="tag {{ p.tagClass }}">{{ p.statusLabel }}</span></td><td class="num">{{ curPre }}{{ p.amount }}{{ curPost }}</td></tr></sc-for></tbody></table></div>
+            <tbody><sc-for list="{{ allProjects }}" as="p" hint-placeholder-count="4"><tr class="row-h" style="cursor:pointer" data-id="{{ p.id }}" onClick="{{ openAdminProject }}"><td class="muted num">{{ p.id }}</td><td style="font-weight:500">{{ p.title }}</td><td>{{ p.ownerName }}</td><td>{{ p.contractorName }}</td><td><span class="tag {{ p.tagClass }}">{{ p.statusLabel }}</span></td><td class="num">{{ curPre }}{{ p.amount }}{{ curPost }}</td></tr></sc-for></tbody></table></div>
         </sc-if>
         <sc-if value="{{ atab.verification }}">
           <h1 style="font-size:clamp(26px,3vw,34px);color:#1B1464">{{ t.admin.verification }}</h1>
@@ -4165,8 +4191,9 @@ Rules:
     const {post} = this.state; const f=post.f;
     const id = 'P-'+(1060+this.state.projects.filter(p=>p.ownerId==='h1').length);
     const np = {id, title:{en:f.title,ar:f.title}, desc:{en:f.desc,ar:f.desc}, trade:f.trade, city:f.city, min:+f.min, max:+f.max, timing:f.timing, status:'open', ownerId:'h1', contractorId:null, amount:0, funded:false, posted:{en:this.D.T.en.ws.today,ar:this.D.T.ar.ws.today}, bids:[], ms:[], msgs:[], files:post.files.map(n=>({name:n,by:'h',date:{en:this.D.T.en.ws.today,ar:this.D.T.ar.ws.today}})), ledger:[]};
-    this.setState(s=>({projects:[np,...s.projects], post:{step:1,f:{title:'',trade:'kitchen',desc:'',city:'riyadh',address:'',min:'',max:'',timing:'month'},files:[],error:''}, pendingPost:false}));
-    this.nav('project', {curId:id, tab:'overview'});
+    const first = !this.state.projects.some(p=>p.ownerId==='h1');
+    this.setState(s=>({projects:[np,...s.projects], post:{step:1,f:{title:'',trade:'kitchen',desc:'',city:'riyadh',address:'',min:'',max:'',timing:'month'},files:[],error:'',done:{id, first, files:post.files.length}}, pendingPost:false}));
+    if(this.state.route!=='post') this.nav('post'); else window.scrollTo({top:0});
   }
 
   renderVals(){
@@ -4277,7 +4304,7 @@ Rules:
     const authSteps = t.auth.steps.map((label,i)=>({n:i+1,label,on:i+1<=a.step?'true':'false',color:i+1<=a.step?'#FF5A3C':'#B9B7D0'}));
 
     // post
-    const p=s.post; const post = {step1:p.step===1,step2:p.step===2,step3:p.step===3,step4:p.step===4,f:p.f,tAsap:p.f.timing==='asap',tMonth:p.f.timing==='month',tFlex:p.f.timing==='flexible',files:p.files,hasFiles:p.files.length>0,fileCount:(p.files.length||t.post.noFiles),
+    const p=s.post; const post = {step1:p.step===1,step2:p.step===2,step3:p.step===3,step4:p.step===4,done:!!p.done,editing:!p.done,doneId:p.done?.id||'',doneTitle:p.done?.first?t.post.doneTitleFirst:t.post.doneTitle,doneSteps:(t.post.doneSteps||[]).map((text,i)=>({n:i+1,text})),f:p.f,tAsap:p.f.timing==='asap',tMonth:p.f.timing==='month',tFlex:p.f.timing==='flexible',files:p.files,hasFiles:p.files.length>0,fileCount:(p.files.length||t.post.noFiles),
       addressLabel:(p.f.address||'').trim()||t.post.unset,
       nextDisabled: p.step===4 && !p.pledge,
       secDetails:String(t.post.steps[0]||'').split(' · ')[0],
@@ -4925,11 +4952,14 @@ Rules:
       useSuggestion: () => { const S=this.sugFor(s.post.f); if(!S) return;
         this.setState({post:{...s.post, f:{...s.post.f, min:String(S.lo), max:String(S.hi)}, error:''}}); },
       postBack: () => this.setState({post:{...s.post,step:s.post.step-1,error:''}}),
+      postOpenDone: () => { const id=s.post.done?.id; this.setState({post:{...s.post,done:null}}); if(id) this.nav('project',{curId:id,tab:'overview'}); },
+      postAnother: () => { this.setState({post:{...s.post,done:null,step:1,error:''}}); window.scrollTo({top:0}); },
       postGoStep: e => this.setState({post:{...s.post,step:+e.currentTarget.dataset.step,error:''}}),
       togglePledge: e => this.setState({post:{...s.post,pledge:e.target.checked,error:''}}),
       postNext: () => { const f=s.post.f; if(s.post.step===1 && (!f.title||!f.desc)) return this.setState({post:{...s.post,error:t.post.errTitle}}); if(s.post.step===2 && (!f.min||!f.max)) return this.setState({post:{...s.post,error:t.post.errBudget}}); if(s.post.step<4) return this.setState({post:{...s.post,step:s.post.step+1,error:''}}); if((+f.max||0) > 1000000) return this.setState({post:{...s.post,error:t.post.capNote}}); if(!s.post.pledge) return this.setState({post:{...s.post,error:t.post.pledgeErr}}); if(role!=='homeowner'){ this.setState({pendingPost:true, auth:{...s.auth,mode:'signup',role:'homeowner',step:1}}); this.nav('auth'); return; } this.publishPost(); },
       setTab: e => this.setState({tab:e.currentTarget.dataset.tab}),
       setAdminTab: e => this.setState({atab:e.currentTarget.dataset.tab}),
+      openAdminProject: e => this.nav('project',{curId:e.currentTarget.dataset.id, tab:'overview'}),
       setBidField: e => { const {name,value}=e.target; this.setState({bidF:{...s.bidF,[name]:value,error:''}}); },
       setBidToggle: e => { const {name,checked}=e.target; this.setState({bidF:{...s.bidF,[name]:checked,error:''}}); },
       reviewBid: () => { const b=s.bidF;

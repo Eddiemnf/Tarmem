@@ -79,9 +79,14 @@ await submit.click();
 check('the terms must be accepted', (await page.locator('.autherr').innerText()).includes('الشروط') && db.users.length === 0);
 await page.locator('form.authcard input[type="checkbox"]').check();
 await submit.click();
-await page.waitForFunction(() => window.location.pathname.startsWith('/project/'), null, { timeout: 8000 }).catch(() => undefined);
+await page.waitForSelector('.post-done-code', { timeout: 8000 }).catch(() => undefined);
 await settle();
 const project = db.projects[0];
+check('publishing lands on the confirmation page: "your first project", its number, and what happens next',
+  (await pathname()) === '/post' && (await page.locator('.post-done h1', { hasText: 'مبروك' }).count()) === 1 && (await page.locator('.post-done-code', { hasText: 'P-2001' }).count()) === 1 && (await page.locator('.post-done-next li').count()) === 3, await pathname());
+await page.locator('.post-done button', { hasText: 'افتح صفحة المشروع' }).click();
+await page.waitForFunction(() => window.location.pathname.startsWith('/project/'), null, { timeout: 8000 }).catch(() => undefined);
+await settle();
 check('sign-up creates the account and the profile (mobile in Latin digits, never as admin)',
   db.users.length === 1 && db.users[0].email === 'sara@example.com' && db.profiles[0]?.role === 'homeowner' && db.profiles[0]?.mobile === '055 1234567' && db.profiles[0]?.full_name === 'سارة العتيبي',
   JSON.stringify(db.profiles[0] || null).slice(0, 160));
@@ -180,6 +185,20 @@ await settle();
 const after = await saved();
 check('signing out returns home and leaves no account or projects on the device', (await pathname()) === '/' && !after.user && !(after.projects || []).length
   && (await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('tarmem-auth')).length)) === 0);
+// one account per mobile number (supabase/021): asked before anything is created
+await open('signin');
+await page.locator('.authseg input[value="signup"]').check();
+await page.locator('#au-name').fill('نورة العتيبي');
+await page.locator('#au-mobile').fill('+966 ' + String(db.profiles[0].mobile).replace(/\D/g, '').replace(/^0/, '')); // the number on file, written the international way
+await page.locator('#au-email').fill('noura@example.com');
+await page.locator('#au-password').fill('long-enough-2');
+await page.locator('form.authcard input[type="checkbox"]').check();
+await page.locator('form.authcard button[type="submit"]').click();
+await settle(600);
+check('a second account with a mobile that is already registered, however it is written, is refused before it is created',
+  (await page.locator('.autherr').innerText().catch(() => '')).includes('مسجّل لحساب آخر') && db.users.length === 1 && db.profiles.length === 1, `${await pathname()} users=${db.users.length} profiles=${db.profiles.length} err=${await page.locator('.autherr').innerText().catch(() => '-')} unknown=${db.unknown.join('|')}`);
+await open('signin');
+await page.locator('.authseg input[value="signin"]').check().catch(() => undefined);
 await open('signin');
 await page.locator('#au-email').fill('sara@example.com');
 await page.locator('#au-password').fill('wrong-password');
@@ -543,6 +562,17 @@ await open('admin');
 await page.locator('.side[data-tab="payments"]').click();
 await settle(500);
 check('with payments off, that section does not exist', (await page.locator('main', { hasText: 'طلبات بانتظار التأكيد' }).count()) === 0);
+// the console's project rows open the project itself; an admin may read every project and its photos (storage rules in supabase/003)
+db.files.push({ path: `${db.users[0].id}/10000000-0000-4000-8000-000000009001/k0-c2l0ZS1waG90bw.png` /* the site's key shape: <stamp>-<base64 name>.<ext>; this one reads "site-photo.png" */, type: 'image/png', created_at: new Date().toISOString() });
+await open('admin');
+await page.locator('.side[data-tab="overview"]').click(); await settle(500); // the console reopens on the last tab used
+await page.locator('tr.row-h', { hasText: 'P-9001' }).first().click();
+await page.waitForFunction(() => window.location.pathname === '/project/P-9001', null, { timeout: 8000 }).catch(() => undefined);
+await settle(700);
+await page.locator('[role="tab"][data-tab="files"]').click().catch(() => undefined);
+await settle(600);
+check("an admin opens a homeowner's project from the console and sees its photos", (await pathname()) === '/project/P-9001' && (await page.locator('main td', { hasText: 'site-photo.png' }).count()) === 1,
+  `${await pathname()} rows=${JSON.stringify(await page.locator('main table td').evaluateAll((els) => els.map((e) => e.textContent.trim()).slice(0, 6)))}`);
 db.profiles[0].role = 'homeowner';
 await open('dashboard');
 
@@ -560,11 +590,19 @@ check('"forgot your password" emails a reset link that returns to the sign-in pa
 await page.goto('about:blank'); // an email link is a fresh page load, not a change of fragment on an open page
 await page.goto(BASE_URL + 'signin' + recoveryFragment(db.users[0].id), { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('header'); await settle(900);
-check('the link opens a "choose a new password" form, and nothing else until it is done', (await page.locator('text=اختر كلمة مرور جديدة').count()) === 1 && (await page.locator('#au-email').count()) === 0);
-await page.locator('#au-password').fill('a-brand-new-pass-2');
+check('the link opens its own "choose a new password" page, and nothing else until it is done', (await pathname()) === '/reset-password' && (await page.locator('text=اختر كلمة مرور جديدة').count()) === 1 && (await page.locator('#rp-again').count()) === 1 && (await page.locator('#au-email').count()) === 0, await pathname());
+await page.locator('#rp-password').fill('a-brand-new-pass-2');
+await page.locator('#rp-again').fill('a-brand-new-pass-X');
 await page.locator('form.authcard button[type="submit"]').click();
+await settle(300);
+check('two different passwords are refused', (await page.locator('.autherr').innerText().catch(() => '')).includes('غير متطابقتين') && db.users[0].password !== 'a-brand-new-pass-2');
+await page.locator('#rp-again').fill('a-brand-new-pass-2');
+await page.locator('form.authcard button[type="submit"]').click();
+await settle(600);
+check('…saving it changes the password and says so, signed in', db.users[0].password === 'a-brand-new-pass-2' && (await page.locator('text=تم تغيير كلمة المرور').count()) === 1, `pw=${db.users[0].password}`);
+await page.locator('.reset-page button', { hasText: 'افتح لوحتك' }).click();
 await page.waitForFunction(() => window.location.pathname === '/dashboard', null, { timeout: 8000 }).catch(() => undefined);
-check('…saving it signs them in to their dashboard', db.users[0].password === 'a-brand-new-pass-2' && (await pathname()) === '/dashboard', `${await pathname()} pw=${db.users[0].password} err=${(await page.locator('.autherr').allInnerTexts()).join('/')} refused=${db.refused.slice(-1)} unknown=${db.unknown.slice(-1)}`);
+check('…and its button opens their dashboard', (await pathname()) === '/dashboard', await pathname());
 
 check('the site asked the database for nothing the test does not know about', db.unknown.length === 0, db.unknown.join(' · '));
 console.log(results.join('\n'));

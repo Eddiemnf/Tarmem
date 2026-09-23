@@ -454,3 +454,30 @@ satisfaction", `.ai2-stats`, count-up included) shows on the public site again; 
 The figures are the design's typed ones from `statCards` in the copy, not measurements; if any of them is not true yet the
 honest fix is a measured number from the database or a different phrase, on the owner's word. The launch suite now expects
 the strip and still refuses the random-walk visitor counter and the picker that uploads nothing.
+
+## Seven asks from the owner — 23 September 2026 (first four)
+
+The owner tried the site as a homeowner and as the admin and asked for seven things. The first four are here; the
+console's detail views (opening an application, a support case, a person) follow in the next section.
+
+**One account per mobile number (`supabase/021`).** Emails were unique; mobiles were not, and the owner registered the
+same number several times. `mobile_key()` reduces every way of writing a Saudi number to one form; a trigger refuses a
+profile whose number belongs to another account, and `mobile_taken()` lets the sign-up form say so before the account
+exists (the site asks first; if the database cannot answer, the trigger still stands). Accounts that already share a
+number keep working. Contractor applications are checked the same way; changing your number in settings too.
+
+**A confirmation page after posting.** Publishing landed straight on the project page and said nothing. Now the design's
+post page has a done state (`post.done` in the design, `.post-done` on the site): a check, "congratulations, your first
+project is live" (or "your project is live"), the project number, three lines on what happens next, and two buttons —
+open the project, post another. A failed photo upload still opens the files tab instead, so it is seen.
+
+**Reset password on its own page.** The email link used to open a small form inside the sign-in page; the owner read
+that as "waiting for approval". It now lands on `/reset-password` (`src/platform/ResetPage.tsx`): two fields that must
+match, a "password changed, you are signed in" state with a button to the dashboard, and "this link has expired" when
+there is no recovery session. Nobody approves anything. After the change, the database emails "your password was
+changed" (trigger on `auth.users`, 021). Still on the owner: Supabase's built-in mailer delivers reset links only to
+the project's team addresses until custom SMTP (Resend) is set — guide step 7 — which is why a test to another address
+"never arrived".
+
+**Admins see the photos.** Storage already let admins read every project file (003). What was missing was a way in:
+the console's "all projects" rows now open the project page, whose files tab lists the photos with signed links.
