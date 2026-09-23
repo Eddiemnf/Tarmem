@@ -235,7 +235,7 @@ class Component extends DCLogic {
       : ['Tarmem: New bid on “Kitchen renovation, 18 m²” for SAR 48,000 from a verified contractor. Tap to compare.', 'Tarmem: Stage “Core works” is awaiting your approval. With no action in 5 days it goes to review.', 'Tarmem: Reminder — “Core works” is due in 48 hours. Submit evidence to avoid a SAR 500 late fee.'];
     const preview = role === 'contractor' ? msgs[2] : msgs[0];
     const log = [{text: msgs[1], st: W.read, cls:'tag-g'}, {text: msgs[0], st: W.delivered, cls:'tag-n'}, {text: msgs[2], st: W.queued, cls:'tag-p'}];
-    return { on: !!SG.waVerified, busy: !!SG.waBusy, number: SG.waNumber || SG.mobile || '', sentTo: SG.waSent || '', quiet: SG.prefs ? SG.prefs.quiet !== false : true,
+    return { on: !!SG.waVerified, busy: !!SG.waBusy, error: SG.waError || '', number: SG.waNumber || SG.mobile || '', sentTo: SG.waSent || '', quiet: SG.prefs ? SG.prefs.quiet !== false : true,
       channels: [['wa', W.channels[0]], ['sms', W.channels[1]], ['email', W.channels[2]]].map(([id,l]) => ({id, l, on: ch === id ? 'true' : 'false'})),
       previewMsg: preview, previewTime: '10:42', log };
   }

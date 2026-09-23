@@ -146,6 +146,8 @@ check('with WhatsApp switched on, the card shows the account\u2019s mobile, What
 await page.locator('.wa-card button.btn-p').click();
 await settle(600);
 check('"Send test message" really asks the database to send one, and shows the number it went to', db.waTests === 1 && (await page.locator('.wa-card', { hasText: '+966 55 999 8877' }).count()) === 1, db.refused.join('; '));
+for (let i = 0; i < 3; i++) { await page.locator('.wa-card button', { hasText: 'إرسال رسالة تجريبية' }).click(); await settle(400); }
+check('the fourth test in a day is refused inside the card, next to the button, not at the bottom of the page', db.waTests === 3 && (await page.locator('.wa-card .wa-error', { hasText: 'الحد اليومي' }).count()) === 1 && (await page.locator('main .card', { hasText: 'الحد اليومي' }).count()) === 1, await page.locator('.wa-card').innerText().then((t) => t.replace(/\s+/g, ' ').slice(-120)));
 await page.locator('.wa-card .an-seg button[data-v="email"]').click();
 await settle(600);
 check('choosing email alone is saved to their profile at once, and the card no longer says connected', db.profiles[0].prefs?.channel === 'email' && (await page.locator('.wa-card .tag-g').count()) === 0 && (await page.locator('text=حُفظت إعداداتك').count()) === 1, JSON.stringify(db.profiles[0].prefs));

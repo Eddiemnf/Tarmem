@@ -211,6 +211,7 @@ export async function installSupabaseMock(context, supabaseUrl) {
     if (path === '/rest/v1/rpc/whatsapp_test' && method === 'POST') {
       if (!me) return refuse(route, 'sign in first');
       if (!db.whatsappLive) return refuse(route, 'WhatsApp updates are not switched on yet');
+      if ((db.waTests || 0) >= 3) return send(route, 400, { code: '42501', message: 'test messages a day: 3 reached' }); // the allowance, not a rule violation
       const digits = String(db.profiles.find((p) => p.id === me)?.mobile || '').replace(/\D/g, '');
       const num = /^05\d{8}$/.test(digits) ? '966' + digits.slice(1) : /^9665\d{8}$/.test(digits) ? digits : null;
       if (!num) return send(route, 400, { code: '22023', message: 'not a Saudi mobile number' });

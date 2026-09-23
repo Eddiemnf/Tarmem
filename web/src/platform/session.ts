@@ -96,7 +96,7 @@ function failure(error: { message?: string; status?: number; code?: string } | n
   if (/open projects/.test(text)) return 'tooMany';
   if (/failed to fetch|network|load failed/.test(text)) return 'network';
   if (/not switched on/.test(text)) return 'waOff';
-  if (/three test messages/.test(text)) return 'waLimit';
+  if (/test messages a day|three test messages/.test(text)) return 'waLimit';
   if (/not a saudi mobile/.test(text)) return 'waNumber';
   return 'generic';
 }

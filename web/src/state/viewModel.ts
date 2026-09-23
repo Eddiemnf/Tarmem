@@ -299,16 +299,17 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
     } : {}),
     waVerify: () => {
       const mobile = normalizeMobile(waNumber);
-      if (!validMobile(mobile)) return note(copy.err.mobile);
+      if (!validMobile(mobile)) return host.setLogicState((s) => ({ setg: { ...s.setg, waError: copy.err.mobile, waSent: '' } }));
       if (state.setg?.waBusy) return; // one test at a time: the button is greyed out until the database answers
       host.setLogicState((s) => ({ setg: { ...s.setg, waBusy: true } }));
       void (async () => {
         if (mobile !== account.profile.mobile) {
           const saved = await updateProfile({ mobile });
-          if (saved.error) { host.setLogicState((s) => ({ setg: { ...s.setg, waBusy: false } })); return note(copy.err[saved.error]); }
+          if (saved.error) return host.setLogicState((s) => ({ setg: { ...s.setg, waBusy: false, waError: copy.err[saved.error], waSent: '' } }));
         }
         const sent = await sendWhatsAppTest();
-        host.setLogicState((s) => ({ setg: { ...s.setg, mobile, waNumber: mobile, waBusy: false, ...(sent.error ? { waSent: '', notice: copy.err[sent.error] } : { waSent: pretty(sent.ok || ''), notice: '' }) } }));
+        // the outcome shows in the card, next to the button — never at the bottom of the page
+        host.setLogicState((s) => ({ setg: { ...s.setg, mobile, waNumber: mobile, waBusy: false, ...(sent.error ? { waSent: '', waError: copy.err[sent.error] } : { waSent: pretty(sent.ok || ''), waError: '' }) } }));
       })();
     },
     waChannel: (e: { currentTarget: { dataset: { v?: string } } }) => {

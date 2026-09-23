@@ -35,6 +35,9 @@ export default function SettingsPage({ vm }: { vm: VM }) {
           
     {vm.wa.sentTo ? (<><p style={{ fontSize: '12.5px', color: '#15703A', margin: '8px 0 0' }}>✓ {vm.t.wa.sent} <span className="num">{vm.wa.sentTo}</span></p></>) : null}
     
+          
+    {vm.wa.error ? (<><p className="wa-error" style={{ fontSize: '12.5px', color: '#D9401F', margin: '8px 0 0' }}>{vm.wa.error}</p></>) : null}
+    
         </div>
 
         <div><span className="lbl">{vm.t.wa.channel}</span><div className="an-seg">

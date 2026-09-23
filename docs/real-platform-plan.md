@@ -527,3 +527,11 @@ What was worth building without waiting for payments or Nafath, in one migration
   shows the step right after sign-up (homeowner and contractor) with "later" always available, and the console's person
   record says whether the number is verified. Off until the owner runs `select public.set_otp(true)` once Meta approves
   the template. 33 local checks; the platform suite covers the step, erasure, the honeypot and the error log.
+
+## The WhatsApp test, as the owner tried it — 24 September 2026 (supabase/023)
+
+Three things the owner hit: the limit message appeared at the bottom of the page instead of next to the button; the
+allowance of three a day counted attempts Meta had refused; and an admin had no Settings entry at all. Now the card
+itself reports the outcome under the button (`wa.error`, `wa.sentTo`), refused attempts (a 4xx answer copied by 018) no
+longer count, admins get ten a day, the account menu shows Settings for every role, and the button greys out while a
+message is on its way.

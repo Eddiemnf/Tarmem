@@ -67,6 +67,9 @@ await db.exec(readFileSync(repo + '021_admin_detail_phone_reset.sql', 'utf8'));
 const twentytwo = readFileSync(repo + '022_erasure_spam_otp.sql', 'utf8');
 await db.exec(twentytwo); await db.exec(twentytwo);
 check('022 runs cleanly, twice, on top of 001–021', true);
+const twentythree = readFileSync(repo + '023_test_allowance.sql', 'utf8');
+await db.exec(twentythree); await db.exec(twentythree);
+check('023 runs cleanly, twice', true);
 
 const U = (n) => `00000000-0000-4000-8000-0000000000${n}`;
 const ADMIN = U('aa'), ADMIN2 = U('ab'), HO = U('b1'), HO2 = U('b2'), HO3 = U('b3'), CO = U('c1');
@@ -170,6 +173,20 @@ const last = (await rows(`select id from public.mobile_codes where user_id = '${
 check('an expired code is refused', (await (async () => { await as('authenticated', HO3); return (await db.query(`select public.otp_check('123456') ok`)).rows[0].ok; })()) === false && Boolean(last));
 await db.exec(`reset role; delete from public.sent; select public.wa_submit_otp_template();`);
 check('the authentication template is submitted to Meta in both languages, with a copy-code button and a ten-minute expiry', (await n(`select count(*)::int n from public.sent where to_addr like 'meta:%' and subject = 'tarmem_otp' and raw like '%AUTHENTICATION%' and raw like '%COPY_CODE%' and raw like '%code_expiration_minutes%'`)) === 2);
+await db.exec(`reset role`);
+
+// 6 — the test allowance (023)
+await db.exec(`reset role; delete from public.email_log where template = 'wa_test'`);
+const testAs = async (who) => { await as('authenticated', who); return fails(`select public.whatsapp_test()`); };
+let testRefusedAt = 0;
+for (let i = 1; i <= 4; i++) { const e = await testAs(HO3); if (e) { testRefusedAt = i; check('a customer gets three test messages a day, the fourth is refused', i === 4 && /test messages a day/.test(e), `${i}: ${e}`); break; } }
+check('…and the first three went out', testRefusedAt === 4 && (await n(`select count(*)::int n from public.email_log where template = 'wa_test' and recipient = public.wa_number('0533333333') and status = 'sent'`)) === 3);
+await db.exec(`reset role; update public.email_log set answer_code = 400, answer = '(#200) API access blocked.' where template = 'wa_test' and recipient = public.wa_number('0533333333')`);
+check('attempts Meta refused do not count: after they are marked refused, a test goes out again', (await testAs(HO3)) === false);
+await db.exec(`reset role; delete from public.email_log where template = 'wa_test'`);
+let adminRefusedAt = 0;
+for (let i = 1; i <= 11; i++) { const e = await testAs(ADMIN); if (e) { adminRefusedAt = i; break; } }
+check('an admin testing the channel gets ten a day', adminRefusedAt === 11, String(adminRefusedAt));
 await db.exec(`reset role`);
 
 console.log(results.join('\n'));

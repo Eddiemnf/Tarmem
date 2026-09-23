@@ -182,3 +182,4 @@ spam protection that costs visitors nothing.
 > settings page has no delete-account card, and one test goes out at a time.
 
 Why: the owner needed to send the WhatsApp test to their own number as the admin, and three fast presses had sent three.
+> Also: the WhatsApp card reports the test's outcome under its button (`wa.error`, red, beside the existing `wa.sentTo` line).
