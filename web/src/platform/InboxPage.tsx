@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import type { VM } from '../state/viewModel';
 import { fileLink, listFiles, type StoredFile } from './files';
-import { currentAccount, loadInbox, markFunded, type Inbox } from './session';
+import { currentAccount, loadInbox, markFunded, type Inbox, type SentRow } from './session';
 
 const when = (iso: unknown) => String(iso || '').slice(0, 16).replace('T', ' ');
 const H = ({ children }: { children: string }) => <h2 style={{ fontSize: '18px', color: '#1B1464', margin: '34px 0 10px' }}>{children}</h2>;
@@ -29,6 +29,25 @@ function ProjectFiles({ ownerId, projectId, ar }: { ownerId: string; projectId: 
 }
 
 const cell = { padding: '10px 12px', borderBottom: '1px solid #EEEDF5', verticalAlign: 'top', fontSize: '13.5px', lineHeight: 1.7 } as const;
+
+/** What an event is called on the delivery log, from the template name the database logged. */
+const EVENT_LABELS: Record<string, [string, string]> = {
+  project_posted: ['نشر المشروع', 'Project posted'], new_bid: ['عطاء جديد', 'New bid'], agreement_accepted: ['قبول العطاء', 'Bid accepted'],
+  agreement_signed: ['توقيع الاتفاقية', 'Agreement signed'], application_verified: ['توثيق الحساب', 'Account verified'], stage_submitted: ['تقديم مرحلة', 'Stage submitted'],
+  stage_released: ['اعتماد مرحلة', 'Stage approved'], stage_disputed: ['ملاحظة على مرحلة', 'Stage issue'], wa_test: ['رسالة تجريبية', 'Test message'], contact_receipt: ['إيصال رسالة', 'Message receipt'],
+};
+/** One line about what happened to a message, in the team's language: the provider's answer where it has arrived, our own reason otherwise. */
+function outcome(r: SentRow, ar: boolean): { text: string; cls: string } {
+  const provider = r.channel === 'whatsapp' ? 'Meta' : 'Resend';
+  if (r.recipient === 'meta') return { text: r.status === 'submitted' ? (ar ? `قالب مُرسل للمراجعة (${r.detail || ''})` : `template submitted for review (${r.detail || ''})`) : (ar ? 'قالب محذوف' : 'template deleted'), cls: 'tag-n' };
+  if (r.status === 'sent' && r.answer === 'accepted') return { text: ar ? `قبلها ${provider}` : `accepted by ${provider}`, cls: 'tag-g' };
+  if (r.status === 'sent' && r.answer) return { text: ar ? `رفضها ${provider}: ${r.answer}` : `refused by ${provider}: ${r.answer}`, cls: 'tag-p' };
+  if (r.status === 'sent') return { text: ar ? 'أُرسلت، بانتظار رد المزوّد' : 'sent, awaiting the provider\u2019s answer', cls: 'tag-n' };
+  if (r.status === 'queued') return { text: ar ? `مؤجّلة (وضع عدم الإزعاج): ${r.detail || ''}` : `held (quiet hours): ${r.detail || ''}`, cls: 'tag-n' };
+  if (r.status === 'skipped') return { text: ar ? `لم تُرسل: ${r.detail || ''}` : `not sent: ${r.detail || ''}`, cls: 'tag-n' };
+  if (r.status === 'throttled') return { text: ar ? `أُوقفت مؤقتًا: ${r.detail || ''}` : `throttled: ${r.detail || ''}`, cls: 'tag-p' };
+  return { text: ar ? `فشلت: ${r.detail || ''}` : `failed: ${r.detail || ''}`, cls: 'tag-p' };
+}
 
 export default function InboxPage({ vm }: { vm: VM }) {
   const ar = vm.dir !== 'ltr';
@@ -92,6 +111,18 @@ export default function InboxPage({ vm }: { vm: VM }) {
             </tr>
           ))}
           {!inbox.messages.length ? <tr><td style={cell} className="muted">{ar ? 'لا رسائل بعد.' : 'No messages yet.'}</td></tr> : null}
+        </tbody></table></div>
+
+        <H>{`${ar ? 'الرسائل المرسلة' : 'Messages sent'} (${inbox.sent.length})`}</H>
+        <p className="muted" style={{ fontSize: '12.5px', margin: '-4px 0 10px' }}>{ar ? 'كل بريد وكل رسالة واتساب أرسلها الموقع، وما ردّ به المزوّد عليها.' : 'Every email and WhatsApp the site sent, and what the provider answered.'}</p>
+        <div className="card sent-log" style={{ padding: '4px 8px', overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+          {inbox.sent.map((r) => { const o = outcome(r, ar); const ev = EVENT_LABELS[r.template]; return (
+            <tr key={r.id}>
+              <td style={cell} className="num"><span className="muted">{when(r.at)}</span><br /><span className="tag tag-n">{r.channel === 'whatsapp' ? 'WhatsApp' : ar ? 'بريد' : 'Email'}</span></td>
+              <td style={cell}><strong style={{ color: '#1B1464' }}>{ev ? (ar ? ev[0] : ev[1]) : r.template}</strong><br /><span className="num" dir="ltr">{r.recipient === 'meta' ? '' : r.recipient}</span></td>
+              <td style={cell}><span className={`tag ${o.cls}`}>{o.text}</span></td>
+            </tr>); })}
+          {!inbox.sent.length ? <tr><td style={cell} className="muted">{ar ? 'لم يُرسل شيء بعد.' : 'Nothing sent yet.'}</td></tr> : null}
         </tbody></table></div>
       </>) : null}
     </section>

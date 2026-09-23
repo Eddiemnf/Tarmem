@@ -380,3 +380,13 @@ project no. …: bid number {{2}} was received from {{3}}, {{4}} riyals, {{5}} d
 new variable that `notify_people` counts; both languages under `tarmem_new_bid_3`. Rules that held for Meta's Arabic checker:
 no عرض, no جديد, no plurals, and name the transaction and its status.
 
+## The delivery log in the admin inbox, with the providers' real answers — 23 September 2026
+
+`supabase/018_delivery_answers.sql` (11 local checks in `supabase/tests/local-delivery-answers.mjs`): every email and WhatsApp
+the database sends keeps pg_net's request id on its `email_log` row, and `wa_reconcile()` copies the provider's reply back —
+`answer` = accepted, the provider's refusal in its own words, or "timed out" — for rows of the last day (pg_net forgets sooner).
+It runs every ten minutes under pg_cron where that exists, and the admin console calls it whenever the inbox opens (admins
+only; the cron runs with no user). The inbox (`InboxPage.tsx`) gained a "Messages sent" table: time, channel, event, recipient,
+outcome. Also: approving a contractor no longer pops a ready-written WhatsApp once `whatsapp_live` is on — the database sends
+the "account verified" template itself. Owner step: run 018.
+

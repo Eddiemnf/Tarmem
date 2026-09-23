@@ -170,10 +170,13 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
         const before = (seen.contractors as LogicState[] | undefined)?.find((x) => x.id === c.id);
         if (c.dbId && before && !before.verified && c.verified) {
           void setApplicationStatus(c.dbId, 'verified').then(failed);
-          // The contractor is told on WhatsApp. It opens ready-written, from the team's own WhatsApp, inside this click;
-          // sending without anyone pressing "send" needs the WhatsApp Business API (docs/real-platform-plan.md).
-          const copy = PLATFORM_COPY[c.lang === 'en' ? 'en' : 'ar'];
-          openWhatsAppTo(c.mobile, copy.verifiedMessage(c.person, c.name.ar, `${window.location.origin}/signin`, Boolean(c.hasAccount)));
+          // The contractor is told on WhatsApp. Once the owner has switched WhatsApp updates on, the database sends the
+          // "account verified" template by itself (supabase/014); until then a ready-written message opens from the
+          // team's own WhatsApp, inside this click.
+          if (!currentAccount()?.whatsappLive) {
+            const copy = PLATFORM_COPY[c.lang === 'en' ? 'en' : 'ar'];
+            openWhatsAppTo(c.mobile, copy.verifiedMessage(c.person, c.name.ar, `${window.location.origin}/signin`, Boolean(c.hasAccount)));
+          }
         }
       }
     }

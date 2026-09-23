@@ -463,21 +463,29 @@ export async function sendApplication(f: ApplicationFields): Promise<Result> {
   } catch (e) { return { error: failure(e as Error) }; }
 }
 
+/** One line of the delivery log: an email or a WhatsApp the database sent, and what the provider answered (supabase/018). */
+export interface SentRow { id: number; at: string; recipient: string; template: string; status: string; detail: string | null; channel: string; answer: string | null; answer_code: number | null }
+
 export interface Inbox {
   projects: (ProjectRow & { owner: Pick<Profile, 'full_name' | 'mobile' | 'email' | 'city'> | null; bids: (BidRow & { company: string; mobile: string })[] })[];
   messages: Record<string, unknown>[];
   applications: Record<string, unknown>[];
+  /** The last hundred emails and WhatsApps, newest first, with the providers' answers where they have arrived. */
+  sent: SentRow[];
 }
 
 /** Everything that has arrived, for the team. The database returns rows only to an admin. */
 export async function loadInbox(): Promise<Result<Inbox>> {
   if (!supabase || !account?.logicUser.admin) return { error: 'generic' };
   try {
-    const [projects, profiles, messages, applications] = await Promise.all([
+    // the providers' replies are copied onto the log first, so the team reads what really happened (018; harmless before it)
+    await supabase.rpc('wa_reconcile').then(() => undefined, () => undefined);
+    const [projects, profiles, messages, applications, sent] = await Promise.all([
       supabase.from('projects').select('*').order('created_at', { ascending: false }).limit(200),
       supabase.from('profiles').select('id, full_name, mobile, email, city').limit(1000),
       supabase.from('contact_messages').select('*').order('created_at', { ascending: false }).limit(200),
       supabase.from('contractor_applications').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('email_log').select('*').order('at', { ascending: false }).limit(100),
     ]);
     const failed = projects.error || profiles.error || messages.error || applications.error;
     if (failed) return { error: failure(failed) };
@@ -490,6 +498,7 @@ export async function loadInbox(): Promise<Result<Inbox>> {
         bids: bids.filter((b) => b.project_id === p.id).map((b) => ({ ...b, company: String(firm.get(b.contractor_id)?.company || '—'), mobile: String(firm.get(b.contractor_id)?.mobile || '') })),
       })),
       messages: messages.data || [], applications: applications.data || [],
+      sent: ((sent.data as Partial<SentRow>[] | null) || []).map((r) => ({ id: Number(r.id), at: String(r.at || ''), recipient: String(r.recipient || ''), template: String(r.template || ''), status: String(r.status || ''), detail: r.detail ?? null, channel: String(r.channel || 'email'), answer: r.answer ?? null, answer_code: r.answer_code ?? null })),
     } };
   } catch (e) { return { error: failure(e as Error) }; }
 }

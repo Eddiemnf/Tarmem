@@ -276,9 +276,15 @@ check('a promo code made in the console is saved to the database', db.adminState
 await tab('late');
 check('nothing invented is left: no seeded strikes, refunds or affiliates', !(await saved()).strikes?.length && !(await saved()).refunds?.length && !(await saved()).affiliates?.length);
 check("the team's own browsing is not counted as traffic", db.visits.length === before, `${before} → ${db.visits.length}`);
+db.emailLog = [
+  { id: 2, at: '2026-09-23T09:10:00Z', recipient: '966551234567', template: 'new_bid', status: 'sent', detail: null, channel: 'whatsapp', answer: 'accepted', answer_code: 200 },
+  { id: 1, at: '2026-09-23T09:10:00Z', recipient: 'sara@example.com', template: 'new_bid', status: 'sent', detail: null, channel: 'email', answer: '(#131047) Re-engagement message', answer_code: 400 },
+];
 await page.locator('[data-route="inbox"]').click();
 await settle(700);
-check('the plain contact list is still one click away', (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 3);
+check('the plain contact list is still one click away', (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 4);
+check('the inbox asks the database for the providers\u2019 answers, then lists every message sent with its outcome', db.reconciled >= 1 && (await page.locator('.sent-log tr').count()) === 2
+  && (await page.locator('.sent-log .tag-g', { hasText: 'Meta' }).count()) === 1 && (await page.locator('.sent-log .tag-p', { hasText: 'Re-engagement' }).count()) === 1, String(await page.locator('.sent-log').innerText()).slice(0, 200));
 await page.locator('button', { hasText: 'عرض الصور والملفات' }).first().click();
 await settle(600);
 check('…where the team can open a project\'s photos through links that expire', (await page.locator('main a[href*="token="]').count()) === 2);

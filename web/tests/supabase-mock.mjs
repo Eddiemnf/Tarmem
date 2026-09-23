@@ -134,6 +134,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
       return send(route, 201);
     }
     if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }, { key: 'whatsapp_live', enabled: Boolean(db.whatsappLive) }] : []);
+    if (path === '/rest/v1/email_log') return rows(admin ? (db.emailLog || []) : []);
+    if (path === '/rest/v1/rpc/wa_reconcile' && method === 'POST') { if (!admin) return refuse(route, 'admins only'); db.reconciled = (db.reconciled || 0) + 1; return send(route, 200, 0); }
     if (path === '/rest/v1/rpc/whatsapp_test' && method === 'POST') {
       if (!me) return refuse(route, 'sign in first');
       if (!db.whatsappLive) return refuse(route, 'WhatsApp updates are not switched on yet');
