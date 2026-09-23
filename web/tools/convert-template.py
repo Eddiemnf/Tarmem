@@ -431,6 +431,8 @@ LAUNCH_INSERTS = {
     # real accounts (src/platform/): a contractor manages their portfolio photos; the team confirms wallet requests
     "own-work": ("<PortfolioManager vm={vm} />", "import PortfolioManager from '../platform/PortfolioManager';"),
     "pay-table": ("<WalletRequests vm={vm} />", "import WalletRequests from '../platform/WalletRequests';"),
+    # a homeowner picks which contractor's thread the messages tab shows (supabase/019)
+    "msg-card": ("<ThreadPicker vm={vm} />", "import ThreadPicker from '../platform/ThreadPicker';"),
 }
 _launch_inserts_applied: set[str] = set()
 

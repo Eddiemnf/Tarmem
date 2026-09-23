@@ -134,6 +134,19 @@ export async function installSupabaseMock(context, supabaseUrl) {
       return send(route, 201);
     }
     if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }, { key: 'whatsapp_live', enabled: Boolean(db.whatsappLive) }] : []);
+    if (path === '/rest/v1/project_messages') {
+      const mine = (r) => me && (db.projects.some((p) => p.id === r.project_id && p.owner_id === me) || r.contractor_id === me);
+      if (method === 'GET') return rows((db.messages || []).filter((r) => mine(r) && (!eq('project_id') || r.project_id === eq('project_id'))));
+      if (method === 'POST') {
+        const p = db.projects.find((x) => x.id === body.project_id);
+        const canMsg = p && (p.contractor_id === body.contractor_id || (db.bids || []).some((b) => b.project_id === p.id && b.contractor_id === body.contractor_id && b.status !== 'withdrawn'));
+        const owner = Boolean(p && p.owner_id === me);
+        if (!me || !canMsg || 'from_id' in body || !(owner || (body.contractor_id === me && isVerified(me))) || !String(body.body || '').trim()) return refuse(route, 'project_messages: refused');
+        (db.messages ||= []).push({ id: (db.messages || []).length + 1, ...body, from_id: me, created_at: new Date().toISOString(), read_at: null });
+        return send(route, 201);
+      }
+    }
+    if (path === '/rest/v1/rpc/mark_messages_read' && method === 'POST') { let n = 0; for (const r of db.messages || []) if (r.project_id === body.p_project && r.contractor_id === body.p_contractor && r.from_id !== me && !r.read_at) { r.read_at = new Date().toISOString(); n += 1; } return send(route, 200, n); }
     if (path === '/rest/v1/email_log') return rows(admin ? (db.emailLog || []) : []);
     if (path === '/rest/v1/rpc/wa_reconcile' && method === 'POST') { if (!admin) return refuse(route, 'admins only'); db.reconciled = (db.reconciled || 0) + 1; return send(route, 200, 0); }
     if (path === '/rest/v1/rpc/whatsapp_test' && method === 'POST') {

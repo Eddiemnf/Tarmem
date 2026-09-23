@@ -12,7 +12,7 @@ import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleL
 import { openWhatsAppTo } from '../launch/deliver';
 import { contractorRecord, runtimeData, setEveryone, toLogicProject } from './data';
 import { forgetHeldFiles, heldFile, listFiles, listPortfolio, uploadFile, type StoredFile } from './files';
-import { createProject, currentAccount, loadContractorReviews, onAccountChange, refreshAccount, saveBid, savePayoutAccount, saveReview, sendContact, signAgreement, walletRequest, withdrawProject, type AgreementRow, type BidRow } from './session';
+import { createProject, currentAccount, loadContractorReviews, onAccountChange, refreshAccount, saveBid, savePayoutAccount, saveReview, sendContact, signAgreement, walletRequest, withdrawProject, type AgreementRow, type BidRow, loadMessages, markMessagesRead, type MessageRow } from './session';
 import { trackRoutes } from './track';
 
 const langOf = (state: LogicState): 'ar' | 'en' => (state.lang === 'en' ? 'en' : 'ar');
@@ -210,6 +210,7 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   const arrivals = () => { const s = host.logic.state; return (s.projects?.length || 0) + (s.contractors?.length || 0) + (s.cases?.length || 0) + (s.projects as LogicState[] || []).reduce((n, p) => n + (p.bids?.length || 0), 0); };
   const freshen = async () => {
     if (document.hidden || !currentAccount() || publishing) return;
+    if (host.logic.state.route === 'project') loadProjectMessages(true);
     if (!isAdmin()) return void refreshAccount();
     await refreshAdmin();
     const now = arrivals();
@@ -356,6 +357,33 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   apply();
   const stopAccount = onAccountChange(apply);
   const stopWatching = host.subscribe(onChange);
+  // The project's messages (supabase/019): read when the project opens, again when the tab opens or a message is sent,
+  // and every minute; what the other side wrote is marked read while the thread is on screen.
+  let messagesFor = '';
+  const loadProjectMessages = (force = false) => {
+    const s = host.logic.state;
+    const project = s.route === 'project' ? (s.projects as LogicState[]).find((p) => p.id === s.curId) : null;
+    const account = currentAccount();
+    if (!project?.dbId || !account) return;
+    const dbId = project.dbId as string;
+    const key = `${dbId}:${s.msgBump || 0}:${s.tab === 'messages' ? 1 : 0}:${s.msgThread || ''}`;
+    if (!force && messagesFor === key) return;
+    messagesFor = key;
+    void loadMessages(dbId).then(async (rows) => {
+      const me = account.profile.id;
+      const store = (list: MessageRow[]) => put({ projectMessages: { ...((host.logic.state.projectMessages as Record<string, MessageRow[]>) || {}), [dbId]: list } });
+      store(rows);
+      if (host.logic.state.tab !== 'messages') return;
+      // the thread on screen: a contractor's own, or the one the homeowner picked (the first bidder by default, as the page shows it)
+      const first = account.bids.filter((b) => b.project_id === dbId && b.status !== 'withdrawn')[0]?.contractor_id || account.agreements.find((a) => a.project_id === dbId)?.contractor_id || rows[0]?.contractor_id;
+      const shown = account.profile.role === 'homeowner' ? String(host.logic.state.msgThread || first || '') : me;
+      if (!rows.some((r) => r.contractor_id === shown && r.from_id !== me && !r.read_at)) return;
+      await markMessagesRead(dbId, shown);
+      const at = new Date().toISOString();
+      store(rows.map((r) => (r.contractor_id === shown && r.from_id !== me && !r.read_at ? { ...r, read_at: at } : r)));
+    });
+  };
+  const stopMessages = host.subscribe(() => loadProjectMessages());
   const stopFiles = host.subscribe(loadProjectFiles);
   const stopBids = host.subscribe(saveNewBids);
   const stopSigning = host.subscribe(saveSignatures);
@@ -364,5 +392,5 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   const stopProfile = host.subscribe(loadProfileReviews);
   loadProjectFiles();
   const stopTracking = trackRoutes(host);
-  return () => { stopAccount(); stopWatching(); stopFiles(); stopBids(); stopSigning(); stopReviews(); stopWallet(); stopProfile(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
+  return () => { stopAccount(); stopWatching(); stopFiles(); stopMessages(); stopBids(); stopSigning(); stopReviews(); stopWallet(); stopProfile(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
 }

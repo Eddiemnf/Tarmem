@@ -3,6 +3,7 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import ThreadPicker from '../platform/ThreadPicker';
 
 export default function ProjectPage({ vm }: { vm: VM }) {
   return (<>
@@ -496,7 +497,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
 
       
     {vm.tab.messages ? (<>
-        <div className="card" style={{ maxWidth: '760px', padding: '24px', gap: '14px' }}>
+        <div className="card msg-card" style={{ maxWidth: '760px', padding: '24px', gap: '14px' }}>
           
       {((vm.pj.msgRows) || []).map((m: any, _i0: number) => (
         <React.Fragment key={_i0}>
@@ -507,7 +508,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
           
       {vm.canMessage ? (<><div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}><input className="input" value={vm.msgDraft} onChange={vm.setMsgDraft} onKeyDown={vm.msgKey} placeholder={vm.t.ws.msgPh} /><button className="btn btn-p" onClick={vm.sendMsg}>{vm.t.ws.send}</button></div><p className="muted" style={{ fontSize: '11.5px' }}>{vm.t.ws.msgPolicy}</p></>) : null}
       
-        </div>
+        </div><ThreadPicker vm={vm} />
       </>) : null}
     
 

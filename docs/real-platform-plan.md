@@ -402,3 +402,20 @@ names WhatsApp when it is on; the portfolio grid fills columns. Report for the o
 Next builds it recommends: real in-project messaging; measured profile performance; a "page not found" line; WebP trade
 photos; hiding the WhatsApp fab on form pages on phones.
 
+## Messages inside a project — 23 September 2026
+
+`supabase/019_messages.sql` (15 local checks in `supabase/tests/local-messages.mjs`): `project_messages` rows, a thread being one
+project and one contractor. Rules: the owner and that contractor read it; the owner writes to any contractor with a live bid or
+the award, a verified contractor writes on projects they bid on or were awarded; `mark_messages_read(project, contractor)` is
+the reader's. `notify_people` tells the other party by email and WhatsApp (`tarmem_new_message`, submitted by the script) with a
+snippet, naming the homeowner by first name and the contractor by company, unless "new messages" is off in their settings. Site:
+`loadMessages` / `sendMessage` / `markMessagesRead` (session.ts), the thread loaded on opening a project and refreshed every
+minute (bind.ts `loadProjectMessages`), `messagesVals` builds the design's `msgRows`, the tab count is the unread count, Enter
+sends, and a homeowner with several bidders picks the thread under the card (`ThreadPicker.tsx`, inserted after the design's
+`msg-card` marker). The "new messages" switch on the settings page is real again. Owner step: run 019.
+
+**Also today, from the walk (quick wins):** a wrong address shows a one-line notice on the home page (`notFound` state,
+urls.ts/App.tsx); an error screen instead of a blank page (`ErrorScreen.tsx`); the ten trade photos re-encoded to 800px
+(2.6 MB → 0.8 MB, same files); security headers and a year's cache for assets in vercel.json; the floating WhatsApp button
+stays off the form pages on phones; an open project's progress box says stages start once it is awarded.
+

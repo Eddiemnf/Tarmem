@@ -29,7 +29,7 @@ import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { VIDEO_MAX_BYTES, VIDEO_TYPES, acceptFiles, holdFiles, uploadFile } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { currentAccount, normalizeMobile, refreshAccount, sendContact, sendWhatsAppTest, stageStep, updateProfile, validMobile } from '../platform/session';
+import { currentAccount, normalizeMobile, refreshAccount, sendContact, sendMessage, sendWhatsAppTest, stageStep, updateProfile, validMobile, type MessageRow } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -207,7 +207,7 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   const pretty = (digits: string) => `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
   // The design's settings page says the mobile signs you in and needs a code to change, and calls the email "for invoices";
   // here the email signs you in and the mobile is for contact and WhatsApp. Only notification switches that do something exist.
-  const REAL_PREFS = ['pBids', 'pStages', 'pPay'];
+  const REAL_PREFS = ['pBids', 'pStages', 'pPay', 'pMsg'];
   return {
     ...vm,
     t: { ...vm.t, ...(vm.t.settings ? { settings: { ...vm.t.settings, mobileNote: copy.settingsMobileNote, email: copy.settingsEmail } } : {}),
@@ -279,17 +279,49 @@ const HERO_VIDEO: string = (() => {
   } catch { return 'assets/hero.mp4'; }
 })();
 
-/** The design's in-project chat keeps messages in memory only. Until messaging is real, the tab says so instead of
-    offering a box whose messages would go nowhere. */
-function messagesVals(vm: LogicVals, state: LogicState): LogicVals {
+/** The project's Messages tab on real rows (supabase/019). The design's chat kept messages in memory; here a thread is
+    one project and one contractor, read from the database (src/platform/bind.ts loads and refreshes it), and sending
+    writes a row the other party is told about. A homeowner with several bidders picks the thread (ThreadPicker.tsx). */
+function messagesVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (!platformOn || !vm.pj) return vm;
-  const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'], ar = vm.dir !== 'ltr';
   const pr = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
   // an open project's progress box read "no stages of 0 stages paid": stages begin when a contractor is chosen
   const progress = pr && !pr.contractorId ? { msSummary: copy.stagesAfterAward } : {};
-  if (!vm.tab?.messages) return { ...vm, pj: { ...vm.pj, ...progress } };
-  const rows = (vm.pj.msgRows as LogicState[] | undefined) || [];
-  return { ...vm, canMessage: false, pj: { ...vm.pj, ...progress, msgRows: rows.length ? rows : [{ who: copy.msgsFrom, time: '', text: copy.msgsSoon, align: 'flex-start', bg: '#F7F6FC', ink: '#3A385C' }] } };
+  const account = currentAccount();
+  if (!pr?.dbId || !account) return { ...vm, pj: { ...vm.pj, ...progress } };
+  const dbId = pr.dbId as string, me = account.profile.id, owner = account.profile.role === 'homeowner';
+  const rows = ((state.projectMessages as Record<string, MessageRow[]> | undefined)?.[dbId] || []);
+  const names = new Map<string, string>();
+  if (owner) {
+    for (const b of account.bids.filter((x) => x.project_id === dbId && x.status !== 'withdrawn')) names.set(b.contractor_id, account.bidders.find((c) => c.user_id === b.contractor_id)?.company || copy.msgsContractor);
+    const a = account.agreements.find((x) => x.project_id === dbId);
+    if (a) names.set(a.contractor_id, a.contractor_name || names.get(a.contractor_id) || copy.msgsContractor);
+    for (const r of rows) if (!names.has(r.contractor_id)) names.set(r.contractor_id, copy.msgsContractor);
+  }
+  const ids = owner ? [...names.keys()] : [me];
+  const active = owner ? (ids.includes(String(state.msgThread)) ? String(state.msgThread) : ids[0] || '') : me;
+  const thread = rows.filter((r) => r.contractor_id === active);
+  const unread = rows.filter((r) => r.from_id !== me && !r.read_at).length;
+  const partner = owner ? names.get(active) || copy.msgsContractor : copy.msgsHomeowner;
+  const when = (iso: string) => new Date(iso).toLocaleString(ar ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const msgRows = thread.map((r) => { const mine = r.from_id === me; return { who: mine ? vm.t.ws.you : partner, time: when(r.created_at), text: r.body, align: mine ? 'flex-end' : 'flex-start', bg: mine ? '#1B1464' : '#F1F0FA', ink: mine ? '#fff' : '#14113F' }; });
+  const canMessage = Boolean(active) && (owner || account.bids.some((b) => b.project_id === dbId && b.status !== 'withdrawn') || pr.contractorId === 'c1');
+  const note = (text: string) => ({ who: copy.msgsFrom, time: '', text, align: 'flex-start', bg: '#F7F6FC', ink: '#3A385C' });
+  const send = () => {
+    const body = String(state.msgDraft || '').trim();
+    if (!body || !active) return;
+    host.setLogicState({ msgDraft: '', msgError: '' });
+    void sendMessage(dbId, active, body).then((r) => host.setLogicState((s) => (r.ok ? { msgBump: (Number(s.msgBump) || 0) + 1 } : { msgDraft: body, msgError: copy.msgFailed })));
+  };
+  const shown = vm.tab?.messages ? [...(msgRows.length ? msgRows : [note(canMessage ? copy.msgsEmpty : copy.msgsNoThread)]), ...(state.msgError ? [note(String(state.msgError))] : [])] : msgRows;
+  return {
+    // (the design gates the Files tab's upload label with the same flag: only the messages tab's box is decided here)
+    ...vm, canMessage: vm.tab?.messages ? canMessage : vm.canMessage, msgThreads: ids.map((id) => ({ id, name: names.get(id) || '', on: id === active })),
+    pTabs: ((vm.pTabs as LogicState[]) || []).map((t) => (t.id === 'messages' ? { ...t, count: unread } : t)),
+    sendMsg: send, msgKey: (e: { key: string }) => { if (e.key === 'Enter') send(); },
+    pj: { ...vm.pj, ...progress, msgRows: shown },
+  };
 }
 
 function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
@@ -340,7 +372,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     // covers the end of a form's fields and buttons, so it stays off the form pages there
     showWaFab: vm.showWaFab && !vm.r?.sent && !(PHONE() && ['post', 'join', 'contact', 'auth'].includes(String(state.route))),
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state), state), state), state, host), state, host), state, host), state);
+  }, state), state), state), state, host), state, host), state, host), state, host);
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

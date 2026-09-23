@@ -463,6 +463,33 @@ export async function sendApplication(f: ApplicationFields): Promise<Result> {
   } catch (e) { return { error: failure(e as Error) }; }
 }
 
+/** A message inside a project (supabase/019): one thread per project and contractor. */
+export interface MessageRow { id: number; project_id: string; contractor_id: string; from_id: string; body: string; created_at: string; read_at: string | null }
+
+/** Every message of a project the person may read: the homeowner's threads with each contractor, or the contractor's own. */
+export async function loadMessages(projectId: string): Promise<MessageRow[]> {
+  if (!supabase || !account) return [];
+  try {
+    const { data } = await supabase.from('project_messages').select('*').eq('project_id', projectId).order('id', { ascending: true }).limit(500);
+    return (data as MessageRow[]) || [];
+  } catch { return []; }
+}
+
+export async function sendMessage(projectId: string, contractorId: string, body: string): Promise<Result> {
+  if (!supabase || !account) return { error: 'generic' };
+  try {
+    const { error } = await supabase.from('project_messages').insert({ project_id: projectId, contractor_id: contractorId, body: body.slice(0, 2000) });
+    if (error) return { error: failure(error) };
+    return { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** The reader has seen the other side's messages in this thread. */
+export async function markMessagesRead(projectId: string, contractorId: string): Promise<void> {
+  if (!supabase || !account) return;
+  await supabase.rpc('mark_messages_read', { p_project: projectId, p_contractor: contractorId }).then(() => undefined, () => undefined);
+}
+
 /** One line of the delivery log: an email or a WhatsApp the database sent, and what the provider answered (supabase/018). */
 export interface SentRow { id: number; at: string; recipient: string; template: string; status: string; detail: string | null; channel: string; answer: string | null; answer_code: number | null }
 

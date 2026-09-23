@@ -2851,7 +2851,7 @@
       </sc-if>
 
       <sc-if value="{{ tab.messages }}">
-        <div class="card" style="max-width:760px;padding:24px;gap:14px">
+        <div class="card msg-card" style="max-width:760px;padding:24px;gap:14px">
           <sc-for list="{{ pj.msgRows }}" as="m" hint-placeholder-count="3">
             <div style="display:flex;flex-direction:column;align-items:{{ m.align }};gap:4px"><span class="muted" style="font-size:12px">{{ m.who }} · {{ m.time }}</span><div style="max-width:80%;padding:10px 14px;border-radius:14px;background:{{ m.bg }};color:{{ m.ink }};font-size:14px">{{ m.text }}</div></div>
           </sc-for>

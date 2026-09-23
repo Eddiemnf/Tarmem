@@ -123,3 +123,11 @@ Wording for the lawyer's pass; it describes exactly what the database does.
 
 Why: the public site hides both — the first shows figures typed into the design (128 views, 31%, 4h), the second says
 "verified with Nafath" while Nafath is not connected. The demo keeps both as designed.
+
+
+## Added 23 September 2026 — a class marker, no visible change
+
+> On the project page, the Messages tab's card gets `class="card msg-card"`.
+
+Why: the public site inserts, under it, the homeowner's choice of which contractor's thread is shown (one thread per
+bidder, supabase/019). The demo keeps the single in-memory thread as designed.
