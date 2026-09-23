@@ -173,3 +173,12 @@ Why: the owner wants to see everything behind a row before approving, resolving 
 
 Why: the owner asked for account deletion, the site needs its legal identity in the footer, and the public forms need
 spam protection that costs visitors nothing.
+
+
+## Changed 24 September 2026 — settings for admins, a busy test button
+
+> The account menu shows "Settings" for every role (the admin's own contact details and the WhatsApp test); the
+> WhatsApp card's test button carries `disabled="{{ wa.busy }}"` (`wa.busy` from `setg.waBusy`). On the site an admin's
+> settings page has no delete-account card, and one test goes out at a time.
+
+Why: the owner needed to send the WhatsApp test to their own number as the admin, and three fast presses had sent three.

@@ -276,7 +276,10 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
     // the settings copy: what the mobile and email are for, and "delete my account" in words that say what really happens (022)
     t: { ...vm.t, ...(vm.t.settings ? { settings: { ...vm.t.settings, mobileNote: copy.settingsMobileNote, email: copy.settingsEmail, close: copy.closeBtnReal, closeQ: copy.closeQReal, closeBody: copy.closeBodyReal, closeYes: copy.closeYesReal } } : {}),
       ...(vm.wa && vm.t.wa ? { wa: { ...vm.t.wa, sub: copy.waSub, numberNote: copy.waNumberNote } } : {}) },
-    ...(vm.st?.prefs ? { st: { ...vm.st, prefs: (vm.st.prefs as { id: string }[]).filter((p) => REAL_PREFS.includes(p.id)) } } : {}),
+    // the switches that exist; and an admin's settings page carries no delete-account card (an admin is removed by another admin)
+    ...(vm.st ? { st: { ...vm.st,
+      ...(vm.st.prefs ? { prefs: (vm.st.prefs as { id: string }[]).filter((p) => REAL_PREFS.includes(p.id)) } : {}),
+      ...(account.profile.role === 'admin' ? { canClose: false, closeBlocked: false, closeAsk: false } : {}) } } : {}),
     // "save contractor" is kept on the profile row, so the dashboard's saved list survives a reload and another device
     toggleSave: (e: { stopPropagation: () => void; currentTarget: { dataset: { id?: string } } }) => {
       e.stopPropagation();
@@ -297,13 +300,15 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
     waVerify: () => {
       const mobile = normalizeMobile(waNumber);
       if (!validMobile(mobile)) return note(copy.err.mobile);
+      if (state.setg?.waBusy) return; // one test at a time: the button is greyed out until the database answers
+      host.setLogicState((s) => ({ setg: { ...s.setg, waBusy: true } }));
       void (async () => {
         if (mobile !== account.profile.mobile) {
           const saved = await updateProfile({ mobile });
-          if (saved.error) return note(copy.err[saved.error]);
+          if (saved.error) { host.setLogicState((s) => ({ setg: { ...s.setg, waBusy: false } })); return note(copy.err[saved.error]); }
         }
         const sent = await sendWhatsAppTest();
-        host.setLogicState((s) => ({ setg: { ...s.setg, mobile, waNumber: mobile, ...(sent.error ? { waSent: '', notice: copy.err[sent.error] } : { waSent: pretty(sent.ok || ''), notice: '' }) } }));
+        host.setLogicState((s) => ({ setg: { ...s.setg, mobile, waNumber: mobile, waBusy: false, ...(sent.error ? { waSent: '', notice: copy.err[sent.error] } : { waSent: pretty(sent.ok || ''), notice: '' }) } }));
       })();
     },
     waChannel: (e: { currentTarget: { dataset: { v?: string } } }) => {

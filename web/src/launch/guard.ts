@@ -136,7 +136,7 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
     || state.route === 'reset'
     || (state.route === 'hdash' && user?.role === 'homeowner')
     // a contractor has their dashboard from the moment they apply; the open projects once an admin has verified them
-    || (state.route === 'settings' && (user?.role === 'homeowner' || user?.role === 'contractor'))
+    || (state.route === 'settings' && Boolean(user))
     // "my profile": a homeowner's own. Other people's profiles wait for reviews to exist.
     || (state.route === 'homeowner' && user?.role === 'homeowner' && (!state.curId || state.curId === 'h1'))
     // a verified contractor's profile: their own, or a bidder on the homeowner's projects — never an id the page does not already hold

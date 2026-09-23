@@ -996,7 +996,7 @@
                 <sc-if value="{{ isHomeowner }}"><button class="acctitem" data-route="homeowner" data-id="h1" onClick="{{ goMenu }}">{{ t.hprofile.myProfile }}</button></sc-if>
                 <sc-if value="{{ isContractor }}"><button class="acctitem" data-route="contractor" data-id="c1" onClick="{{ goMenu }}">{{ t.nav.myProfile }}</button></sc-if>
                 <sc-if value="{{ isNotAdmin }}"><button class="acctitem" data-route="wallet" onClick="{{ goMenu }}">{{ t.nav.wallet }}</button></sc-if>
-                <sc-if value="{{ isNotAdmin }}"><button class="acctitem" data-route="settings" onClick="{{ goMenu }}">{{ t.nav.settings }}</button></sc-if>
+                <button class="acctitem" data-route="settings" onClick="{{ goMenu }}">{{ t.nav.settings }}</button>
                 <hr class="hair">
                 <button class="acctitem" onClick="{{ signOut }}">{{ t.nav.signOut }}</button>
               </div>
@@ -1942,7 +1942,7 @@
           <label class="lbl" for="wa-num">{{ t.wa.number }}</label>
           <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px">
             <input id="wa-num" class="input num" name="waNumber" value="{{ wa.number }}" onChange="{{ setSetting }}" style="direction:ltr;text-align:start" placeholder="+966 5X XXX XXXX">
-            <button class="btn btn-p" style="background:#25D366" onClick="{{ waVerify }}">{{ t.wa.verify }}</button>
+            <button class="btn btn-p" style="background:#25D366" disabled="{{ wa.busy }}" onClick="{{ waVerify }}">{{ t.wa.verify }}</button>
           </div>
           <span class="muted" style="font-size:11.5px;display:block;margin-top:6px">{{ t.wa.numberNote }}</span>
           <sc-if value="{{ wa.sentTo }}"><p style="font-size:12.5px;color:#15703A;margin:8px 0 0">✓ {{ t.wa.sent }} <span class="num">{{ wa.sentTo }}</span></p></sc-if>
@@ -3915,7 +3915,7 @@ class Component extends DCLogic {
       : ['Tarmem: New bid on “Kitchen renovation, 18 m²” for SAR 48,000 from a verified contractor. Tap to compare.', 'Tarmem: Stage “Core works” is awaiting your approval. With no action in 5 days it goes to review.', 'Tarmem: Reminder — “Core works” is due in 48 hours. Submit evidence to avoid a SAR 500 late fee.'];
     const preview = role === 'contractor' ? msgs[2] : msgs[0];
     const log = [{text: msgs[1], st: W.read, cls:'tag-g'}, {text: msgs[0], st: W.delivered, cls:'tag-n'}, {text: msgs[2], st: W.queued, cls:'tag-p'}];
-    return { on: !!SG.waVerified, number: SG.waNumber || SG.mobile || '', sentTo: SG.waSent || '', quiet: SG.prefs ? SG.prefs.quiet !== false : true,
+    return { on: !!SG.waVerified, busy: !!SG.waBusy, number: SG.waNumber || SG.mobile || '', sentTo: SG.waSent || '', quiet: SG.prefs ? SG.prefs.quiet !== false : true,
       channels: [['wa', W.channels[0]], ['sms', W.channels[1]], ['email', W.channels[2]]].map(([id,l]) => ({id, l, on: ch === id ? 'true' : 'false'})),
       previewMsg: preview, previewTime: '10:42', log };
   }

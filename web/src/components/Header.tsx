@@ -114,9 +114,7 @@ export default function Header({ vm }: { vm: VM }) {
                 
         {vm.isNotAdmin ? (<>{vm.launch && !vm.wallet ? null : (<button className="acctitem" data-route="wallet" onClick={vm.goMenu}>{vm.t.nav.wallet}</button>)}</>) : null}
         
-                
-        {vm.isNotAdmin ? (<>{vm.launch && !vm.accounts ? null : (<button className="acctitem" data-route="settings" onClick={vm.goMenu}>{vm.t.nav.settings}</button>)}</>) : null}
-        
+                {vm.launch && !vm.accounts ? null : (<button className="acctitem" data-route="settings" onClick={vm.goMenu}>{vm.t.nav.settings}</button>)}
                 <hr className="hair" />
                 <button className="acctitem" onClick={vm.signOut}>{vm.t.nav.signOut}</button>
               </div>

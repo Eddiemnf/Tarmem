@@ -29,7 +29,7 @@ export default function SettingsPage({ vm }: { vm: VM }) {
           <label className="lbl" htmlFor="wa-num">{vm.t.wa.number}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '10px' }}>
             <input id="wa-num" className="input num" name="waNumber" value={vm.wa.number} onChange={vm.setSetting} style={{ direction: 'ltr', textAlign: 'start' }} placeholder="+966 5X XXX XXXX" />
-            <button className="btn btn-p" style={{ background: '#25D366' }} onClick={vm.waVerify}>{vm.t.wa.verify}</button>
+            <button className="btn btn-p" style={{ background: '#25D366' }} disabled={vm.wa.busy} onClick={vm.waVerify}>{vm.t.wa.verify}</button>
           </div>
           <span className="muted" style={{ fontSize: '11.5px', display: 'block', marginTop: '6px' }}>{vm.t.wa.numberNote}</span>
           
