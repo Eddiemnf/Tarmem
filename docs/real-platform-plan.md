@@ -424,3 +424,10 @@ stays off the form pages on phones; an open project's progress box says stages s
 wins; the converter's `LAUNCH_TEXT_SWAPS` replaces the design's typed "128 / 31% / 4h" with `vm.perfViews / perfWin /
 perfResponse` on the public site (a dash where nothing is measured; response time stays a dash). 7 local checks. Owner step: run 020.
 
+**Phone pass (same day):** the signed-in states captured at 390px (the platform flow with the viewport switched for each
+screenshot). Two things worth fixing: the dashboards' and inbox's five-column tables wrapped word by word — they now keep a
+minimum width and scroll inside their card (`#hdash-projects`, `#cdash-work`, `.inbox-table`); and the note under the
+message box promised that phone numbers and emails are masked, which the real rows did not do — `messagesVals` now runs
+them through the design's own `scrub`. Everything else at phone width reads well: sign-up, project tabs, settings and the
+WhatsApp card, browse, the bid form, messages, the contractor dashboard.
+
