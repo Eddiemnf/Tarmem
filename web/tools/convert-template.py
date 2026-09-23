@@ -291,7 +291,7 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
             if part.startswith("{{"):
                 buf.append("{" + scope.expr(part[2:-2]) + "}")
             elif part:
-                buf.append(literal_text(part))
+                buf.append(swap_text(part) or literal_text(part))
         return "".join(buf)
 
     if node.tag == "sc-if":
@@ -356,7 +356,13 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
     elif tag in VOID or node.tag == "image-slot":
         out = f"<{tag}{attr_str} />"
     else:
+        swap_marker = next((m for m in LAUNCH_TEXT_SWAPS if m in (dict(node.attrs).get("class") or "").split()), None)
+        if swap_marker:
+            _text_swaps.append(LAUNCH_TEXT_SWAPS[swap_marker])
+            _launch_rules_applied.add(swap_marker)
         body = emit_children(node.children, scope, indent)
+        if swap_marker:
+            _text_swaps.pop()
         out = f"<{tag}{attr_str}>{body}</{tag}>"
     hidden_when = launch_hidden(node)
     if hidden_when:
@@ -392,11 +398,27 @@ LAUNCH_HIDDEN_CLASSES = {
     "drop": "a file picker that uploads nothing, until photos have somewhere to go (vm.uploads: src/platform/files.ts)",
     "ai2-att": "the same, on the home page's description box: it feeds the assistant, which is not public",
     "wa-card": "the WhatsApp card (the number, a test message, the channel, quiet hours): shown once the owner has switched WhatsApp updates on in the database (vm.whatsapp, supabase/013)",
-    "perf-card": "the contractor dashboard's \"profile performance\" card: 128 views, 31% win rate, 4h response are typed into the design, not measured",
     "hp-identity": "the homeowner profile's \"verified with Nafath\" card: Nafath is not connected, so nobody is",
 }
 # When a marker above is hidden; anything not listed here is hidden on the whole public site.
 LAUNCH_HIDDEN_CONDITIONS = {"drop": "vm.launch && !vm.uploads", "wa-card": "vm.launch && !vm.whatsapp"}
+# Figures the design typed into a card, which the public site reads from real rows instead (the vm field named here,
+# a dash while there is nothing to measure); the demo keeps the typed figures.
+LAUNCH_TEXT_SWAPS = {"perf-card": {"128": "vm.perfViews", "31%": "vm.perfWin", "4h": "vm.perfResponse"}}
+_text_swaps: list[dict[str, str]] = []
+
+
+def swap_text(data: str) -> str:
+    """Inside a LAUNCH_TEXT_SWAPS element: the typed figure becomes the measured one on the public site ('' = not a swap)."""
+    if not _text_swaps:
+        return ""
+    core = data.strip()
+    expr = _text_swaps[-1].get(core)
+    if not expr:
+        return ""
+    lead = data[:len(data) - len(data.lstrip())]
+    trail = data[len(data.rstrip()):]
+    return f"{lead}{{vm.launch ? String({expr} ?? '—') : '{core}'}}{trail}"
 # The indicative price range per trade ("sugbox") was hidden at first as the design's placeholder
 # figures. The owner asked for it back on 21 September 2026: the ranges are his to stand behind,
 # and they are edited in the design's data file (BUDGETS in project/tarmem-i18n.js).
@@ -855,7 +877,7 @@ def main() -> None:
     if not _whatsapp_rewrites:
         raise SystemExit(f"the design no longer links to {PLACEHOLDER_WHATSAPP} — check where its WhatsApp links point")
 
-    expected = set(LAUNCH_HIDDEN_CLASSES) | set(LAUNCH_HIDDEN_SECTIONS) | {"route:" + r for r in LAUNCH_HIDDEN_ROUTES}
+    expected = set(LAUNCH_HIDDEN_CLASSES) | set(LAUNCH_HIDDEN_SECTIONS) | set(LAUNCH_TEXT_SWAPS) | {"route:" + r for r in LAUNCH_HIDDEN_ROUTES}
     unmatched_launch = (expected - _launch_rules_applied) | (set(LAUNCH_INSERTS) - _launch_inserts_applied)
     if unmatched_launch:
         raise SystemExit(f"launch rules no longer match the design file: {sorted(unmatched_launch)}")

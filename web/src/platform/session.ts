@@ -29,6 +29,8 @@ export interface Account {
   paymentsLive: boolean;
   /** The owner has switched WhatsApp updates on in the database (supabase/013): the settings page shows the designed card. */
   whatsappLive: boolean;
+  /** A contractor's measured figures (supabase/020): profile views in 30 days, bids made and won. Null until 020 runs. */
+  performance: { views: number; bids: number; won: number } | null;
   /** Reviews this person wrote (a homeowner) or received (a contractor). */
   reviews: ReviewRow[];
   /** The wallet, once payments are live: this person's deposits or payouts, and a contractor's bank account. */
@@ -296,8 +298,8 @@ async function loadAgreements(): Promise<AgreementRow[]> {
 }
 
 /** (empty, and off, until 007 has been run) */
-async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | 'whatsappLive' | 'reviews' | 'wallet' | 'payout' | 'standing'>> {
-  if (!supabase) return { stages: [], paymentsLive: false, whatsappLive: false, reviews: [], wallet: [], payout: null, standing: null };
+async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | 'whatsappLive' | 'reviews' | 'wallet' | 'payout' | 'standing' | 'performance'>> {
+  if (!supabase) return { stages: [], paymentsLive: false, whatsappLive: false, reviews: [], wallet: [], payout: null, standing: null, performance: null };
   const [flag, rows] = await Promise.all([
     supabase.from('platform_flags').select('key, enabled').in('key', ['payments_live', 'whatsapp_live']),
     supabase.from('stages').select('project_id, idx, status').order('idx', { ascending: true }),
@@ -306,13 +308,14 @@ async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | '
   const mine = who.user ? await supabase.from('reviews').select('*').or(`homeowner_id.eq.${who.user.id},contractor_id.eq.${who.user.id}`) : null;
   const flags = new Map(((flag.data as { key: string; enabled: boolean }[] | null) || []).map((f) => [f.key, f.enabled]));
   const live = Boolean(flags.get('payments_live'));
+  const perf = who.user ? await supabase.rpc('my_performance').then((r) => (r.data && typeof r.data === 'object' && 'views' in (r.data as object) ? (r.data as { views: number; bids: number; won: number }) : null), () => null) : null;
   const [wallet, payout, standing] = who.user ? await Promise.all([
     live ? supabase.from('wallet_txns').select('*').eq('user_id', who.user.id).order('created_at', { ascending: false }).limit(200) : null,
     live ? supabase.from('payout_accounts').select('holder, bank, iban').eq('user_id', who.user.id).maybeSingle() : null,
     supabase.from('verified_contractors').select('*').eq('user_id', who.user.id).maybeSingle(),
   ]) : [null, null, null];
   return { stages: (rows.data as StageRow[]) || [], paymentsLive: live, whatsappLive: Boolean(flags.get('whatsapp_live')), reviews: (mine?.data as ReviewRow[]) || [],
-    wallet: (wallet?.data as WalletTxn[]) || [], payout: (payout?.data as PayoutAccount | null) || null, standing: (standing?.data as Bidder | null) || null };
+    wallet: (wallet?.data as WalletTxn[]) || [], payout: (payout?.data as PayoutAccount | null) || null, standing: (standing?.data as Bidder | null) || null, performance: perf };
 }
 
 /** What signed-in people may read about a contractor's reviews: the stars, the words, and the reviewer's first name. */

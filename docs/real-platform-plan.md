@@ -419,3 +419,8 @@ urls.ts/App.tsx); an error screen instead of a blank page (`ErrorScreen.tsx`); t
 (2.6 MB → 0.8 MB, same files); security headers and a year's cache for assets in vercel.json; the floating WhatsApp button
 stays off the form pages on phones; an open project's progress box says stages start once it is awarded.
 
+**020 (same day):** the contractor dashboard's "profile performance" card is back on the public site with measured figures:
+`my_performance()` counts other people's visits to `/firm/co-<id>` in 30 days (one per visitor) and the contractor's bids and
+wins; the converter's `LAUNCH_TEXT_SWAPS` replaces the design's typed "128 / 31% / 4h" with `vm.perfViews / perfWin /
+perfResponse` on the public site (a dash where nothing is measured; response time stays a dash). 7 local checks. Owner step: run 020.
+

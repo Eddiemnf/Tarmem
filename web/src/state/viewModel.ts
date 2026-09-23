@@ -339,6 +339,8 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     wallet: Boolean(platformOn && currentAccount()?.paymentsLive),
     /** The settings page's WhatsApp card shows once the owner has switched WhatsApp updates on in the database (supabase/013). */
     whatsapp: Boolean(platformOn && currentAccount()?.whatsappLive),
+    // the contractor dashboard's "profile performance", measured (supabase/020): a dash until there is something to measure
+    ...(platformOn ? (() => { const p = currentAccount()?.performance; return { perfViews: p ? String(p.views) : '—', perfWin: p && p.bids ? `${Math.round((p.won / p.bids) * 100)}%` : '—', perfResponse: '—' }; })() : {}),
     heroVideo: HERO_VIDEO,
     // an open project's headline figure is its budget range, not the top of it alone; a contractor with no finished
     // work yet reads "new", not a rating of 0.0
