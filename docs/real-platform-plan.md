@@ -431,3 +431,18 @@ message box promised that phone numbers and emails are masked, which the real ro
 them through the design's own `scrub`. Everything else at phone width reads well: sign-up, project tabs, settings and the
 WhatsApp card, browse, the bid form, messages, the contractor dashboard.
 
+
+## The contractor's button moves into the hero — 23 September 2026
+
+The owner's call: "join as a contractor" did not belong in the header's corner; it now sits next to "start your project"
+in the hero's own row, with the same glass look it had up top but fully rounded to match the primary pill (`.ph-row`,
+`.ph-b2` in the design; mirrored in `docs/design-changes-to-mirror.md`). Over the home hero the header hides its own copy;
+scrolled, and on every other page, the header is unchanged. The early-launch notice under the hero is centred. The public
+site's phone-only text link under the hero is retired. Live (commit 712654d), checked in a real browser at desktop and phone
+widths in both languages.
+
+**Found on the way:** since about 13:00 Riyadh on 23 September every request to www.tarmem.sa is answered with a
+"Vercel Security Checkpoint" (403, `x-vercel-mitigated: challenge`) — from this Mac and from outside alike, so it is
+project-wide. Real browsers pass after a few seconds; link previews, crawlers that are not on Vercel's verified list, and
+the live test suites are blocked. Vercel documents this as its Attack Mode, a manual switch under the project's
+Firewall → Bot Management. Owner step: open that page, and unless it was switched on deliberately, disable it.
