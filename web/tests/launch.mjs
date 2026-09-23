@@ -201,6 +201,7 @@ check('navigation updates the address, and Back returns to the previous page',
   afterClick === '/how' && (await pathname()) === '/pricing' && (await route()) === 'pricing', `${afterClick} → ${await pathname()}`);
 await load({ key: 'tarmem-public-v1', value: { route: 'faq' } });
 check('the site root is always the home page, whatever was open last time', (await route()) === 'home' && (await pathname()) === '/');
+check('sign in is visible over the home-page video, without scrolling', await page.locator('.hdr .ulnk[data-route="auth"]').first().isVisible());
 await load(null, 'no-such-page');
 check('an unknown address lands on the home page', (await route()) === 'home' && (await pathname()) === '/');
 

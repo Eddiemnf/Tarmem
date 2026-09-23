@@ -973,3 +973,11 @@
 [data-launch] main a[href^="tel:"], [data-launch] main a[href^="mailto:"] { color: #C53B1C; text-decoration: underline; }
 /* Table headers and inactive tab labels use the design's lighter grey (4.2:1); one step darker clears 4.5:1. */
 [data-launch] main th, [data-launch] main .tab[aria-selected="false"] { color: #6B6986; }
+
+/* A visitor should not have to scroll to find "sign in": over the home-page video the design keeps only the nav
+   and the contractor button, so the public site shows the sign-in link there too, in white. Phones keep it in the menu. */
+[data-launch] .hdr[data-over="true"] .ulnk.hide-over { display: inline-flex !important; color: #fff; text-shadow: 0 1px 12px rgba(12,10,8,.55); font-size: clamp(14px,1.25vw,16px); }
+[data-launch] .hdr[data-over="true"] .ulnk.hide-over:hover { color: #FFD3B4; }
+/* One or two portfolio photos should not stretch across the whole page: fill columns, never a column per photo. */
+[data-launch] .own-work { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
+

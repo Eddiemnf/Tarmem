@@ -105,6 +105,11 @@ await settle(400);
 check('…and both are still there after a reload (read back from storage)', (await page.locator('td', { hasText: 'مطبخ قبل.png' }).count()) === 1 && (await page.locator('td', { hasText: 'plan.pdf' }).count()) === 1);
 await page.locator('[role="tab"][data-tab="bids"]').click({ timeout: 3000 }).catch(() => undefined);
 await settle(200);
+await page.locator('.tab[data-tab="messages"]').click();
+await settle(300);
+check('the messages tab says messaging is being set up, and offers no box whose messages would go nowhere', (await page.locator('text=المراسلة داخل المشروع قيد التفعيل').count()) === 1 && (await page.locator('main .card input.input').count()) === 0);
+await page.locator('.tab[data-tab="bids"]').click();
+await settle(300);
 check('the bids tab says what happens next instead of "no bids"', (await page.locator('text=نُشر مشروعك ويراه المقاولون الموثّقون').count()) === 1);
 
 // C — the dashboard, and what is left out of it for now
@@ -119,6 +124,7 @@ await page.keyboard.press('Escape');
 await open('settings');
 check('the designed settings page opens with their own mobile and email, without the WhatsApp card while WhatsApp updates are switched off',
   (await pathname()) === '/settings' && (await page.locator('input[name="mobile"]').inputValue()) === '055 1234567' && (await page.locator('input[name="email"]').inputValue()) === 'sara@example.com' && (await page.locator('.wa-card').count()) === 0);
+check('the settings page offers only the notification switches that exist, and says what the mobile and the email are for', (await page.locator('input[name="pBids"], input[name="pStages"], input[name="pPay"]').count()) === 3 && (await page.locator('input[name="pNews"], input[name="pMsg"], input[name="pDeadlines"]').count()) === 0 && (await page.locator('text=البريد الإلكتروني (لتسجيل الدخول)').count()) === 1);
 await page.locator('input[name="mobile"]').fill('0559998877');
 await page.locator('input[name="pNews"]').check({ force: true }).catch(() => undefined);
 await page.locator('button', { hasText: 'حفظ' }).first().click();
@@ -145,6 +151,7 @@ await settle(300);
 await page.locator('.modal textarea, [role="dialog"] textarea, textarea[name="about"]').first().fill('فيلا في حي العارض، نجدّد المطبخ هذا العام.');
 await page.locator('button', { hasText: 'حفظ' }).last().click();
 await settle(800);
+check('the homeowner profile makes no Nafath claim', (await page.locator('.hp-identity').count()) === 0 && (await page.locator('text=تم التحقق عبر نفاذ').count()) === 0);
 check('"my profile" edits are saved too', db.profiles[0].about === 'فيلا في حي العارض، نجدّد المطبخ هذا العام.' && (await page.locator('main', { hasText: 'نجدّد المطبخ هذا العام' }).count()) === 1, String(db.profiles[0].about));
 await open('dashboard');
 await page.locator('button.acct').click();
@@ -300,6 +307,7 @@ await page.locator('#au-email').fill('khalid@build.example');
 await page.locator('#au-password').fill('contractor-pass-1');
 await submit.click();
 await settle(900);
+check('the contractor dashboard shows no invented performance figures', (await page.locator('.perf-card').count()) === 0 && (await page.locator('text=31%').count()) === 0);
 check('the verified contractor signs in and lands on the contractor dashboard, no longer "being verified"', (await pathname()) === '/contractor' && (await page.locator('text=حسابك قيد التوثيق').count()) === 0 && (await page.locator('h1', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1, await pathname());
 await page.locator('header [data-route="browse"]').first().click();
 await settle(500);
@@ -451,6 +459,10 @@ const firmText = await page.locator('main').innerText();
 check('a homeowner opens a bidder\'s profile: the verified company, the real review with a first name only — no stock photos, no made-up reviews or response times',
   (await pathname()).startsWith('/firm/co-') && firmText.includes('مؤسسة البناء المتقن') && firmText.includes('أنصح بالتعامل معهم') && firmText.includes('سارة') && !firmText.includes('العتيبي')
     && (await page.locator('main img[src*="assets/trades"]').count()) === 0 && !firmText.includes('0501112223'), await pathname());
+check('…and its "how Tarmem protects you" makes no Nafath claim', !firmText.includes('نفاذ') && firmText.includes('يراجع فريق ترميم بيانات المنشأة'));
+await page.locator('button', { hasText: 'حفظ المقاول' }).click();
+await settle(600);
+check('saving a contractor is kept on the profile row, so the dashboard list survives a reload', Array.isArray(db.profiles.find((p) => p.role === 'homeowner')?.prefs?.saved) && db.profiles.find((p) => p.role === 'homeowner').prefs.saved.length === 1, JSON.stringify(db.profiles.find((p) => p.role === 'homeowner')?.prefs));
 await open('wallet');
 check('with payments on, the homeowner\'s wallet opens', (await pathname()) === '/wallet' && (await page.locator('main h1, main h2').count()) >= 1, await pathname());
 // (the design offers a deposit only when a stage payment is due; this project is already finished, so there may be nothing to deposit)

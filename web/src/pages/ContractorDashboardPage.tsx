@@ -107,11 +107,11 @@ export default function ContractorDashboardPage({ vm }: { vm: VM }) {
     
             <p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.7' }}>{vm.t.cdash.payNote}</p>
           </div>
-          <div className="card"><span className="kick">{vm.t.cdash.performance}</span>
+          {vm.launch ? null : (<div className="card perf-card"><span className="kick">{vm.t.cdash.performance}</span>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', padding: '8px 0', borderBottom: '1px solid #EEEDF5' }}><span>{vm.t.cdash.profileViews}</span><span className="num" style={{ fontWeight: '600' }}>128</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', padding: '8px 0', borderBottom: '1px solid #EEEDF5' }}><span>{vm.t.cdash.winRate}</span><span className="num" style={{ fontWeight: '600' }}>31%</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', padding: '8px 0' }}><span>{vm.t.profile.response}</span><span className="num" style={{ fontWeight: '600' }}>4h</span></div>
-          </div>
+          </div>)}
         </aside>
       </div>
     </section>

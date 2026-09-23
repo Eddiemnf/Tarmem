@@ -350,7 +350,7 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     const before = host.logic.state;
     const mine = profile ? { setg: { ...before.setg, mobile: profile.mobile, email: profile.email || '', prefs: { ...before.setg?.prefs, ...(profile.prefs || {}) }, notice: before.setg?.notice || '' },
       hoProfile: { city: profile.city, about: both(profile.about || '') } } : {};
-    put({ rejected: [], cases: [], promos: [], affiliates: [], strikes: [], refunds: [], adminAn: null, ...mine, ...next });
+    put({ rejected: [], cases: [], promos: [], affiliates: [], strikes: [], refunds: [], adminAn: null, ...mine, ...next, saved: Array.isArray(profile?.prefs?.saved) ? (profile?.prefs?.saved as string[]) : [] });
     if (account?.logicUser.admin) { void refreshAdmin(); void refreshAnalytics(); }
   };
   apply();

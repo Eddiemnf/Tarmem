@@ -392,6 +392,8 @@ LAUNCH_HIDDEN_CLASSES = {
     "drop": "a file picker that uploads nothing, until photos have somewhere to go (vm.uploads: src/platform/files.ts)",
     "ai2-att": "the same, on the home page's description box: it feeds the assistant, which is not public",
     "wa-card": "the WhatsApp card (the number, a test message, the channel, quiet hours): shown once the owner has switched WhatsApp updates on in the database (vm.whatsapp, supabase/013)",
+    "perf-card": "the contractor dashboard's \"profile performance\" card: 128 views, 31% win rate, 4h response are typed into the design, not measured",
+    "hp-identity": "the homeowner profile's \"verified with Nafath\" card: Nafath is not connected, so nobody is",
 }
 # When a marker above is hidden; anything not listed here is hidden on the whole public site.
 LAUNCH_HIDDEN_CONDITIONS = {"drop": "vm.launch && !vm.uploads", "wa-card": "vm.launch && !vm.whatsapp"}

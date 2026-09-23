@@ -114,3 +114,12 @@ list of wallet requests awaiting confirmation). Nothing renders differently in t
 
 Why: the WhatsApp updates are live (supabase/012, 013), and Meta's rules need the customer's agreement to be on record.
 Wording for the lawyer's pass; it describes exactly what the database does.
+
+
+## Added 23 September 2026 — two class markers, no visible change
+
+> On the contractor dashboard, the "profile performance" card gets `class="card perf-card"`. On the homeowner profile, the
+> identity card gets `class="card hp-identity"`.
+
+Why: the public site hides both — the first shows figures typed into the design (128 views, 31%, 4h), the second says
+"verified with Nafath" while Nafath is not connected. The demo keeps both as designed.

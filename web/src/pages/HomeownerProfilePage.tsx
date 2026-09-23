@@ -47,11 +47,11 @@ export default function HomeownerProfilePage({ vm }: { vm: VM }) {
       </div>
 
       <div className="g2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: '20px', marginTop: '32px' }}>
-        <div className="card" style={{ gap: '12px' }}>
+        {vm.launch ? null : (<div className="card hp-identity" style={{ gap: '12px' }}>
           <span className="kick">{vm.t.hprofile.identity}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><span className="fcheck" style={{ width: '26px', height: '26px', fontSize: '13px' }}>✓</span><span style={{ fontSize: '14px', fontWeight: '600', color: '#15703A' }}>{vm.t.hprofile.nafath}</span></div>
           <p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.75' }}>{vm.t.hprofile.verifiedNote}</p>
-        </div>
+        </div>)}
         
     {vm.hp.isMine ? (<>
           <div className="card" style={{ gap: '10px', background: '#F7F6FC', border: '0' }}>

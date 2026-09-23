@@ -153,7 +153,9 @@ function profileVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVa
     ...(shown && vm.prof ? { prof: { ...vm.prof, tmWork: [], stats: [], moreReviews: false, reviewTotal: rows.length,
       ownWork: ((state.contractorPortfolio?.[shown.id] || []) as { url: string; caption: string }[]).map((p) => ({ src: p.url, caption: p.caption })),
       reviewList: rows.map((r) => ({ who: r.reviewer, when: when(r.created_at), stars: '★★★★★'.slice(0, r.stars) + '☆☆☆☆☆'.slice(0, 5 - r.stars), text: r.body })) },
-      t: { ...vm.t, profile: { ...vm.t.profile, tmProjects: `${vm.t.profile.tmProjects} — ${copy.noWorkYet}`, ...(rows.length ? {} : { reviews: `${vm.t.profile.reviews} — ${copy.noReviewsYet}` }) } } } : {}),
+      t: { ...vm.t, profile: { ...vm.t.profile, tmProjects: `${vm.t.profile.tmProjects} — ${copy.noWorkYet}`, ...(rows.length ? {} : { reviews: `${vm.t.profile.reviews} — ${copy.noReviewsYet}` }),
+        // the design's first "how Tarmem protects you" line claims a Nafath check; until Nafath is connected, say what really happens
+        protect: [copy.protectNoNafath, ...((vm.t.profile.protect as string[]) || []).slice(1)] } } } : {}),
     saveEdit: () => {
       const d = state.edit, me = (state.contractors as LogicState[]).find((c) => c.id === 'c1');
       if (!d || !me) return;
@@ -203,10 +205,24 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   const channel = prefs.channel === 'email' ? 'email' : 'wa';
   const waNumber = String(state.setg?.waNumber ?? state.setg?.mobile ?? account.profile.mobile ?? '');
   const pretty = (digits: string) => `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
+  // The design's settings page says the mobile signs you in and needs a code to change, and calls the email "for invoices";
+  // here the email signs you in and the mobile is for contact and WhatsApp. Only notification switches that do something exist.
+  const REAL_PREFS = ['pBids', 'pStages', 'pPay'];
   return {
     ...vm,
+    t: { ...vm.t, ...(vm.t.settings ? { settings: { ...vm.t.settings, mobileNote: copy.settingsMobileNote, email: copy.settingsEmail } } : {}),
+      ...(vm.wa && vm.t.wa ? { wa: { ...vm.t.wa, sub: copy.waSub, numberNote: copy.waNumberNote } } : {}) },
+    ...(vm.st?.prefs ? { st: { ...vm.st, prefs: (vm.st.prefs as { id: string }[]).filter((p) => REAL_PREFS.includes(p.id)) } } : {}),
+    // "save contractor" is kept on the profile row, so the dashboard's saved list survives a reload and another device
+    toggleSave: (e: { stopPropagation: () => void; currentTarget: { dataset: { id?: string } } }) => {
+      e.stopPropagation();
+      const id = String(e.currentTarget.dataset.id || '');
+      const now = (state.saved as string[] | undefined) || [];
+      const next = now.includes(id) ? now.filter((x) => x !== id) : [...now, id];
+      host.setLogicState({ saved: next });
+      void updateProfile({ prefs: { ...(prefs as Record<string, boolean | string | string[]>), saved: next } });
+    },
     ...(vm.wa && vm.t.wa ? {
-      t: { ...vm.t, wa: { ...vm.t.wa, sub: copy.waSub, numberNote: copy.waNumberNote } },
       wa: {
         ...vm.wa, on: account.whatsappLive && channel === 'wa', number: waNumber, sentTo: state.setg?.waSent || '', quiet: prefs.quiet !== false,
         // SMS does not exist: the choice is WhatsApp (with the emails) or the emails alone
@@ -261,11 +277,20 @@ const HERO_VIDEO: string = (() => {
   } catch { return 'assets/hero.mp4'; }
 })();
 
+/** The design's in-project chat keeps messages in memory only. Until messaging is real, the tab says so instead of
+    offering a box whose messages would go nowhere. */
+function messagesVals(vm: LogicVals): LogicVals {
+  if (!platformOn || !vm.tab?.messages || !vm.pj) return vm;
+  const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const rows = (vm.pj.msgRows as LogicState[] | undefined) || [];
+  return { ...vm, canMessage: false, pj: { ...vm.pj, msgRows: rows.length ? rows : [{ who: copy.msgsFrom, time: '', text: copy.msgsSoon, align: 'flex-start', bg: '#F7F6FC', ink: '#3A385C' }] } };
+}
+
 function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
-  return profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
+  return messagesVals(profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
     ...vm,
     launch: true,
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
@@ -301,12 +326,14 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
       // Without storage the photo step explains where photos go instead of offering a picker that uploads nothing.
       post: { ...vm.t.post, ...(real ? {} : { filesIntro: copy.filesIntro, fileTypes: '' }) },
       // an open project with no bids yet: say what actually happens next
-      ...(real ? { ws: { ...vm.t.ws, noBids: real.postedNoBids } } : {}),
+      ...(real ? { ws: { ...vm.t.ws, noBids: currentAccount()?.whatsappLive ? real.postedNoBidsWa : real.postedNoBids } } : {}),
+      // the design's contact form opens on "a project above SAR 1,000,000"; most visitors want the last option, "something else"
+      ...(Array.isArray(vm.t.contact?.topics) && vm.t.contact.topics.length > 1 ? { contact: { ...vm.t.contact, topics: [vm.t.contact.topics[vm.t.contact.topics.length - 1], ...vm.t.contact.topics.slice(0, -1)] } } : {}),
     },
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
     showWaFab: vm.showWaFab && !vm.r?.sent,
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state), state), state), state, host), state, host), state, host);
+  }, state), state), state), state, host), state, host), state, host));
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

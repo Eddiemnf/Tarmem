@@ -20,7 +20,7 @@ export interface Profile {
   lang: 'ar' | 'en';
   created_at: string;
   /** Notification choices from the settings page, and the profile's "about" line (supabase/007). */
-  prefs?: Record<string, boolean | string> | null;
+  prefs?: Record<string, boolean | string | string[]> | null;
   about?: string | null;
   /** A contractor's own list of trades, over the one in their verified application (supabase/008). */
   trades?: string[] | null;
