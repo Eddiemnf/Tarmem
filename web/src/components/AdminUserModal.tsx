@@ -22,6 +22,7 @@ export default function AdminUserModal({ vm }: { vm: VM }) {
         <div><div className="dv-k">{vm.t.admin.dv.joined}</div><div className="dv-v">{vm.av.user.joined}</div></div>
         <div><div className="dv-k">{vm.t.admin.dv.lastSeen}</div><div className="dv-v">{vm.av.user.lastSeen}</div></div>
         <div><div className="dv-k">{vm.t.status}</div><div className="dv-v"><span className={`tag ${vm.av.user.cls}`}>{vm.av.user.status}</span></div></div>
+        <div><div className="dv-k">{vm.t.admin.dv.mobileVerified}</div><div className="dv-v">{vm.av.user.mobileVerified}</div></div>
         
       {vm.av.user.isContractor ? (<><div><div className="dv-k">{vm.t.admin.dv.application}</div><div className="dv-v">{vm.av.user.application}</div></div><div><div className="dv-k">{vm.t.admin.dv.portfolio} · {vm.t.admin.dv.reviewsCount}</div><div className="dv-v num">{vm.av.user.portfolio} · {vm.av.user.reviews}</div></div></>) : null}
       
@@ -58,7 +59,24 @@ export default function AdminUserModal({ vm }: { vm: VM }) {
         
       </div></>) : null}
       
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button className="btn btn-s" onClick={vm.closeAdminView}>{vm.t.admin.dv.close}</button></div>
+      
+      {vm.av.user.eraseAsk ? (<>
+        <div style={{ background: '#FFF8F5', border: '1px solid #FFD9CB', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <b style={{ fontSize: '14px', color: '#B3341A' }}>{vm.t.admin.dv.eraseQ}</b>
+          <p style={{ fontSize: '12.5px', color: '#5B5A7A', lineHeight: '1.7', margin: '0' }}>{vm.t.admin.dv.eraseBody}</p>
+          
+        {vm.av.user.eraseError ? (<><p style={{ fontSize: '12.5px', color: '#D9401F', margin: '0' }}>{vm.av.user.eraseError}</p></>) : null}
+        
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}><button className="btn btn-s btn-sm" style={{ borderColor: '#E8836A', color: '#B3341A' }} data-id={vm.av.user.id} onClick={vm.eraseUserConfirm}>{vm.t.admin.dv.eraseYes}</button><button className="btn btn-g btn-sm" onClick={vm.eraseUserCancel}>{vm.t.admin.dv.eraseNo}</button></div>
+        </div>
+      </>) : null}
+      
+      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        
+      {vm.av.user.canErase ? (<><button className="btn btn-s" style={{ borderColor: '#E8836A', color: '#B3341A' }} onClick={vm.eraseUser}>{vm.t.admin.dv.erase}</button></>) : null}
+      
+        <button className="btn btn-s" onClick={vm.closeAdminView}>{vm.t.admin.dv.close}</button>
+      </div>
     </div>
   </>) : null}
     </>);

@@ -22,7 +22,7 @@ const db = await installSupabaseMock(context, site.supabase.url);
 const page = await context.newPage();
 page.setDefaultTimeout(8000);
 const errors = [];
-page.on('pageerror', (e) => errors.push('PAGEERROR: ' + String(e).slice(0, 300)));
+page.on('pageerror', (e) => { if (/tarmem-test/.test(String(e))) return; errors.push('PAGEERROR: ' + String(e).slice(0, 300)); }); // the suite throws one on purpose, to see it logged
 const results = [];
 const check = (name, ok, detail = '') => results.push(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
 const saved = async () => page.evaluate(() => JSON.parse(localStorage.getItem('tarmem-public-v1') || '{}'));
@@ -223,6 +223,16 @@ await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
 await settle();
 check('the contact form is saved for the team and confirms it', db.contact.length === 1 && db.contact[0].message === 'هل تغطون جدة؟' && db.contact[0].mobile === '0555123456'
   && (await page.locator('text=وصلتنا رسالتك').count()) === 1 && (await page.evaluate(() => window.__opened.length)) === 0, JSON.stringify(db.contact[0] || null).slice(0, 140));
+// a bot fills the hidden field: it sees "sent", nothing is saved (supabase/022 limits the rest)
+const contactBefore = db.contact.length;
+await open('contact');
+await page.locator('input[name="name"]').fill('bot');
+await page.locator('input[name="phone"]').fill('0555000000');
+await page.locator('textarea[name="msg"]').fill('buy now');
+await page.evaluate(() => { const el = document.querySelector('input[name="website"]'); if (el) { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, 'http://spam.example'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } });
+await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
+await settle(600);
+check('a filled honeypot field on the contact form saves nothing, and the sender is told nothing', db.contact.length === contactBefore, `${db.contact.length} vs ${contactBefore}`);
 await open('join');
 await page.locator('#join-company').fill('مؤسسة البناء المتقن');
 await page.locator('#join-person').fill('خالد العتيبي');
@@ -251,8 +261,14 @@ await settle();
 const seenEvents = new Set(db.visits.map((v) => v.event));
 check('page views and the moments that matter are recorded (sign-up, project, message, application)',
   ['view', 'signup', 'project', 'contact', 'application'].every((e) => seenEvents.has(e)) && db.visits.some((v) => v.route === 'pricing' || v.route === 'post'), [...seenEvents].join(','));
+// a browser error is recorded too (supabase/022), with a short detail, so the team sees what broke
+const errorsBefore = db.visits.filter((v) => v.event === 'error').length;
+await page.evaluate(() => { setTimeout(() => { throw new Error('tarmem-test: something broke'); }, 0); });
+await settle(700);
+const errRow = db.visits.filter((v) => v.event === 'error').slice(-1)[0];
+check('a browser error is recorded as a visit event with what broke and where', db.visits.filter((v) => v.event === 'error').length === errorsBefore + 1 && /tarmem-test: something broke/.test(errRow?.detail || '') && errRow?.path === (await pathname()), JSON.stringify(errRow || null).slice(0, 160));
 check('…with a random tab id, the page, language and device — and nothing else', db.visits.every((v) => /^[a-z0-9]{8,40}$/.test(v.session_id)
-  && Object.keys(v).every((k) => ['session_id', 'event', 'route', 'path', 'lang', 'device', 'referrer', 'city'].includes(k))), JSON.stringify(db.visits[0]));
+  && Object.keys(v).every((k) => ['session_id', 'event', 'route', 'path', 'lang', 'device', 'referrer', 'city', 'detail'].includes(k))), JSON.stringify(db.visits[0]));
 
 // G — the designed admin console, on real data, for an account the owner marked admin in the database
 await open('admin');
@@ -268,6 +284,8 @@ const before = db.visits.length;
 await open('dashboard');
 await settle(900);
 check('an admin lands on the designed console', (await pathname()) === '/admin' && (await page.locator('.side[data-tab="analytics"]').count()) === 1, await pathname());
+await page.locator('.side[data-tab="overview"]').click(); await settle(400);
+check('a withdrawn project still shows in the console, marked as withdrawn', (await page.locator('tr.row-h', { hasText: 'P-2001' }).count()) === 1 && (await page.locator('tr.row-h', { hasText: 'P-2001' }).locator('.tag', { hasText: 'مسحوب' }).count()) === 1);
 const tab = async (id) => { await page.locator(`.side[data-tab="${id}"]`).click(); await settle(500); };
 await tab('verification');
 check('verification lists the real application, with who to call', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: '0501112223' }).count()) === 1
@@ -313,6 +331,13 @@ await settle(900);
 check('opening a person shows their record from the database: email, mobile, company, and their verification', (await page.locator('.modal.dv').count()) === 1
   && (await page.locator('.modal.dv', { hasText: 'khalid@build.example' }).count()) === 1 && (await page.locator('.modal.dv', { hasText: '0501112223' }).count()) === 1
   && (await page.locator('.modal.dv', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1, (await page.locator('.modal.dv').innerText().catch(() => '-')).replace(/\s+/g, ' ').slice(0, 220));
+check('…including whether the mobile was verified by WhatsApp code', (await page.locator('.modal.dv', { hasText: 'الجوال موثّق' }).count()) === 1 && (await page.locator('.modal.dv', { hasText: 'ليس بعد' }).count()) === 1);
+await page.locator('.modal.dv button', { hasText: 'حذف هذا الحساب' }).click();
+await settle(300);
+check('erasing asks first, and says what goes and what stays', (await page.locator('.modal.dv', { hasText: 'حذف حساب هذا الشخص' }).count()) === 1 && (await page.locator('.modal.dv', { hasText: 'تبقى المشاريع' }).count()) === 1);
+await page.locator('.modal.dv button', { hasText: 'أبقِه' }).click();
+await settle(200);
+check('…and can be called off', (await page.locator('.modal.dv', { hasText: 'حذف حساب هذا الشخص' }).count()) === 0 && !(db.erased || []).length);
 await page.locator('.modal.dv button', { hasText: 'إغلاق' }).click();
 await settle(300);
 await tab('analytics');
@@ -337,7 +362,7 @@ db.emailLog = [
 ];
 await page.locator('[data-route="inbox"]').click();
 await settle(700);
-check('the plain contact list is still one click away', (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 4);
+check('the plain contact list is still one click away, now with a browser-errors table', (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 5 && (await page.locator('.error-log').count()) === 1);
 check('the inbox asks the database for the providers\u2019 answers, then lists every message sent with its outcome', db.reconciled >= 1 && (await page.locator('.sent-log tr').count()) === 2
   && (await page.locator('.sent-log .tag-g', { hasText: 'Meta' }).count()) === 1 && (await page.locator('.sent-log .tag-p', { hasText: 'Re-engagement' }).count()) === 1, String(await page.locator('.sent-log').innerText()).slice(0, 200));
 await page.locator('button', { hasText: 'عرض الصور والملفات' }).first().click();
@@ -632,6 +657,43 @@ check('…saving it changes the password and says so, signed in', db.users[0].pa
 await page.locator('.reset-page button', { hasText: 'افتح لوحتك' }).click();
 await page.waitForFunction(() => window.location.pathname === '/dashboard', null, { timeout: 8000 }).catch(() => undefined);
 check('…and its button opens their dashboard', (await pathname()) === '/dashboard', await pathname());
+
+// L — mobile verification by WhatsApp code, once the owner switches it on (supabase/022)
+db.otpLive = true;
+await page.locator('button.acct').click().catch(() => 0);
+await page.locator('.acctmenu .acctitem').last().click().catch(() => 0);
+await settle();
+await open('signin');
+await page.locator('.authseg input[value="signup"]').check();
+await page.locator('#au-name').fill('هند القحطاني');
+await page.locator('#au-mobile').fill('0559876543');
+await page.locator('#au-email').fill('hind@example.com');
+await page.locator('#au-password').fill('long-enough-3');
+await page.locator('form.authcard input[type="checkbox"]').check();
+await page.locator('form.authcard button[type="submit"]').click();
+await settle(900);
+check('after sign-up the code step appears and a code was requested', (await page.locator('.otp-step').count()) === 1 && db.otpSent >= 1 && (await page.locator('.otp-step', { hasText: '0559876543' }).count()) === 1, `sent=${db.otpSent} ${await pathname()}`);
+await page.locator('#otp-code').fill('000000');
+await page.locator('.otp-step button[type="submit"]').click();
+await settle(400);
+check('a wrong code is refused with a sentence', (await page.locator('.otp-step .autherr').count()) === 1 && !db.profiles.find((p) => p.email === 'hind@example.com')?.mobile_verified_at);
+await page.locator('#otp-code').fill('482913');
+await page.locator('.otp-step button[type="submit"]').click();
+await page.waitForFunction(() => window.location.pathname === '/dashboard', null, { timeout: 8000 }).catch(() => undefined);
+check('the right code verifies the number and opens the dashboard', Boolean(db.profiles.find((p) => p.email === 'hind@example.com')?.mobile_verified_at) && (await pathname()) === '/dashboard', await pathname());
+db.otpLive = false;
+
+// M — deleting one's own account from the settings page
+await open('settings');
+await settle(600);
+await page.locator('button', { hasText: 'حذف حسابي' }).first().click();
+await settle(300);
+check('the settings page asks before deleting, in words that say what is deleted', (await page.locator('main', { hasText: 'حذف حسابك وبياناتك نهائيًا' }).count()) === 1 && (await page.locator('main', { hasText: 'البنكية' }).count()) === 1);
+const hindId = db.users.find((u) => u.email === 'hind@example.com')?.id;
+await page.locator('button', { hasText: 'نعم، احذف حسابي' }).first().click();
+await page.waitForFunction(() => window.location.pathname === '/', null, { timeout: 8000 }).catch(() => undefined);
+await settle(500);
+check('confirming erases the account, signs the person out, and says so on the home page', (db.erased || []).includes(hindId) && (await pathname()) === '/' && (await page.locator('.sitenotice', { hasText: 'تم حذف حسابك' }).count()) === 1 && (await page.locator('button.acct').count()) === 0, `${await pathname()} erased=${JSON.stringify(db.erased || [])}`);
 
 check('the site asked the database for nothing the test does not know about', db.unknown.length === 0, db.unknown.join(' · '));
 console.log(results.join('\n'));

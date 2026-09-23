@@ -903,6 +903,8 @@
     .dv-msg{white-space:pre-wrap;background:#F7F6FC;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.8;color:#3A385C;margin:0}
     .dv-reply{border:1px solid #E6E5F0;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
     .dv-table td{font-size:13.5px}
+    .hp-field{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+    .legal-line:empty{display:none}
   
 
 /* ==== app-only styles below — kept by tools/convert-template.py ==== */

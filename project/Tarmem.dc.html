@@ -913,6 +913,8 @@
     .dv-msg{white-space:pre-wrap;background:#F7F6FC;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.8;color:#3A385C;margin:0}
     .dv-reply{border:1px solid #E6E5F0;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
     .dv-table td{font-size:13.5px}
+    .hp-field{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+    .legal-line:empty{display:none}
   </style>
 </helmet>
 <div dir="{{ dir }}" style="min-height:100vh;display:flex;flex-direction:column">
@@ -3490,6 +3492,7 @@
         <div><div class="dv-k">{{ t.admin.dv.joined }}</div><div class="dv-v">{{ av.user.joined }}</div></div>
         <div><div class="dv-k">{{ t.admin.dv.lastSeen }}</div><div class="dv-v">{{ av.user.lastSeen }}</div></div>
         <div><div class="dv-k">{{ t.status }}</div><div class="dv-v"><span class="tag {{ av.user.cls }}">{{ av.user.status }}</span></div></div>
+        <div><div class="dv-k">{{ t.admin.dv.mobileVerified }}</div><div class="dv-v">{{ av.user.mobileVerified }}</div></div>
         <sc-if value="{{ av.user.isContractor }}"><div><div class="dv-k">{{ t.admin.dv.application }}</div><div class="dv-v">{{ av.user.application }}</div></div><div><div class="dv-k">{{ t.admin.dv.portfolio }} · {{ t.admin.dv.reviewsCount }}</div><div class="dv-v num">{{ av.user.portfolio }} · {{ av.user.reviews }}</div></div></sc-if>
       </div>
       <div>
@@ -3506,7 +3509,18 @@
           <sc-for list="{{ av.user.bids }}" as="b" hint-placeholder-count="2"><tr><td style="font-weight:500"><span class="muted num">{{ b.project }}</span> {{ b.title }}</td><td class="num">{{ curPre }}{{ b.price }}{{ curPost }}</td><td class="num">{{ b.days }}</td><td>{{ b.status }}</td><td style="text-align:end"><button class="lnkbtn" data-id="{{ b.project }}" onClick="{{ openAdminProject }}">{{ t.admin.dv.openProject }}</button></td></tr></sc-for>
         </tbody></table></sc-if>
       </div></sc-if>
-      <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-s" onClick="{{ closeAdminView }}">{{ t.admin.dv.close }}</button></div>
+      <sc-if value="{{ av.user.eraseAsk }}">
+        <div style="background:#FFF8F5;border:1px solid #FFD9CB;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+          <b style="font-size:14px;color:#B3341A">{{ t.admin.dv.eraseQ }}</b>
+          <p style="font-size:12.5px;color:#5B5A7A;line-height:1.7;margin:0">{{ t.admin.dv.eraseBody }}</p>
+          <sc-if value="{{ av.user.eraseError }}"><p style="font-size:12.5px;color:#D9401F;margin:0">{{ av.user.eraseError }}</p></sc-if>
+          <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-s btn-sm" style="border-color:#E8836A;color:#B3341A" data-id="{{ av.user.id }}" onClick="{{ eraseUserConfirm }}">{{ t.admin.dv.eraseYes }}</button><button class="btn btn-g btn-sm" onClick="{{ eraseUserCancel }}">{{ t.admin.dv.eraseNo }}</button></div>
+        </div>
+      </sc-if>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+        <sc-if value="{{ av.user.canErase }}"><button class="btn btn-s" style="border-color:#E8836A;color:#B3341A" onClick="{{ eraseUser }}">{{ t.admin.dv.erase }}</button></sc-if>
+        <button class="btn btn-s" onClick="{{ closeAdminView }}">{{ t.admin.dv.close }}</button>
+      </div>
     </div>
   </sc-if>
 
@@ -3636,6 +3650,7 @@
           </div>
           <div><label class="lbl">{{ t.pages.cTopic }}</label><select class="input" name="topic" value="{{ ct.f.topic }}" onChange="{{ setContact }}"><sc-for list="{{ t.pages.topics }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for></select></div>
           <div><label class="lbl">{{ t.pages.cMsg }}</label><textarea class="input" name="msg" value="{{ ct.f.msg }}" onChange="{{ setContact }}" placeholder="{{ t.pages.cMsgPh }}"></textarea></div>
+          <div class="hp-field" aria-hidden="true"><label>Website</label><input class="input" name="website" value="{{ ct.f.website }}" onChange="{{ setContact }}" tabindex="-1" autocomplete="off"></div>
           <sc-if value="{{ ct.error }}"><p style="font-size:13px;color:#D9401F">{{ ct.error }}</p></sc-if>
           <button class="btn btn-p" onClick="{{ sendContact }}">{{ t.pages.cSend }}</button>
         </sc-if>
@@ -3668,7 +3683,7 @@
       <div style="display:flex;flex-direction:column;gap:8px"><span class="skick" style="font-size:12.5px">{{ t.footer.company }}</span><a class="lnk" style="color:#3A385C" data-route="about" onClick="{{ go }}">{{ t.footer.about }}</a><a class="lnk" style="color:#3A385C" data-route="faq" onClick="{{ go }}">{{ t.nav.faq }}</a><a class="lnk" style="color:#3A385C" data-route="auth" data-role="contractor" onClick="{{ go }}">{{ t.footer.join }}</a></div>
       <div style="display:flex;flex-direction:column;gap:8px"><span class="skick" style="font-size:12.5px">{{ t.footer.legal }}</span><a class="lnk" style="color:#3A385C" data-route="rules" onClick="{{ go }}">{{ t.footer.rules }}</a><a class="lnk" style="color:#3A385C" data-route="terms" onClick="{{ go }}">{{ t.footer.terms }}</a><a class="lnk" style="color:#3A385C" data-route="privacy" onClick="{{ go }}">{{ t.footer.privacy }}</a><a class="lnk" style="color:#3A385C" data-route="help" onClick="{{ go }}">{{ t.footer.help }}</a><a class="lnk" style="color:#3A385C" data-route="contact" onClick="{{ go }}">{{ t.footer.contact }}</a></div>
     </div>
-    <div class="wrap" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;color:#5B5A7A;padding-block:14px 20px;border-top:1px solid rgba(27,20,100,.12)"><span>© {{ year }} {{ t.brand }}{{ t.footer.rights }}</span><span>{{ t.footer.note }}</span></div>
+    <div class="wrap" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;color:#5B5A7A;padding-block:14px 20px;border-top:1px solid rgba(27,20,100,.12)"><span>© {{ year }} {{ t.brand }}{{ t.footer.rights }}</span><span class="num legal-line">{{ legalLine }}</span><span>{{ t.footer.note }}</span></div>
   </footer>
 </div>
 </x-dc>
@@ -4763,12 +4778,12 @@ Rules:
     if(aview && aview.kind==='user'){
       if(aview.ukind==='c'){ const c=this.con(aview.id); if(c){ const rej=s.rejected.includes(c.id);
         const bids = s.projects.flatMap(p=>(p.bids||[]).filter(b=>b.cid===c.id).map(b=>({project:p.id, title:L(p.title), price:fmt(b.price), days:String(b.days||'—'), status: p.contractorId===c.id?dv.won:(b.status||dv.submitted)})));
-        av.user = {name:c.name[lang], role:t.roles.contractor, city:cityL(c.city), mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email), company:c.name[lang], language: c.lang==='en'?'English':'العربية',
+        av.user = {id:c.id, kind:'c', mobileVerified: c.mobileVerified?dv.verifiedYes:dv.verifiedNo, canErase:false, eraseAsk:false, eraseError:'', name:c.name[lang], role:t.roles.contractor, city:cityL(c.city), mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email), company:c.name[lang], language: c.lang==='en'?'English':'العربية',
           joined: c.appliedAt?dvDate(c.appliedAt):String(c.since||'—'), lastSeen: c.lastSeen?dvDate(c.lastSeen):dv.never, status: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, cls: c.verified?'tag-g':rej?'tag-a':'tag-w',
           isContractor:true, projects:[], projectCount:'0', noProjects:true, hasProjects:false, bids, bidCount:String(bids.length), noBids:!bids.length, hasBids:bids.length>0,
           application: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, portfolio:String(c.portfolio??'—'), reviews:String(c.reviews??'—')}; } }
       else { const u=this.D.USERS[aview.id]; if(u){ const mine=s.projects.filter(p=>p.ownerId===aview.id).map(p=>{ const d=decorateP(p); return {id:d.id, title:d.title, statusLabel:d.statusLabel, tagClass:d.tagClass, bids:String((p.bids||[]).length)}; });
-        av.user = {name:u[lang], role:t.roles.homeowner, city:cityL(u.city), mobile:u.mobile||'—', tel:telOf(u.mobile), email:u.email||'—', mailto:mailOf(u.email), company:'—', language: u.lang==='en'?'English':'العربية',
+        av.user = {id:aview.id, kind:'h', mobileVerified: u.mobileVerified?dv.verifiedYes:dv.verifiedNo, canErase:false, eraseAsk:false, eraseError:'', name:u[lang], role:t.roles.homeowner, city:cityL(u.city), mobile:u.mobile||'—', tel:telOf(u.mobile), email:u.email||'—', mailto:mailOf(u.email), company:'—', language: u.lang==='en'?'English':'العربية',
           joined: u.createdAt?dvDate(u.createdAt):L(u.joined)||'—', lastSeen: u.lastSeen?dvDate(u.lastSeen):dv.never, status:t.admin.active, cls:'tag-g',
           isContractor:false, projects:mine, projectCount:String(mine.length), noProjects:!mine.length, hasProjects:mine.length>0, bids:[], bidCount:'0', noBids:true, hasBids:false, application:'—', portfolio:'—', reviews:'—'}; } }
     }
@@ -5042,7 +5057,7 @@ Rules:
       setGa: e => this.setState({gaDraft:e.target.value, gaErr:false}),
       connectGa: () => { const v = String(s.gaDraft||'').trim().toUpperCase(); if(!/^G-[A-Z0-9]{6,12}$/.test(v)) return this.setState({gaErr:true}); this.setState({gaId:v, gaErr:false, gaDraft:''}); },
       disconnectGa: () => this.setState({gaId:null}),
-      av, caseReply: s.caseReply||'', fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
+      av, caseReply: s.caseReply||'', legalLine: '', fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
 
       goAuth: e => { const rl=e.currentTarget.dataset.signup;
         this.setState({route:'auth', menuOpen:false, navOpen:false, auth:{...s.auth, mode:'signup', step:1, role:rl, error:''}});
@@ -5093,7 +5108,10 @@ Rules:
       openVerif: e => this.setState({adminView:{kind:'app', id:e.currentTarget.dataset.id}}),
       openCase: e => this.setState({adminView:{kind:'case', id:e.currentTarget.dataset.id}, caseReply:'', caseReplyError:''}),
       openUser: e => this.setState({adminView:{kind:'user', id:e.currentTarget.dataset.id, ukind:e.currentTarget.dataset.kind}}),
-      closeAdminView: () => this.setState({adminView:null, caseReplyError:''}),
+      eraseUser: () => this.setState({eraseAsk:true, eraseError:''}),
+      eraseUserCancel: () => this.setState({eraseAsk:false, eraseError:''}),
+      eraseUserConfirm: () => this.setState({eraseAsk:false, adminView:null}),
+      closeAdminView: () => this.setState({adminView:null, caseReplyError:'', eraseAsk:false, eraseError:''}),
       setCaseReply: e => this.setState({caseReply:e.target.value, caseReplyError:''}),
       sendCaseReply: e => { const id=e.currentTarget.dataset.id; const text=(s.caseReply||'').trim(); if(!text) return; this.setState({cases:s.cases.map(c=>c.id===id?{...c, replies:[...(c.replies||[]), {when:t.ws.today, text, email:!!c.email}]}:c), caseReply:''}); },
       setBidField: e => { const {name,value}=e.target; this.setState({bidF:{...s.bidF,[name]:value,error:''}}); },

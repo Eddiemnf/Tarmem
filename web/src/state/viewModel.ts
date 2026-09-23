@@ -22,14 +22,14 @@ import {
 import { LAUNCH_COPY } from '../launch/copy';
 import { openWhatsApp } from '../launch/deliver';
 import { guardLaunchState, type SentRequest } from '../launch/guard';
-import { isLaunch } from '../launch/mode';
+import { isLaunch, site } from '../launch/mode';
 import { connectUrls } from '../launch/urls';
-import { EMPTY_ANALYTICS, adminLogicState, analyticsVals, loadAdminData, replyToCase, userDetail, type UserDetail } from '../platform/admin';
+import { EMPTY_ANALYTICS, adminDeleteUser, adminLogicState, analyticsVals, loadAdminData, replyToCase, userDetail, type UserDetail } from '../platform/admin';
 import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { VIDEO_MAX_BYTES, VIDEO_TYPES, acceptFiles, holdFiles, uploadFile } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { currentAccount, normalizeMobile, refreshAccount, sendContact, sendMessage, sendWhatsAppTest, stageStep, updateProfile, validMobile, type MessageRow } from '../platform/session';
+import { currentAccount, deleteMyAccount, normalizeMobile, refreshAccount, sendMessage, sendWhatsAppTest, stageStep, updateProfile, validMobile, type MessageRow } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -85,6 +85,7 @@ function userView(d: UserDetail, vm: LogicVals, when: (iso: string) => string): 
     bids: d.bids.map((b) => ({ project: b.project_code, title: b.project_title, price: Number(b.price).toLocaleString('en-US'), days: String(b.days ?? '—'), status: st[b.status] || b.status })),
     bidCount: String(d.bids.length), noBids: !d.bids.length, hasBids: d.bids.length > 0,
     application: app ? appStatus : '—', portfolio: String(d.portfolio), reviews: String(d.reviews),
+    mobileVerified: p.mobile_verified_at ? dv.verifiedYes : dv.verifiedNo, id: p.id, kind: isCo ? 'c' : 'h',
   };
 }
 
@@ -104,7 +105,26 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
   return {
     ...vm,
     ...analyticsVals(state.adminAn || EMPTY_ANALYTICS(state.anRange || 'week'), vm),
-    av: detail && vm.av ? { ...vm.av, user: userView(detail, vm, when) } : vm.av,
+    av: !vm.av?.user ? vm.av : {
+      ...vm.av,
+      user: {
+        ...(detail ? userView(detail, vm, when) : vm.av.user),
+        // the console erases a person: only an account the database knows, never an admin, never yourself
+        canErase: Boolean(viewedId) && viewedId !== currentAccount()?.profile.id && detail?.profile.role !== 'admin' && !detail?.profile.deleted_at,
+        eraseAsk: Boolean(state.eraseAsk), eraseError: String(state.eraseError || ''),
+      },
+    },
+    eraseUserConfirm: () => {
+      if (!viewedId || state.eraseBusy) return;
+      host.setLogicState({ eraseBusy: true, eraseError: '' });
+      void adminDeleteUser(viewedId).then(async (r) => {
+        if (!r.ok) return host.setLogicState({ eraseBusy: false, eraseError: copy.err[(r.error as 'activeProject' | 'generic') || 'generic'] });
+        const data = await loadAdminData();
+        host.setLogicState({ ...(data ? adminLogicState(data) : {}), eraseBusy: false, eraseAsk: false, adminView: null, adminDetail: null, siteNotice: copy.erased });
+      });
+    },
+    // a withdrawn project reads as such in the console (the design's logic has no status for it)
+    allProjects: (vm.allProjects || []).map((row: LogicState) => ((state.projects || []).find((p: LogicState) => p.id === row.id)?.withdrawn ? { ...row, statusLabel: vm.t.admin.dv?.statuses?.withdrawn || 'withdrawn', tagClass: 'tag-w' } : row)),
     openUser: (e: { currentTarget: HTMLElement }) => {
       const id = e.currentTarget.dataset.id || ''; const kind = e.currentTarget.dataset.kind || 'h';
       const uuid = kind === 'h' ? id : (applicants.get(id)?.userId as string | null) || null;
@@ -253,7 +273,8 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   const REAL_PREFS = ['pBids', 'pStages', 'pPay', 'pMsg'];
   return {
     ...vm,
-    t: { ...vm.t, ...(vm.t.settings ? { settings: { ...vm.t.settings, mobileNote: copy.settingsMobileNote, email: copy.settingsEmail } } : {}),
+    // the settings copy: what the mobile and email are for, and "delete my account" in words that say what really happens (022)
+    t: { ...vm.t, ...(vm.t.settings ? { settings: { ...vm.t.settings, mobileNote: copy.settingsMobileNote, email: copy.settingsEmail, close: copy.closeBtnReal, closeQ: copy.closeQReal, closeBody: copy.closeBodyReal, closeYes: copy.closeYesReal } } : {}),
       ...(vm.wa && vm.t.wa ? { wa: { ...vm.t.wa, sub: copy.waSub, numberNote: copy.waNumberNote } } : {}) },
     ...(vm.st?.prefs ? { st: { ...vm.st, prefs: (vm.st.prefs as { id: string }[]).filter((p) => REAL_PREFS.includes(p.id)) } } : {}),
     // "save contractor" is kept on the profile row, so the dashboard's saved list survives a reload and another device
@@ -297,9 +318,14 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
       void updateProfile({ mobile, prefs: state.setg?.prefs || {}, lang: state.lang === 'en' ? 'en' : 'ar' })
         .then((result) => note(result.ok ? (changedEmail ? `${copy.settingsSaved} ${copy.emailLocked}` : copy.settingsSaved) : copy.err[result.error]));
     },
+    // the settings page really erases the account now (supabase/022): the database scrubs it and the person is signed out
     confirmClose: () => {
-      void sendContact({ name: account.profile.full_name, email: account.profile.email || '', mobile: account.profile.mobile, topic: copy.closeTopic, message: copy.closeBody, lang: state.lang === 'en' ? 'en' : 'ar' })
-        .then((result) => host.setLogicState((s) => ({ closeAsk: false, setg: { ...s.setg, notice: result.ok ? vm.t.settings.closeSent : copy.err[result.error || 'generic'] } })));
+      if (state.closeBusy) return;
+      host.setLogicState({ closeBusy: true });
+      void deleteMyAccount().then((result) => {
+        if (!result.ok) return host.setLogicState((s) => ({ closeBusy: false, closeAsk: false, setg: { ...s.setg, notice: copy.err[result.error || 'generic'] } }));
+        host.setLogicState({ closeBusy: false, closeAsk: false, route: 'home', siteNotice: copy.closeDone });
+      });
     },
     saveHoEdit: () => {
       const d = state.hedit;
@@ -376,6 +402,8 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
   return messagesVals(profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
     ...vm,
     launch: true,
+    // the footer's legal line, once the owner fills site.config.json (the commercial registration and VAT numbers)
+    legalLine: [site.legal?.cr ? `${vm.dir === 'ltr' ? 'CR' : 'س.ت.'} ${site.legal.cr}` : '', site.legal?.vat ? `${vm.dir === 'ltr' ? 'VAT' : 'الرقم الضريبي'} ${site.legal.vat}` : ''].filter(Boolean).join(' · '),
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */
     accounts: platformOn,
     /** Photos have somewhere to go (supabase/003): the design's file pickers show, and really upload. */

@@ -8,7 +8,8 @@
 import { useState, type FormEvent } from 'react';
 import { useLaunchActions, type VM } from '../state/viewModel';
 import { PLATFORM_COPY } from './copy';
-import { currentAccount, normalizeMobile, requestPasswordReset, signIn, signUp, validEmail, validMobile } from './session';
+import OtpStep from './OtpStep';
+import { currentAccount, needsMobileCode, normalizeMobile, requestPasswordReset, signIn, signUp, skipMobileCode, validEmail, validMobile } from './session';
 
 export default function AuthPage({ vm }: { vm: VM }) {
   const lang = vm.dir === 'ltr' ? 'en' : 'ar';
@@ -22,6 +23,7 @@ export default function AuthPage({ vm }: { vm: VM }) {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
+  const [otp, setOtp] = useState(false);
 
   const set = (e: { currentTarget: { name: string; value: string } }) => setForm({ ...form, [e.currentTarget.name]: e.currentTarget.value });
 
@@ -61,8 +63,11 @@ export default function AuthPage({ vm }: { vm: VM }) {
     setBusy(false);
     if (!result.ok) return setError(copy.err[result.error]);
     if (result.ok === 'confirm') { setForm({ ...form, password: '' }); return setNotice(copy.confirmSent); }
+    if (signup && needsMobileCode()) return setOtp(true);
     enter();
   };
+
+  if (otp) return <OtpStep lang={lang} onDone={() => { skipMobileCode(); enter(); }} />;
 
   if (forgot) {
     return (

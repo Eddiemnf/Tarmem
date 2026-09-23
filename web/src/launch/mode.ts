@@ -10,6 +10,8 @@ import config from '../../site.config.json';
 export type SiteMode = 'launch' | 'demo';
 
 export interface SiteConfig {
+  /** Shown in the footer once the owner fills them in: the commercial registration and VAT numbers. */
+  legal?: { cr?: string; vat?: string };
   /** WhatsApp number that receives requests: digits only, country code first. */
   whatsapp: string;
   /** Mailbox offered as the fallback for every request. */

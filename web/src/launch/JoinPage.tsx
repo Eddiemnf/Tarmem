@@ -11,7 +11,8 @@
 import { useState } from 'react';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { normalizeMobile, signUpContractor, validEmail, validMobile } from '../platform/session';
+import OtpStep from '../platform/OtpStep';
+import { needsMobileCode, normalizeMobile, signUpContractor, skipMobileCode, validEmail, validMobile } from '../platform/session';
 import { useLaunchActions, type VM } from '../state/viewModel';
 import { LAUNCH_COPY } from './copy';
 
@@ -29,6 +30,8 @@ export default function JoinPage({ vm }: { vm: VM }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [otp, setOtp] = useState(false);
+  const [trap, setTrap] = useState('');
 
   const set = (e: { currentTarget: { name: string; value: string } }) =>
     setForm({ ...form, [e.currentTarget.name]: e.currentTarget.value });
@@ -48,11 +51,14 @@ export default function JoinPage({ vm }: { vm: VM }) {
       if (!validEmail(email)) return setError(real.coEmailNeeded);
       if (form.password.length < 8) return setError(real.err.password);
       if (form.cr.trim() && !/^[0-9]{5,15}$/.test(form.cr.trim())) return setError(copy.crHint);
+      // a filled hidden field is a bot: it sees the dashboard's address, nothing is created
+      if (trap.trim()) { (host.logic as unknown as { nav: (route: string) => void }).nav('cdash'); return undefined; }
       setBusy(true); setError('');
       const result = await signUpContractor({ company: form.company, person: form.person, mobile, email: email.toLowerCase(), password: form.password, city: form.city, trades: picked, crNumber: form.cr, note: form.note, lang });
       setBusy(false);
       if (!result.ok) return setError(real.err[result.error]);
       if (result.ok === 'confirm') return send({ kind: 'join', files: 0, text: '', saved: real.confirmSent });
+      if (needsMobileCode()) { setOtp(true); return undefined; }
       (host.logic as unknown as { nav: (route: string) => void }).nav('cdash'); // their dashboard, which says the account is being verified
       return undefined;
     }
@@ -66,6 +72,8 @@ export default function JoinPage({ vm }: { vm: VM }) {
     const note = form.note.trim();
     send({ kind: 'join', files: 0, text: [copy.heading, lines.join('\n'), note ? `${copy.note}:\n${note}` : ''].filter(Boolean).join('\n\n') });
   };
+
+  if (otp) return <OtpStep lang={real === PLATFORM_COPY.en ? 'en' : 'ar'} onDone={() => { skipMobileCode(); (host.logic as unknown as { nav: (route: string) => void }).nav('cdash'); }} />;
 
   return (
     <section className="wrap fade g2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '40px', paddingBlock: 'clamp(34px,4.2vw,60px) clamp(48px,6vw,88px)', alignItems: 'start' }}>
@@ -83,6 +91,7 @@ export default function JoinPage({ vm }: { vm: VM }) {
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="hp-field" aria-hidden="true"><label htmlFor="join-website">Website</label><input id="join-website" className="input" name="website" tabIndex={-1} autoComplete="off" value={trap} onChange={(e) => setTrap(e.currentTarget.value)} /></div>
         <div><label className="lbl" htmlFor="join-company">{copy.company}</label><input id="join-company" className="input" name="company" value={form.company} onChange={set} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '12px' }}>
           <div><label className="lbl" htmlFor="join-person">{copy.person}</label><input id="join-person" className="input" name="person" value={form.person} onChange={set} /></div>

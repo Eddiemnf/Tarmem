@@ -113,6 +113,18 @@ export default function InboxPage({ vm }: { vm: VM }) {
           {!inbox.messages.length ? <tr><td style={cell} className="muted">{ar ? 'لا رسائل بعد.' : 'No messages yet.'}</td></tr> : null}
         </tbody></table></div>
 
+        <H>{`${ar ? 'أخطاء المتصفح' : 'Browser errors'} (${inbox.errors.length})`}</H>
+        <div className="card error-log" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+          {inbox.errors.map((e, i) => (
+            <tr key={i}>
+              <td style={cell} className="num"><span className="muted">{when(e.at)}</span></td>
+              <td style={cell}><span className="num" dir="ltr">{e.path}</span> · {e.device}</td>
+              <td style={cell}><span dir="ltr" style={{ whiteSpace: 'pre-wrap', color: '#3A385C', fontFamily: 'ui-monospace, monospace', fontSize: '12px' }}>{e.detail}</span></td>
+            </tr>
+          ))}
+          {!inbox.errors.length ? <tr><td style={cell} className="muted">{ar ? 'لا أخطاء مسجّلة.' : 'No errors recorded.'}</td></tr> : null}
+        </tbody></table></div>
+
         <H>{`${ar ? 'الرسائل المرسلة' : 'Messages sent'} (${inbox.sent.length})`}</H>
         <p className="muted" style={{ fontSize: '12.5px', margin: '-4px 0 10px' }}>{ar ? 'كل بريد وكل رسالة واتساب أرسلها الموقع، وما ردّ به المزوّد عليها.' : 'Every email and WhatsApp the site sent, and what the provider answered.'}</p>
         <div className="card sent-log" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>

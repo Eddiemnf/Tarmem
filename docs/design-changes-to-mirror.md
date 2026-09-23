@@ -162,3 +162,14 @@ console. Both are in the design so the site keeps generating from it.
 > `sendCaseReply`); state `adminView`; copy under `t.admin.dv`; styles `.dv-*`; `userRows` carry `id` and `kind`.
 
 Why: the owner wants to see everything behind a row before approving, resolving or contacting anyone.
+
+
+## Changed 23 September 2026 — erase from the person record, a legal line, a honeypot
+
+> The console's person record shows "mobile verified" and, for the team, an "erase this account" button with a confirm
+> step (`eraseUser`, `eraseUserConfirm`, `eraseUserCancel`; `av.user.canErase/eraseAsk/eraseError`). The footer's bottom
+> bar has `<span class="legal-line">{{ legalLine }}</span>` (empty in the design). The contact form has a hidden
+> `website` field (`.hp-field`) bots fill and people never see.
+
+Why: the owner asked for account deletion, the site needs its legal identity in the footer, and the public forms need
+spam protection that costs visitors nothing.

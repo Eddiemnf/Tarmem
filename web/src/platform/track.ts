@@ -10,7 +10,7 @@
 import type { LogicHost } from '../state/designRuntime';
 import { supabase } from './client';
 
-export type VisitEvent = 'view' | 'signup' | 'signin' | 'project' | 'application' | 'contact';
+export type VisitEvent = 'view' | 'signup' | 'signin' | 'project' | 'application' | 'contact' | 'error';
 
 let context: { admin: boolean; city: string | null } = { admin: false, city: null };
 /** Who is browsing, as far as tracking cares: the team is skipped; a signed-in person's city is known. */
@@ -36,6 +36,24 @@ function referrer(): string | null {
     const host = document.referrer ? new URL(document.referrer).hostname : '';
     return host && host !== window.location.hostname ? host.slice(0, 120) : null;
   } catch { return null; }
+}
+
+/** A browser error, as a visit event with a short detail, so the team sees what broke (supabase/022). At most five a page. */
+let errorsLogged = 0;
+export function trackError(detail: string, route: string): void {
+  if (!supabase || errorsLogged >= 5) return;
+  if (navigator.webdriver && !/tarmem-test/.test(detail)) return;
+  errorsLogged += 1;
+  const row = {
+    session_id: sessionId(), event: 'error', route: String(route || 'home').slice(0, 40), path: window.location.pathname.slice(0, 200),
+    lang: document.documentElement.lang === 'en' ? 'en' : 'ar', device: device(), referrer: null, city: context.city, detail: String(detail || '').slice(0, 300),
+  };
+  void supabase.from('visits').insert(row).then(() => undefined, () => undefined);
+}
+/** Catches errors the page did not: thrown in handlers and timers, and rejected promises nobody awaited. */
+export function installErrorLog(routeOf: () => string): void {
+  window.addEventListener('error', (e) => trackError(`${e.message || 'error'} @ ${String(e.filename || '').split('/').pop()}:${e.lineno || 0}`, routeOf()));
+  window.addEventListener('unhandledrejection', (e) => { const r = (e as PromiseRejectionEvent).reason as { message?: string } | string; trackError(`unhandled: ${typeof r === 'string' ? r : r?.message || 'rejection'}`, routeOf()); });
 }
 
 export function track(event: VisitEvent, route: string): void {

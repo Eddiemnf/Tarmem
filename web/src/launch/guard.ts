@@ -13,7 +13,7 @@
 
 import * as D from '../data/tarmem-data';
 import { platformOn } from '../platform/client';
-import { currentAccount, isRecovering, signOut } from '../platform/session';
+import { currentAccount, isRecovering, needsMobileCode, signOut } from '../platform/session';
 import type { LogicState } from '../state/designRuntime';
 import { LAUNCH_COPY } from './copy';
 import { openWhatsApp } from './deliver';
@@ -130,6 +130,8 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
   const wantsContractorSignup = state.route === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor';
   const allowed = PUBLIC_ROUTES.has(state.route) || (platformOn && !wantsContractorSignup && (
     (state.route === 'auth' && !user)
+    // right after sign-up, the mobile-code step holds the sign-in page until the code is in or skipped
+    || (state.route === 'auth' && state.auth?.mode === 'signup' && needsMobileCode())
     // the reset-password page itself says when its link has expired
     || state.route === 'reset'
     || (state.route === 'hdash' && user?.role === 'homeowner')

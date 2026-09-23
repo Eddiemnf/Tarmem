@@ -67,6 +67,12 @@ export default function App() {
       <ShellBlocks vm={vm} />
       <main style={{ flex: 1 }}>
         {isLaunch ? <LaunchNotice vm={vm} /> : null}
+        {isLaunch && state.siteNotice ? (
+          <div className="wrap sitenotice" role="status" style={{ display: 'flex', gap: '14px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', margin: '14px auto 0', padding: '12px 16px', borderRadius: '14px', background: '#F1FBF5', border: '1px solid #BFE4CC', color: '#1B1464', fontSize: '14px' }}>
+            <span>{String(state.siteNotice)}</span>
+            <button type="button" className="btn btn-s btn-sm" onClick={() => host.setLogicState({ siteNotice: '' })}>{LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'].notFoundClose}</button>
+          </div>
+        ) : null}
         {isLaunch && state.notFound ? (
           <div className="wrap notfound" role="status" style={{ display: 'flex', gap: '14px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', margin: '14px auto 0', padding: '12px 16px', background: '#F7F6FC', border: '1px solid #E6E5F0', borderRadius: '14px', fontSize: '14px', color: '#3A385C' }}>
             <span>{LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'].notFound}</span>

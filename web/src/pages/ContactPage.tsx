@@ -35,6 +35,7 @@ export default function ContactPage({ vm }: { vm: VM }) {
       ))}
       </select></div>
           <div><label className="lbl" htmlFor="a11y-msg">{vm.t.pages.cMsg}</label><textarea className="input" name="msg" value={vm.ct.f.msg} onChange={vm.setContact} placeholder={vm.t.pages.cMsgPh} id="a11y-msg" /></div>
+          <div className="hp-field" aria-hidden="true"><label>Website</label><input className="input" name="website" value={vm.ct.f.website} onChange={vm.setContact} tabIndex={-1} autoComplete="off" /></div>
           
       {vm.ct.error ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.ct.error}</p></>) : null}
       

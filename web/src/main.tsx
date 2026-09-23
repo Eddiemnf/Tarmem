@@ -5,6 +5,7 @@ import ErrorScreen from './components/ErrorScreen';
 import Gate from './components/Gate';
 import { STORAGE_KEY, isLaunch, site } from './launch/mode';
 import { initSession } from './platform/session';
+import { installErrorLog } from './platform/track';
 import { LogicProvider } from './state/viewModel';
 import './styles/global.css';
 
@@ -34,6 +35,7 @@ if (isLaunch) {
   } catch { /* storage unavailable or not JSON: nothing to clean */ }
 }
 
+installErrorLog(() => window.location.pathname.split('/')[1] || 'home');
 void initSession().finally(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>{gated ? <Gate>{app}</Gate> : app}</StrictMode>,

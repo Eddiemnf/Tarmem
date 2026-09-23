@@ -141,7 +141,7 @@ export async function installSupabaseMock(context, supabaseUrl) {
       (db.reviews ||= []).push({ ...body, homeowner_id: me, created_at: new Date().toISOString() });
       return send(route, 201);
     }
-    if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }, { key: 'whatsapp_live', enabled: Boolean(db.whatsappLive) }] : []);
+    if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }, { key: 'whatsapp_live', enabled: Boolean(db.whatsappLive) }, { key: 'otp_live', enabled: Boolean(db.otpLive) }] : []);
     if (path === '/rest/v1/project_messages') {
       const mine = (r) => me && (db.projects.some((p) => p.id === r.project_id && p.owner_id === me) || r.contractor_id === me);
       if (method === 'GET') return rows((db.messages || []).filter((r) => mine(r) && (!eq('project_id') || r.project_id === eq('project_id'))));
@@ -171,6 +171,37 @@ export async function installSupabaseMock(context, supabaseUrl) {
       const bids = (db.bids || []).filter((b) => b.contractor_id === p.id).map((b) => { const x = db.projects.find((y) => y.id === b.project_id) || {}; return { id: b.id, project_code: x.code, project_title: x.title, price: b.price, days: b.days ?? null, status: b.status || 'submitted', created_at: b.created_at || new Date().toISOString() }; });
       const application = db.applications.find((a) => a.user_id === p.id) || null;
       return send(route, 200, { profile: p, email: u.email, created_at: u.created_at, last_sign_in_at: null, email_confirmed_at: u.created_at, projects, bids, application, messages: db.contact.filter((m) => m.email && u.email && m.email.toLowerCase() === u.email.toLowerCase()).length, portfolio: db.portfolio.filter((f) => f.path.startsWith(p.id + '/')).length, reviews: 0 });
+    }
+    if (path === '/rest/v1/rpc/delete_my_account' && method === 'POST') {
+      if (!me) return refuse(route, 'sign in first');
+      const p = db.profiles.find((x) => x.id === me); if (p?.role === 'admin') return send(route, 400, { message: 'an admin account is removed by another admin' });
+      if (db.projects.some((x) => x.status === 'active' && (x.owner_id === me || x.contractor_id === me))) return send(route, 400, { message: 'active_project: a project in progress must be finished first' });
+      Object.assign(p, { full_name: 'حساب محذوف', email: null, mobile: '0' + me.replace(/\D/g, '').slice(0, 11).padEnd(11, '0'), deleted_at: new Date().toISOString() });
+      const u = db.users.find((x) => x.id === me); if (u) { u.email = `deleted-${me.replace(/-/g, '')}@deleted.tarmem.sa`; u.password = null; u.banned = true; }
+      (db.erased ||= []).push(me);
+      return send(route, 200, null);
+    }
+    if (path === '/rest/v1/rpc/admin_delete_user' && method === 'POST') {
+      if (!admin) return refuse(route, 'admins only');
+      if (body.p_user === me) return send(route, 400, { message: 'not yourself' });
+      const p = db.profiles.find((x) => x.id === body.p_user); if (!p) return send(route, 400, { message: 'no such account' });
+      if (p.role === 'admin') return send(route, 400, { message: 'another admin is removed in the SQL editor, not here' });
+      if (db.projects.some((x) => x.status === 'active' && (x.owner_id === p.id || x.contractor_id === p.id))) return send(route, 400, { message: 'active_project: a project in progress must be finished first' });
+      Object.assign(p, { full_name: 'حساب محذوف', email: null, deleted_at: new Date().toISOString() });
+      (db.erased ||= []).push(p.id);
+      return send(route, 200, null);
+    }
+    if (path === '/rest/v1/rpc/otp_request' && method === 'POST') {
+      if (!me) return refuse(route, 'sign in first');
+      if (!db.otpLive) return send(route, 400, { message: 'otp_off: mobile verification is not switched on' });
+      db.otpCode = '482913'; db.otpSent = (db.otpSent || 0) + 1;
+      return send(route, 200, { sent: true, to: '966551234567' });
+    }
+    if (path === '/rest/v1/rpc/otp_check' && method === 'POST') {
+      if (!me) return refuse(route, 'sign in first');
+      const ok = db.otpCode && body.p_code === db.otpCode;
+      if (ok) { const p = db.profiles.find((x) => x.id === me); if (p) p.mobile_verified_at = new Date().toISOString(); db.otpCode = null; }
+      return send(route, 200, Boolean(ok));
     }
     if (path === '/rest/v1/rpc/mobile_taken' && method === 'POST') { const key = (m) => { const d = String(m || '').replace(/[^0-9]/g, ''); return !d ? null : d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '966' + d.slice(1) : d.length === 9 && d.startsWith('5') ? '966' + d : d; }; return send(route, 200, key(body.p_mobile) !== null && db.profiles.some((p) => key(p.mobile) === key(body.p_mobile))); }
     if (path === '/rest/v1/rpc/my_performance' && method === 'POST') { if (!me) return refuse(route, 'sign in first'); return send(route, 200, { views: (db.visits || []).filter((v) => v.path === '/firm/co-' + String(me).slice(0, 8) && v.user_id !== me).length, bids: (db.bids || []).filter((b) => b.contractor_id === me && b.status !== 'withdrawn').length, won: (db.bids || []).filter((b) => b.contractor_id === me && b.status === 'chosen').length }); }

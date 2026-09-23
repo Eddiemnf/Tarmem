@@ -29,6 +29,8 @@ export interface Account {
   paymentsLive: boolean;
   /** The owner has switched WhatsApp updates on in the database (supabase/013): the settings page shows the designed card. */
   whatsappLive: boolean;
+  /** Mobile verification by WhatsApp code is switched on (supabase/022). */
+  otpLive: boolean;
   /** A contractor's measured figures (supabase/020): profile views in 30 days, bids made and won. Null until 020 runs. */
   performance: { views: number; bids: number; won: number } | null;
   /** Reviews this person wrote (a homeowner) or received (a contractor). */
@@ -82,6 +84,9 @@ function failure(error: { message?: string; status?: number; code?: string } | n
   const text = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
   if (/invalid login|invalid_credentials/.test(text)) return 'wrong';
   if (/mobile_taken/.test(text)) return 'mobileTaken';
+  if (/active_project/.test(text)) return 'activeProject';
+  if (/otp_off/.test(text)) return 'otpOff';
+  if (/too many/.test(text)) return 'rate';
   if (/already registered|user_already_exists/.test(text)) return 'exists';
   if (/not confirmed|email_not_confirmed/.test(text)) return 'unconfirmed';
   if (/rate limit|too many|over_request|over_email/.test(text) || error?.status === 429) return 'rate';
@@ -177,6 +182,7 @@ export async function signUp(f: SignUpFields): Promise<Result<true | 'confirm'>>
   if (!supabase) return { error: 'generic' };
   try {
     if (await mobileTaken(f.mobile)) return { error: 'mobileTaken' };
+    codeSkipped = false;
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
       options: { data: { full_name: f.name, mobile: f.mobile, city: f.city, lang: f.lang } },
@@ -238,6 +244,7 @@ export async function signUpContractor(f: ContractorSignUp): Promise<Result<true
   if (!supabase) return { error: 'generic' };
   try {
     if (await mobileTaken(normalizeMobile(f.mobile))) return { error: 'mobileTaken' };
+    codeSkipped = false;
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
       options: { data: { role: 'contractor', full_name: f.person.trim(), company: f.company.trim(), mobile: normalizeMobile(f.mobile), city: f.city, lang: f.lang } },
@@ -250,6 +257,52 @@ export async function signUpContractor(f: ContractorSignUp): Promise<Result<true
     setAccount(await loadAccount(data.user));
     return { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** Erase the signed-in person's account (supabase/022): their own files first, then the database scrubs the rest and signs them out everywhere. */
+export async function deleteMyAccount(): Promise<Result> {
+  if (!supabase || !account) return { error: 'generic' };
+  try {
+    const mine = account.profile.id;
+    for (const bucket of ['project-files', 'portfolio']) {
+      const top = await supabase.storage.from(bucket).list(mine, { limit: 100 }).then((r) => r.data || [], () => []);
+      const paths: string[] = [];
+      for (const entry of top) {
+        if (entry.id) paths.push(`${mine}/${entry.name}`);
+        else { const inner = await supabase.storage.from(bucket).list(`${mine}/${entry.name}`, { limit: 100 }).then((r) => r.data || [], () => []); for (const f of inner) if (f.id) paths.push(`${mine}/${entry.name}/${f.name}`); }
+      }
+      if (paths.length) await supabase.storage.from(bucket).remove(paths).then(() => undefined, () => undefined);
+    }
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) return { error: failure(error) };
+    await signOut();
+    return { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** Whether the person who just signed up still has to confirm their mobile by WhatsApp code. The guard reads this the
+    moment the account appears, so the sign-in page is not swapped for the dashboard before the step shows. */
+let codeSkipped = false;
+export function needsMobileCode(): boolean {
+  return Boolean(account?.otpLive && !account.profile.mobile_verified_at && !codeSkipped);
+}
+/** "Later": the person goes on without the code this time. */
+export function skipMobileCode(): void { codeSkipped = true; }
+/** A six-digit code to the signed-in person's number (supabase/022). Resolves to the number it went to. */
+export async function otpRequest(): Promise<Result<string>> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { data, error } = await supabase.rpc('otp_request');
+    if (error) return { error: failure(error) };
+    return { ok: String((data as { to?: string } | null)?.to || '') };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+export async function otpCheck(code: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase.rpc('otp_check', { p_code: code });
+    return !error && data === true;
+  } catch { return false; }
 }
 
 /** Email a link for choosing a new password. Says nothing about whether the address has an account. */
@@ -311,10 +364,10 @@ async function loadAgreements(): Promise<AgreementRow[]> {
 }
 
 /** (empty, and off, until 007 has been run) */
-async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | 'whatsappLive' | 'reviews' | 'wallet' | 'payout' | 'standing' | 'performance'>> {
-  if (!supabase) return { stages: [], paymentsLive: false, whatsappLive: false, reviews: [], wallet: [], payout: null, standing: null, performance: null };
+async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | 'whatsappLive' | 'otpLive' | 'reviews' | 'wallet' | 'payout' | 'standing' | 'performance'>> {
+  if (!supabase) return { stages: [], paymentsLive: false, whatsappLive: false, otpLive: false, reviews: [], wallet: [], payout: null, standing: null, performance: null };
   const [flag, rows] = await Promise.all([
-    supabase.from('platform_flags').select('key, enabled').in('key', ['payments_live', 'whatsapp_live']),
+    supabase.from('platform_flags').select('key, enabled').in('key', ['payments_live', 'whatsapp_live', 'otp_live']),
     supabase.from('stages').select('project_id, idx, status').order('idx', { ascending: true }),
   ]);
   const { data: who } = await supabase.auth.getUser();
@@ -327,7 +380,7 @@ async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | '
     live ? supabase.from('payout_accounts').select('holder, bank, iban').eq('user_id', who.user.id).maybeSingle() : null,
     supabase.from('verified_contractors').select('*').eq('user_id', who.user.id).maybeSingle(),
   ]) : [null, null, null];
-  return { stages: (rows.data as StageRow[]) || [], paymentsLive: live, whatsappLive: Boolean(flags.get('whatsapp_live')), reviews: (mine?.data as ReviewRow[]) || [],
+  return { stages: (rows.data as StageRow[]) || [], paymentsLive: live, whatsappLive: Boolean(flags.get('whatsapp_live')), otpLive: Boolean(flags.get('otp_live')), reviews: (mine?.data as ReviewRow[]) || [],
     wallet: (wallet?.data as WalletTxn[]) || [], payout: (payout?.data as PayoutAccount | null) || null, standing: (standing?.data as Bidder | null) || null, performance: perf };
 }
 
@@ -515,6 +568,8 @@ export interface Inbox {
   applications: Record<string, unknown>[];
   /** The last hundred emails and WhatsApps, newest first, with the providers' answers where they have arrived. */
   sent: SentRow[];
+  /** Browser errors visitors hit, newest first (supabase/022). */
+  errors: { at: string; route: string; path: string; device: string; detail: string }[];
 }
 
 /** Everything that has arrived, for the team. The database returns rows only to an admin. */
@@ -533,6 +588,8 @@ export async function loadInbox(): Promise<Result<Inbox>> {
     const failed = projects.error || profiles.error || messages.error || applications.error;
     if (failed) return { error: failure(failed) };
     const bids = ((await supabase.from('bids').select('*').neq('status', 'withdrawn')).data as BidRow[]) || []; // empty until 005 has been run
+    const errors = await supabase.from('visits').select('created_at, route, path, device, detail').eq('event', 'error').order('created_at', { ascending: false }).limit(50)
+      .then((r) => (r.error ? [] : (r.data || []).map((v) => ({ at: String(v.created_at), route: String(v.route), path: String(v.path), device: String(v.device), detail: String(v.detail || '') }))), () => []);
     const firm = new Map((applications.data || []).filter((a) => a.user_id).map((a) => [a.user_id as string, a]));
     const owners = new Map((profiles.data || []).map((p) => [p.id as string, p]));
     return { ok: {
@@ -540,7 +597,7 @@ export async function loadInbox(): Promise<Result<Inbox>> {
         ...p, owner: (owners.get(p.owner_id) as Inbox['projects'][number]['owner']) || null,
         bids: bids.filter((b) => b.project_id === p.id).map((b) => ({ ...b, company: String(firm.get(b.contractor_id)?.company || '—'), mobile: String(firm.get(b.contractor_id)?.mobile || '') })),
       })),
-      messages: messages.data || [], applications: applications.data || [],
+      messages: messages.data || [], applications: applications.data || [], errors,
       sent: ((sent.data as Partial<SentRow>[] | null) || []).map((r) => ({ id: Number(r.id), at: String(r.at || ''), recipient: String(r.recipient || ''), template: String(r.template || ''), status: String(r.status || ''), detail: r.detail ?? null, channel: String(r.channel || 'email'), answer: r.answer ?? null, answer_code: r.answer_code ?? null })),
     } };
   } catch (e) { return { error: failure(e as Error) }; }

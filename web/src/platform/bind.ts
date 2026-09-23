@@ -59,6 +59,8 @@ function accountState(): LogicState {
 export function guardEffects(getHost: () => LogicHost | null): GuardEffects {
   return {
     contact: (form, lang) => {
+      // a filled hidden field is a bot: it sees "sent", nothing is saved
+      if (String((form as { website?: string }).website || '').trim()) { getHost()?.setLogicState((s) => ({ contact: { ...s.contact, sent: true, delivered: true, busy: false, error: '' } })); return; }
       void sendContact({ name: form.name, email: form.email, mobile: form.phone, topic: form.topic, message: form.msg, lang }).then((result) => {
         getHost()?.setLogicState((s) => ({ contact: result.ok
           ? { ...s.contact, sent: true, delivered: true, busy: false, error: '' }

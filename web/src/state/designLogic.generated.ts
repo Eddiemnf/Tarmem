@@ -1098,12 +1098,12 @@ Rules:
     if(aview && aview.kind==='user'){
       if(aview.ukind==='c'){ const c=this.con(aview.id); if(c){ const rej=s.rejected.includes(c.id);
         const bids = s.projects.flatMap(p=>(p.bids||[]).filter(b=>b.cid===c.id).map(b=>({project:p.id, title:L(p.title), price:fmt(b.price), days:String(b.days||'—'), status: p.contractorId===c.id?dv.won:(b.status||dv.submitted)})));
-        av.user = {name:c.name[lang], role:t.roles.contractor, city:cityL(c.city), mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email), company:c.name[lang], language: c.lang==='en'?'English':'العربية',
+        av.user = {id:c.id, kind:'c', mobileVerified: c.mobileVerified?dv.verifiedYes:dv.verifiedNo, canErase:false, eraseAsk:false, eraseError:'', name:c.name[lang], role:t.roles.contractor, city:cityL(c.city), mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email), company:c.name[lang], language: c.lang==='en'?'English':'العربية',
           joined: c.appliedAt?dvDate(c.appliedAt):String(c.since||'—'), lastSeen: c.lastSeen?dvDate(c.lastSeen):dv.never, status: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, cls: c.verified?'tag-g':rej?'tag-a':'tag-w',
           isContractor:true, projects:[], projectCount:'0', noProjects:true, hasProjects:false, bids, bidCount:String(bids.length), noBids:!bids.length, hasBids:bids.length>0,
           application: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, portfolio:String(c.portfolio??'—'), reviews:String(c.reviews??'—')}; } }
       else { const u=this.D.USERS[aview.id]; if(u){ const mine=s.projects.filter(p=>p.ownerId===aview.id).map(p=>{ const d=decorateP(p); return {id:d.id, title:d.title, statusLabel:d.statusLabel, tagClass:d.tagClass, bids:String((p.bids||[]).length)}; });
-        av.user = {name:u[lang], role:t.roles.homeowner, city:cityL(u.city), mobile:u.mobile||'—', tel:telOf(u.mobile), email:u.email||'—', mailto:mailOf(u.email), company:'—', language: u.lang==='en'?'English':'العربية',
+        av.user = {id:aview.id, kind:'h', mobileVerified: u.mobileVerified?dv.verifiedYes:dv.verifiedNo, canErase:false, eraseAsk:false, eraseError:'', name:u[lang], role:t.roles.homeowner, city:cityL(u.city), mobile:u.mobile||'—', tel:telOf(u.mobile), email:u.email||'—', mailto:mailOf(u.email), company:'—', language: u.lang==='en'?'English':'العربية',
           joined: u.createdAt?dvDate(u.createdAt):L(u.joined)||'—', lastSeen: u.lastSeen?dvDate(u.lastSeen):dv.never, status:t.admin.active, cls:'tag-g',
           isContractor:false, projects:mine, projectCount:String(mine.length), noProjects:!mine.length, hasProjects:mine.length>0, bids:[], bidCount:'0', noBids:true, hasBids:false, application:'—', portfolio:'—', reviews:'—'}; } }
     }
@@ -1377,7 +1377,7 @@ Rules:
       setGa: e => this.setState({gaDraft:e.target.value, gaErr:false}),
       connectGa: () => { const v = String(s.gaDraft||'').trim().toUpperCase(); if(!/^G-[A-Z0-9]{6,12}$/.test(v)) return this.setState({gaErr:true}); this.setState({gaId:v, gaErr:false, gaDraft:''}); },
       disconnectGa: () => this.setState({gaId:null}),
-      av, caseReply: s.caseReply||'', fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
+      av, caseReply: s.caseReply||'', legalLine: '', fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
 
       goAuth: e => { const rl=e.currentTarget.dataset.signup;
         this.setState({route:'auth', menuOpen:false, navOpen:false, auth:{...s.auth, mode:'signup', step:1, role:rl, error:''}});
@@ -1428,7 +1428,10 @@ Rules:
       openVerif: e => this.setState({adminView:{kind:'app', id:e.currentTarget.dataset.id}}),
       openCase: e => this.setState({adminView:{kind:'case', id:e.currentTarget.dataset.id}, caseReply:'', caseReplyError:''}),
       openUser: e => this.setState({adminView:{kind:'user', id:e.currentTarget.dataset.id, ukind:e.currentTarget.dataset.kind}}),
-      closeAdminView: () => this.setState({adminView:null, caseReplyError:''}),
+      eraseUser: () => this.setState({eraseAsk:true, eraseError:''}),
+      eraseUserCancel: () => this.setState({eraseAsk:false, eraseError:''}),
+      eraseUserConfirm: () => this.setState({eraseAsk:false, adminView:null}),
+      closeAdminView: () => this.setState({adminView:null, caseReplyError:'', eraseAsk:false, eraseError:''}),
       setCaseReply: e => this.setState({caseReply:e.target.value, caseReplyError:''}),
       sendCaseReply: e => { const id=e.currentTarget.dataset.id; const text=(s.caseReply||'').trim(); if(!text) return; this.setState({cases:s.cases.map(c=>c.id===id?{...c, replies:[...(c.replies||[]), {when:t.ws.today, text, email:!!c.email}]}:c), caseReply:''}); },
       setBidField: e => { const {name,value}=e.target; this.setState({bidF:{...s.bidF,[name]:value,error:''}}); },

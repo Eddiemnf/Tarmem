@@ -85,6 +85,14 @@ export async function replyToCase(id: number, body: string): Promise<{ ok: boole
     return error ? { ok: false, sent: false } : { ok: true, sent: Boolean((data as { sent?: boolean } | null)?.sent) };
   } catch { return { ok: false, sent: false }; }
 }
+/** The console erases a person (supabase/022): scrubbed profile, files and bank details gone, login dead. */
+export async function adminDeleteUser(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'generic' };
+  try {
+    const { error } = await supabase.rpc('admin_delete_user', { p_user: id });
+    return error ? { ok: false, error: /active_project/.test(error.message || '') ? 'activeProject' : 'generic' } : { ok: true };
+  } catch { return { ok: false, error: 'generic' }; }
+}
 /** Everything the team may need about one account (supabase/021). */
 export async function userDetail(id: string): Promise<UserDetail | null> {
   if (!supabase) return null;
@@ -100,18 +108,19 @@ const both = (text: string) => ({ en: text, ar: text });
 
 /** Everybody with a homeowner account, in the place the logic looks people up by id. */
 export function adminUsers(data: AdminData): Record<string, ReturnType<typeof homeownerRecord>> {
-  return Object.fromEntries(data.profiles.filter((p) => p.role === 'homeowner').map((p) => [p.id, homeownerRecord(p)]));
+  return Object.fromEntries(data.profiles.filter((p) => p.role === 'homeowner' && !p.deleted_at).map((p) => [p.id, homeownerRecord(p)]));
 }
 
 /** The console's collections, as the design's logic state. */
 export function adminLogicState(data: AdminData): LogicState {
   return {
-    // a withdrawn project is no longer the team's business; the design has no such status to show it under
-    projects: data.projects.filter((row) => row.status !== 'withdrawn').map((row) => toLogicProject(row, row.owner_id)),
+    // a withdrawn project stays visible to the team, marked as such (the view model relabels it)
+    projects: data.projects.map((row) => ({ ...toLogicProject(row, row.owner_id), withdrawn: row.status === 'withdrawn' })),
     contractors: data.applications.map((a) => ({
       id: 'A-' + a.id, dbId: a.id, name: both(a.company), city: a.city, trades: a.trades || [], rating: 0, reviews: 0, done: 0,
       verified: a.status === 'verified', since: a.created_at.slice(0, 4), onTime: '—', response: '—', bio: both(a.note || ''),
-      checks: { id: false, cr: Boolean(a.cr_number), pf: false }, person: a.person, mobile: a.mobile, email: a.email, appliedAt: a.created_at, cr: a.cr_number || '', note: a.note || '', userId: (a as ApplicationRow & { user_id?: string | null }).user_id || null, lang: (a as ApplicationRow & { lang?: string }).lang === 'en' ? 'en' : 'ar', hasAccount: Boolean((a as ApplicationRow & { user_id?: string | null }).user_id),
+      checks: { id: false, cr: Boolean(a.cr_number), pf: false }, person: a.person, mobile: a.mobile, email: a.email, appliedAt: a.created_at, cr: a.cr_number || '', note: a.note || '', userId: (a as ApplicationRow & { user_id?: string | null }).user_id || null,
+      mobileVerified: Boolean(data.profiles.find((p) => p.id === (a as ApplicationRow & { user_id?: string | null }).user_id)?.mobile_verified_at), lang: (a as ApplicationRow & { lang?: string }).lang === 'en' ? 'en' : 'ar', hasAccount: Boolean((a as ApplicationRow & { user_id?: string | null }).user_id),
     })),
     rejected: data.applications.filter((a) => a.status === 'declined').map((a) => 'A-' + a.id),
     cases: data.messages.map((m) => ({
@@ -135,7 +144,7 @@ const ROUTE_LABELS: Record<string, [string, string]> = {
 };
 const EVENT_LABELS: Record<string, [string, string]> = {
   view: ['يتصفح', 'Viewing'], signup: ['أنشأ حسابًا', 'Created an account'], signin: ['سجّل الدخول', 'Signed in'],
-  project: ['نشر مشروعًا', 'Posted a project'], application: ['مقاول قدّم طلب انضمام', 'Contractor applied'], contact: ['أرسل رسالة', 'Sent a message'],
+  project: ['نشر مشروعًا', 'Posted a project'], application: ['مقاول قدّم طلب انضمام', 'Contractor applied'], contact: ['أرسل رسالة', 'Sent a message'], error: ['واجه خطأ في الصفحة', 'Hit a page error'],
 };
 function sourceLabel(host: string, ar: boolean): string {
   if (host === 'direct') return ar ? 'مباشر' : 'Direct';

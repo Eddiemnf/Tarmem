@@ -5,5 +5,9 @@
   "supabase": {
     "url": "https://rdqlnsqdmaosghpxexup.supabase.co",
     "key": "sb_publishable_n3eZdMHHA59rlCy8T49WjA_0n1TLKX5"
+  },
+  "legal": {
+    "cr": "",
+    "vat": ""
   }
 }

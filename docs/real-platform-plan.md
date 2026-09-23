@@ -500,3 +500,30 @@ Three detail views now live in the design and on the site (`av.app`, `av.case`, 
 
 The design's demo shows the same three views on its invented rows; the site fills them from the database. Owner step:
 run 021 (the console's rows still open without it; replies and the full person record need it).
+
+## "Work on everything needed" — 23 September 2026 (supabase/022)
+
+What was worth building without waiting for payments or Nafath, in one migration and one push:
+
+- **Replies reach the team.** Every email the database sends carries reply-to support@tarmem.sa (or the `alert_reply_to`
+  secret), so a customer who answers an alert reaches a person.
+- **Spam limits.** The contact form and the contractor application accept five entries an hour from the same email or
+  mobile and forty in ten minutes in all (a trigger, so it holds whatever sends the row). Both forms also carry a hidden
+  field: a bot that fills it sees "sent" and nothing is saved.
+- **Erasure.** The settings page's "close account" used to email the team; it now erases for real through
+  `delete_my_account()`: the profile becomes "deleted account" with no email, a dead number and no preferences; portfolio,
+  bank details, their messages, their contact messages and their file records go; the login gets a dead email, no
+  password, a permanent ban and no sessions. Projects, bids, agreements and wallet entries stay under the anonymous
+  profile as records. A project in progress blocks it. The console's person record has the same, as "erase this account"
+  (`admin_delete_user`; never yourself, never another admin). Erased accounts leave the users list and free their number.
+- **Errors in the log.** The visit log takes event `error` with a short detail; the site records thrown errors, rejected
+  promises and render failures (five a page at most), the console's live feed labels them, and the inbox has a
+  "browser errors" table.
+- **Withdrawn projects** stay visible to the team, marked withdrawn.
+- **The footer's legal line** appears once `legal.cr` / `legal.vat` are filled in `web/site.config.json`.
+- **Mobile verification by WhatsApp code, switched off.** `otp_request()` sends a six-digit code with Meta's
+  authentication template `tarmem_otp` (submitted at the end of 022; fixed wording, a copy button, ten-minute expiry),
+  `otp_check(code)` confirms it and stamps `profiles.mobile_verified_at`; three codes an hour, five tries a code. The site
+  shows the step right after sign-up (homeowner and contractor) with "later" always available, and the console's person
+  record says whether the number is verified. Off until the owner runs `select public.set_otp(true)` once Meta approves
+  the template. 33 local checks; the platform suite covers the step, erasure, the honeypot and the error log.

@@ -1,11 +1,15 @@
 /* The last line of defence: if anything in the page throws while rendering, the visitor sees a sentence and a button
    instead of a blank screen. React only catches these through a class component. */
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { trackError } from '../platform/track';
 
 export default class ErrorScreen extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError(): { failed: boolean } { return { failed: true }; }
-  componentDidCatch(error: Error, info: ErrorInfo): void { console.error('Tarmem: the page failed to render', error, info.componentStack); }
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('Tarmem: the page failed to render', error, info.componentStack);
+    trackError(`render: ${error.message}`, window.location.pathname.split('/')[1] || 'home');
+  }
   render(): ReactNode {
     if (!this.state.failed) return this.props.children;
     const ar = (document.documentElement.dir || 'rtl') !== 'ltr';
