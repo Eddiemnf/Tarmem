@@ -42,7 +42,8 @@ function pathFor(state: { route: string; curId?: string | null }): string | unde
 /** Call once the logic has mounted. Returns the function that disconnects it. */
 export function connectUrls(host: LogicHost): () => void {
   const opened = routeFromLocation();
-  if (!opened.known) window.history.replaceState(null, '', BASE);
+  // a mistyped or outdated link lands on the home page, which says so once (App.tsx) instead of pretending
+  if (!opened.known) { window.history.replaceState(null, '', BASE); host.setLogicState({ notFound: true }); }
   const openedState = opened.curId ? { route: opened.route, curId: opened.curId, tab: 'overview' } : { route: opened.route };
   if (host.logic.state.route !== opened.route || (opened.curId && host.logic.state.curId !== opened.curId)) host.setLogicState(openedState);
 

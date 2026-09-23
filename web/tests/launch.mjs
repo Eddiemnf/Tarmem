@@ -202,8 +202,12 @@ check('navigation updates the address, and Back returns to the previous page',
 await load({ key: 'tarmem-public-v1', value: { route: 'faq' } });
 check('the site root is always the home page, whatever was open last time', (await route()) === 'home' && (await pathname()) === '/');
 check('sign in is visible over the home-page video, without scrolling', await page.locator('.hdr .ulnk[data-route="auth"]').first().isVisible());
-await load(null, 'no-such-page');
-check('an unknown address lands on the home page', (await route()) === 'home' && (await pathname()) === '/');
+await load();
+// (load() reloads on the address the app already corrected, so the wrong one has to be opened directly)
+await page.goto(BASE_URL + 'no-such-page', { waitUntil: 'domcontentloaded' });
+await page.waitForSelector('header');
+await page.waitForTimeout(500);
+check('an unknown address lands on the home page, which says so', (await route()) === 'home' && (await pathname()) === '/' && (await page.locator('.notfound').count()) === 1, String(await page.locator('main').innerText()).slice(0, 80));
 
 // J — ready to open to the public?
 const placeholder = site.whatsapp === '966500000000';

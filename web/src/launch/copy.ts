@@ -6,6 +6,9 @@
    no guarantees, nothing about payments on the site. */
 
 export interface LaunchCopy {
+  /** The one-line notice on the home page after a wrong address, and its close button. */
+  notFound: string;
+  notFoundClose: string;
   notice: string;
   sendWhatsApp: string;
   heroJoin: string;
@@ -36,6 +39,7 @@ export const LAUNCH_COPY: Record<'ar' | 'en', LaunchCopy> = {
       budget: 'الميزانية', timing: 'موعد البدء', desc: 'الوصف', files: 'المرفقات',
       filesNote: 'سأرسلها في هذه المحادثة',
     },
+    notFound: 'العنوان الذي فتحته غير موجود، فهذه هي الصفحة الرئيسية.', notFoundClose: 'إغلاق',
     contact: { heading: 'رسالة من موقع ترميم', name: 'الاسم', email: 'البريد', phone: 'الجوال', topic: 'الموضوع', msg: 'الرسالة' },
     join: {
       kicker: 'للمقاولين', title: 'انضم إلى ترميم كمقاول',
@@ -66,6 +70,7 @@ export const LAUNCH_COPY: Record<'ar' | 'en', LaunchCopy> = {
       budget: 'Budget', timing: 'Start', desc: 'Description', files: 'Attachments',
       filesNote: 'I will send them in this chat',
     },
+    notFound: 'That address does not exist, so this is the home page.', notFoundClose: 'Close',
     contact: { heading: 'Message from the Tarmem website', name: 'Name', email: 'Email', phone: 'Mobile', topic: 'Topic', msg: 'Message' },
     join: {
       kicker: 'For contractors', title: 'Join Tarmem as a contractor',

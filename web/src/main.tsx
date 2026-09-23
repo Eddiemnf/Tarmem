@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import ErrorScreen from './components/ErrorScreen';
 import Gate from './components/Gate';
 import { STORAGE_KEY, isLaunch, site } from './launch/mode';
 import { initSession } from './platform/session';
@@ -8,9 +9,11 @@ import { LogicProvider } from './state/viewModel';
 import './styles/global.css';
 
 const app = (
-  <LogicProvider>
-    <App />
-  </LogicProvider>
+  <ErrorScreen>
+    <LogicProvider>
+      <App />
+    </LogicProvider>
+  </ErrorScreen>
 );
 
 /* The demo always sits behind the preview password. The public site joins it

@@ -24,7 +24,8 @@ import { platformOn } from './platform/client';
 import { PLATFORM_COPY } from './platform/copy';
 import InboxPage from './platform/InboxPage';
 import { PAGES, type Route } from './routes';
-import { useLogicState, useViewModel, type VM } from './state/viewModel';
+import { LAUNCH_COPY } from './launch/copy';
+import { useLaunchActions, useLogicState, useViewModel, type VM } from './state/viewModel';
 
 /** Pages that exist only on the public early-access site (see src/launch/). */
 const LAUNCH_PAGES: Record<string, (props: { vm: VM }) => React.ReactNode> = {
@@ -36,6 +37,7 @@ const LAUNCH_PAGES: Record<string, (props: { vm: VM }) => React.ReactNode> = {
 export default function App() {
   const vm = useViewModel();
   const state = useLogicState();
+  const { host } = useLaunchActions();
 
   useEffect(() => {
     document.documentElement.lang = state.lang;
@@ -61,6 +63,12 @@ export default function App() {
       <ShellBlocks vm={vm} />
       <main style={{ flex: 1 }}>
         {isLaunch ? <LaunchNotice vm={vm} /> : null}
+        {isLaunch && state.notFound ? (
+          <div className="wrap notfound" role="status" style={{ display: 'flex', gap: '14px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', margin: '14px auto 0', padding: '12px 16px', background: '#F7F6FC', border: '1px solid #E6E5F0', borderRadius: '14px', fontSize: '14px', color: '#3A385C' }}>
+            <span>{LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'].notFound}</span>
+            <button type="button" className="btn btn-s btn-sm" onClick={() => host.setLogicState({ notFound: false })}>{LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'].notFoundClose}</button>
+          </div>
+        ) : null}
         {/* The team's way into what has arrived. Only an account the owner marked admin in the database sees it. */}
         {isLaunch && state.user?.admin && state.route !== 'home' && state.route !== 'inbox' ? (
           <div style={{ background: '#1B1464', color: '#fff', fontSize: '13px' }}>

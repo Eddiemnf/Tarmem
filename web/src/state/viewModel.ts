@@ -270,6 +270,8 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
 
 /* The home page's background video, chosen once per visit: 1 MB at 720p on a desktop, 0.4 MB at 480p on a phone,
    and only the still poster when the visitor's browser asks to save data. */
+const PHONE = (): boolean => { try { return window.matchMedia('(max-width: 768px)').matches; } catch { return false; } };
+
 const HERO_VIDEO: string = (() => {
   try {
     if ((navigator as { connection?: { saveData?: boolean } }).connection?.saveData) return '';
@@ -279,11 +281,15 @@ const HERO_VIDEO: string = (() => {
 
 /** The design's in-project chat keeps messages in memory only. Until messaging is real, the tab says so instead of
     offering a box whose messages would go nowhere. */
-function messagesVals(vm: LogicVals): LogicVals {
-  if (!platformOn || !vm.tab?.messages || !vm.pj) return vm;
+function messagesVals(vm: LogicVals, state: LogicState): LogicVals {
+  if (!platformOn || !vm.pj) return vm;
   const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const pr = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
+  // an open project's progress box read "no stages of 0 stages paid": stages begin when a contractor is chosen
+  const progress = pr && !pr.contractorId ? { msSummary: copy.stagesAfterAward } : {};
+  if (!vm.tab?.messages) return { ...vm, pj: { ...vm.pj, ...progress } };
   const rows = (vm.pj.msgRows as LogicState[] | undefined) || [];
-  return { ...vm, canMessage: false, pj: { ...vm.pj, msgRows: rows.length ? rows : [{ who: copy.msgsFrom, time: '', text: copy.msgsSoon, align: 'flex-start', bg: '#F7F6FC', ink: '#3A385C' }] } };
+  return { ...vm, canMessage: false, pj: { ...vm.pj, ...progress, msgRows: rows.length ? rows : [{ who: copy.msgsFrom, time: '', text: copy.msgsSoon, align: 'flex-start', bg: '#F7F6FC', ink: '#3A385C' }] } };
 }
 
 function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
@@ -330,10 +336,11 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
       // the design's contact form opens on "a project above SAR 1,000,000"; most visitors want the last option, "something else"
       ...(Array.isArray(vm.t.contact?.topics) && vm.t.contact.topics.length > 1 ? { contact: { ...vm.t.contact, topics: [vm.t.contact.topics[vm.t.contact.topics.length - 1], ...vm.t.contact.topics.slice(0, -1)] } } : {}),
     },
-    // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request
-    showWaFab: vm.showWaFab && !vm.r?.sent,
+    // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request, and on a phone it
+    // covers the end of a form's fields and buttons, so it stays off the form pages there
+    showWaFab: vm.showWaFab && !vm.r?.sent && !(PHONE() && ['post', 'join', 'contact', 'auth'].includes(String(state.route))),
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state), state), state), state, host), state, host), state, host));
+  }, state), state), state), state, host), state, host), state, host), state);
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {
