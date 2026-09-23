@@ -405,6 +405,10 @@ await page.locator('main .card input.input').fill('غدًا الساعة 5 مس�
 await page.keyboard.press('Enter');
 await settle(800);
 check('…and answers in the same thread', (db.messages || []).length === 2 && db.messages[1].from_id === db.profiles.find((p) => p.role === 'contractor').id && (await page.locator('main .card', { hasText: 'غدًا الساعة 5 مساءً' }).count()) === 1, JSON.stringify(db.refused));
+await page.locator('main .card input.input').fill('اتصل بي على 0551234567 أو khalid@build.example');
+await page.keyboard.press('Enter');
+await settle(800);
+check('a phone number or an email inside a message is masked on screen, as the note under the box promises', (db.messages || []).length === 3 && (await page.locator('main .card', { hasText: '0551234567' }).count()) === 0 && (await page.locator('main .card', { hasText: 'khalid@build.example' }).count()) === 0, await page.locator('main .card').first().innerText().then((t) => t.slice(0, 160)));
 await page.locator('.tab[data-tab="overview"]').click();
 await settle(400);
 await page.locator('button.acct').click();

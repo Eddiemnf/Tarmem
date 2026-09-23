@@ -70,7 +70,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
       {!inbox && !failed ? <p className="muted">{ar ? 'جارٍ التحميل…' : 'Loading…'}</p> : null}
       {inbox ? (<>
         <H>{`${ar ? 'المشاريع' : 'Projects'} (${inbox.projects.length})`}</H>
-        <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+        <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.projects.map((p) => (
             <tr key={p.id}>
               <td style={cell} className="num">{p.code}<br /><span className="muted">{when(p.created_at)}</span><br /><span className="tag tag-n">{p.status}</span></td>
@@ -90,7 +90,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
         </tbody></table></div>
 
         <H>{`${ar ? 'طلبات المقاولين' : 'Contractor applications'} (${inbox.applications.length})`}</H>
-        <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+        <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.applications.map((a) => (
             <tr key={String(a.id)}>
               <td style={cell} className="num"><span className="muted">{when(a.created_at)}</span><br /><span className="tag tag-n">{String(a.status)}</span></td>
@@ -102,7 +102,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
         </tbody></table></div>
 
         <H>{`${ar ? 'الرسائل' : 'Messages'} (${inbox.messages.length})`}</H>
-        <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+        <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.messages.map((m) => (
             <tr key={String(m.id)}>
               <td style={cell} className="num"><span className="muted">{when(m.created_at)}</span></td>
@@ -115,7 +115,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
 
         <H>{`${ar ? 'الرسائل المرسلة' : 'Messages sent'} (${inbox.sent.length})`}</H>
         <p className="muted" style={{ fontSize: '12.5px', margin: '-4px 0 10px' }}>{ar ? 'كل بريد وكل رسالة واتساب أرسلها الموقع، وما ردّ به المزوّد عليها.' : 'Every email and WhatsApp the site sent, and what the provider answered.'}</p>
-        <div className="card sent-log" style={{ padding: '4px 8px', overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+        <div className="card sent-log" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.sent.map((r) => { const o = outcome(r, ar); const ev = EVENT_LABELS[r.template]; return (
             <tr key={r.id}>
               <td style={cell} className="num"><span className="muted">{when(r.at)}</span><br /><span className="tag tag-n">{r.channel === 'whatsapp' ? 'WhatsApp' : ar ? 'بريد' : 'Email'}</span></td>

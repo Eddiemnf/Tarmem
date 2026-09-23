@@ -305,7 +305,9 @@ function messagesVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   const unread = rows.filter((r) => r.from_id !== me && !r.read_at).length;
   const partner = owner ? names.get(active) || copy.msgsContractor : copy.msgsHomeowner;
   const when = (iso: string) => new Date(iso).toLocaleString(ar ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const msgRows = thread.map((r) => { const mine = r.from_id === me; return { who: mine ? vm.t.ws.you : partner, time: when(r.created_at), text: r.body, align: mine ? 'flex-end' : 'flex-start', bg: mine ? '#1B1464' : '#F1F0FA', ink: mine ? '#fff' : '#14113F' }; });
+  // the design masks phone numbers, emails and links in a message (the note under the box says so); the real rows get the same
+  const scrub = (text: string) => { try { return (host.logic as unknown as { scrub?: (t: string) => string }).scrub?.(text) ?? text; } catch { return text; } };
+  const msgRows = thread.map((r) => { const mine = r.from_id === me; return { who: mine ? vm.t.ws.you : partner, time: when(r.created_at), text: scrub(r.body), align: mine ? 'flex-end' : 'flex-start', bg: mine ? '#1B1464' : '#F1F0FA', ink: mine ? '#fff' : '#14113F' }; });
   const canMessage = Boolean(active) && (owner || account.bids.some((b) => b.project_id === dbId && b.status !== 'withdrawn') || pr.contractorId === 'c1');
   const note = (text: string) => ({ who: copy.msgsFrom, time: '', text, align: 'flex-start', bg: '#F7F6FC', ink: '#3A385C' });
   const send = () => {

@@ -981,3 +981,11 @@
 /* One or two portfolio photos should not stretch across the whole page: fill columns, never a column per photo. */
 [data-launch] .own-work { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; }
 
+/* On a phone the dashboards' and the inbox's tables squeezed five columns into 390px, one word per line. They keep their
+   width and scroll sideways inside their card instead; the page itself never scrolls sideways. */
+@media (max-width: 640px) {
+  [data-launch] #hdash-projects, [data-launch] #cdash-work { overflow-x: auto; }
+  [data-launch] #hdash-projects .table, [data-launch] #cdash-work .table { min-width: 560px; }
+  [data-launch] .inbox-table { min-width: 640px; }
+}
+
