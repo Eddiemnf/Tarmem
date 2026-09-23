@@ -535,3 +535,11 @@ allowance of three a day counted attempts Meta had refused; and an admin had no 
 itself reports the outcome under the button (`wa.error`, `wa.sentTo`), refused attempts (a 4xx answer copied by 018) no
 longer count, admins get ten a day, the account menu shows Settings for every role, and the button greys out while a
 message is on its way.
+
+## Meta business verification, the domain way — 24 September 2026
+
+Meta refused the first verification because the document did not show the phone number. The wizard's other methods
+need only the legal name and address on the document (the commercial registration), or the domain. The home page now
+carries Meta's domain-verification meta tag (`web/index.html`), so www.tarmem.sa can be verified with one click in
+Business settings → Domains, and the wizard can use "Domain verification" as the connection method. The document upload
+(the CR) stays the owner's.
