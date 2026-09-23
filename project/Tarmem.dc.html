@@ -830,8 +830,14 @@
     .ph-h1 span:last-child{font-weight:500}
     .ph-lead{margin:0;font-size:clamp(15px,1.4vw,18px);line-height:1.7;font-weight:400;color:#fff;max-width:520px;text-align:start;text-shadow:0 1px 14px rgba(12,10,8,.55)}
     .ph-ctas{display:flex;flex-direction:column;align-items:flex-start;gap:13px;margin-top:24px}
+    .ph-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+    .ph-b2{display:inline-flex;align-items:center;justify-content:center;gap:12px;height:60px;padding-inline:26px;background:rgba(28,22,16,.34);border:1px solid rgba(255,255,255,.48);color:#fff;border-radius:999px;font:inherit;font-size:clamp(15px,1.33vw,17px);font-weight:600;white-space:nowrap;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background .2s,border-color .2s,transform .25s cubic-bezier(.22,1,.3,1)}
+    .ph-b2:hover{background:rgba(28,22,16,.5);border-color:#fff;transform:translateY(-2px)}
+    .ph-b2-ar{flex:none}
+    [dir="ltr"] .ph-b2-ar{transform:scaleX(-1)}
     .ph-b1{display:inline-flex;align-items:center;justify-content:space-between;gap:14px;min-width:237px;height:60px;background:#fff;color:#1B1464;border:0;border-radius:999px;padding-inline:clamp(18px,2.2vw,28px) 8px;font:inherit;font-size:clamp(15px,1.33vw,17px);font-weight:600;white-space:nowrap;cursor:pointer;box-shadow:0 16px 38px rgba(12,10,8,.26);transition:transform .25s cubic-bezier(.22,1,.3,1),box-shadow .25s}
     .ph-b1{position:relative;animation:phB1In .9s cubic-bezier(.22,1,.3,1) .5s both}
+    .ph-b2{animation:phB1In .9s cubic-bezier(.22,1,.3,1) .62s both}
     .ph-b1-t{transition:transform .42s cubic-bezier(.65,0,.35,1)}
     .ph-b1:hover .ph-b1-t{transform:translateX(6px)}
     [dir="ltr"] .ph-b1:hover .ph-b1-t{transform:translateX(-6px)}
@@ -846,7 +852,8 @@
     [dir="ltr"] .ph-b1-a.a2{transform:translate(-120%,-120%)}
     [dir="ltr"] .ph-b1:hover .ph-b1-a.a1{transform:translate(120%,120%)}
     @keyframes phB1In{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-    @media (prefers-reduced-motion:reduce){.ph-b1{animation:none}.ph-b1-t,.ph-b1-a,.ph-b1 i{transition:none}.ph-b1:hover i{transform:none}.ph-b1:hover .ph-b1-t{color:#1B1464}}
+    @media (prefers-reduced-motion:reduce){.ph-b1{animation:none}
+    .ph-b2{animation:none}.ph-b1-t,.ph-b1-a,.ph-b1 i{transition:none}.ph-b1:hover i{transform:none}.ph-b1:hover .ph-b1-t{color:#1B1464}}
     .ph-b1:focus-visible{outline:2px solid #FFAE7A;outline-offset:3px}
     .ph-foot{font-size:13px;color:rgba(255,255,255,.86);text-shadow:0 1px 10px rgba(12,10,8,.6)}
     .ph-rule{position:relative;z-index:2;height:1px;background:rgba(255,255,255,.3);margin:clamp(26px,3.8vw,49px) clamp(20px,3.9vw,50px) clamp(16px,1.9vw,24px)}
@@ -876,9 +883,8 @@
     .hdr[data-over="true"] .hide-over{display:none !important}
     .join-ar{display:none}
     .hdr[data-over="true"] .join-ar{display:block}
-    .hdr[data-over="true"] .join-over{display:inline-flex;align-items:center;justify-content:center;min-width:168px;height:48px;padding-inline:24px;background:rgba(28,22,16,.34);border:1px solid rgba(255,255,255,.48);color:#fff;border-radius:16px;font-size:clamp(14px,1.25vw,16px);gap:12px;backdrop-filter:blur(8px)}
-    .hdr[data-over="true"] .join-over:hover{background:rgba(28,22,16,.5);border-color:#fff}
-    .hdr[data-over="true"] .burger{background:rgba(28,22,16,.34);border:1px solid rgba(255,255,255,.42);border-radius:12px;backdrop-filter:blur(8px)}
+    .hdr[data-over="true"] .join-over{display:none}
+        .hdr[data-over="true"] .burger{background:rgba(28,22,16,.34);border:1px solid rgba(255,255,255,.42);border-radius:12px;backdrop-filter:blur(8px)}
     .hdr[data-over="true"] .burger span{background:#fff}
     .hdr[data-over="true"] .burger[aria-expanded="true"]{background:#fff;border-color:#EEEDF5}
     .hdr[data-over="true"] .burger[aria-expanded="true"] span{background:#1B1464}
@@ -1013,10 +1019,13 @@
           <div>
             <p class="ph-lead">كل تجديد جميل يبدأ بخطوة. شاركنا تفاصيل مشروعك، <br>وقارن عروض المقاولين، وابدأ تجديد بيتك بثقة.</p>
             <div class="ph-ctas">
-              <button class="ph-b1" type="button" data-route="post" onClick="{{ go }}">
-                <span class="ph-b1-t">ابدأ مشروعك الآن</span>
-                <i aria-hidden="true"><span class="ph-b1-a a1"><svg class="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17 7 7"></path><path d="M7 15V7h8"></path></svg></span><span class="ph-b1-a a2"><svg class="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17 7 7"></path><path d="M7 15V7h8"></path></svg></span></i>
-              </button>
+              <div class="ph-row">
+                <button class="ph-b1" type="button" data-route="post" onClick="{{ go }}">
+                  <span class="ph-b1-t">ابدأ مشروعك الآن</span>
+                  <i aria-hidden="true"><span class="ph-b1-a a1"><svg class="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17 7 7"></path><path d="M7 15V7h8"></path></svg></span><span class="ph-b1-a a2"><svg class="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17 7 7"></path><path d="M7 15V7h8"></path></svg></span></i>
+                </button>
+                <button class="ph-b2" type="button" data-route="auth" data-signup="contractor" onClick="{{ goAuth }}">{{ t.footer.join }}<svg class="ph-b2-ar" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 17 7 7"></path><path d="M7 15V7h8"></path></svg></button>
+              </div>
               <span class="ph-foot">{{ t.hero2.foot }}</span>
             </div>
           </div>

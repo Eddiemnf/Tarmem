@@ -131,3 +131,13 @@ Why: the public site hides both — the first shows figures typed into the desig
 
 Why: the public site inserts, under it, the homeowner's choice of which contractor's thread is shown (one thread per
 bidder, supabase/019). The demo keeps the single in-memory thread as designed.
+
+
+## Changed 23 September 2026 — the contractor button moves into the hero
+
+> In the home hero, the primary pill and a new glass pill `ph-b2` ("join as a contractor", `t.footer.join`, `goAuth`) sit in a
+> `.ph-row`; the caption stays below. Over the hero the header no longer shows its "join as a contractor" button
+> (`.hdr[data-over="true"] .join-over{display:none}`); scrolled, the header is unchanged.
+
+Why: the owner's call — a contractor's button belongs next to the customer's, not in the corner of the header. Same glass
+look as before, fully rounded to match the primary pill. The public site's phone-only text link under the hero is retired.

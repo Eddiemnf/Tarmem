@@ -11,7 +11,6 @@ export interface LaunchCopy {
   notFoundClose: string;
   notice: string;
   sendWhatsApp: string;
-  heroJoin: string;
   filesIntro: string;
   contactSent: string;
   request: { heading: string; title: string; trade: string; city: string; address: string; budget: string; timing: string; desc: string; files: string; filesNote: string };
@@ -31,7 +30,6 @@ export const LAUNCH_COPY: Record<'ar' | 'en', LaunchCopy> = {
   ar: {
     notice: 'إطلاق مبكر: تصل طلباتكم مباشرة إلى فريق ترميم عبر واتساب. حسابات المنصة والدفع عبر الموقع غير مفعّلة بعد.',
     sendWhatsApp: 'أرسل الطلب عبر واتساب',
-    heroJoin: 'مقاول؟ انضم إلى ترميم',
     filesIntro: 'صور المكان وأي مخططات أو ملفات تصميم تساعد المقاولين على تقديم عروض أدق. أرسلها في محادثة واتساب نفسها بعد إرسال طلبك، فالموقع لا يستقبل الملفات بعد.',
     contactSent: 'فتحنا لك واتساب ورسالتك مكتوبة. اضغط «إرسال» هناك لتصل إلى فريق ترميم.',
     request: {
@@ -62,7 +60,6 @@ export const LAUNCH_COPY: Record<'ar' | 'en', LaunchCopy> = {
   en: {
     notice: 'Early access: requests go straight to the Tarmem team on WhatsApp. Platform accounts and payments on the site are not active yet.',
     sendWhatsApp: 'Send the request on WhatsApp',
-    heroJoin: 'A contractor? Join Tarmem',
     filesIntro: 'Photos of the space, and any drawings or design files, help contractors quote accurately. Send them in the same WhatsApp chat after your request — the site does not take files yet.',
     contactSent: 'WhatsApp is open with your message written out. Press Send there and it reaches the Tarmem team.',
     request: {

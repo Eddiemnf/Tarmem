@@ -81,7 +81,11 @@ for (const target of ['admin', 'wallet', 'hdash', 'cdash', 'project', 'browse', 
 
 // C — "join as a contractor" is an application, not a dummy account
 await load();
-await page.locator('header button[data-signup="contractor"]').first().click();
+// the hero carries the join pill next to "start your project"; the header's copy is hidden while over the hero (owner, 23 Sep 2026)
+check('the join pill sits in the hero row next to the main call to action, and the header hides its own copy over the hero',
+  (await page.locator('.ph-row .ph-b1').count()) === 1 && (await page.locator('.ph-row .ph-b2[data-signup="contractor"]').count()) === 1
+  && !(await page.locator('header button[data-signup="contractor"]').first().isVisible()));
+await page.locator('.ph-b2[data-signup="contractor"]').first().click();
 await page.waitForTimeout(300);
 check('join as a contractor opens the application form, not sign-up', (await route()) === 'join' && (await page.locator('#join-company').count()) === 1);
 check('no demo account switcher anywhere on it', (await page.locator('text=تصفّح المنصة بصفتك').count()) === 0);

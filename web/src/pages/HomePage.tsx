@@ -4,7 +4,6 @@
 import React from 'react';
 import type { VM } from '../state/viewModel';
 import LaunchNotice from '../launch/LaunchNotice';
-import HeroJoinLink from '../launch/HeroJoinLink';
 
 export default function HomePage({ vm }: { vm: VM }) {
   return (<>
@@ -23,12 +22,15 @@ export default function HomePage({ vm }: { vm: VM }) {
           <div>
             <p className="ph-lead">{vm.dir === 'ltr' ? "Every renovation starts with one step. Share your project details," : "كل تجديد جميل يبدأ بخطوة. شاركنا تفاصيل مشروعك،"} <br />{vm.dir === 'ltr' ? "compare contractors' bids, and renovate with confidence." : "وقارن عروض المقاولين، وابدأ تجديد بيتك بثقة."}</p>
             <div className="ph-ctas">
-              <button className="ph-b1" type="button" data-route="post" onClick={vm.go}>
-                <span className="ph-b1-t">{vm.dir === 'ltr' ? "Start your project now" : "ابدأ مشروعك الآن"}</span>
-                <i aria-hidden="true"><span className="ph-b1-a a1"><svg className="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></span><span className="ph-b1-a a2"><svg className="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></span></i>
-              </button>
+              <div className="ph-row">
+                <button className="ph-b1" type="button" data-route="post" onClick={vm.go}>
+                  <span className="ph-b1-t">{vm.dir === 'ltr' ? "Start your project now" : "ابدأ مشروعك الآن"}</span>
+                  <i aria-hidden="true"><span className="ph-b1-a a1"><svg className="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></span><span className="ph-b1-a a2"><svg className="ph-ar" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></span></i>
+                </button>
+                <button className="ph-b2" type="button" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}<svg className="ph-b2-ar" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></button>
+              </div>
               <span className="ph-foot">{vm.t.hero2.foot}</span>
-            </div><HeroJoinLink vm={vm} />
+            </div>
           </div>
         </div>
         <div className="ph-rule"></div>
