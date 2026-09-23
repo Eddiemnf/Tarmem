@@ -446,3 +446,11 @@ widths in both languages.
 project-wide. Real browsers pass after a few seconds; link previews, crawlers that are not on Vercel's verified list, and
 the live test suites are blocked. Vercel documents this as its Attack Mode, a manual switch under the project's
 Firewall → Bot Management. Owner step: open that page, and unless it was switched on deliberately, disable it.
+
+## The headline figures are back — 23 September 2026
+
+The owner's call: the design's strip under the description box ("1,000+ contractors · 500+ completed projects · 99%
+satisfaction", `.ai2-stats`, count-up included) shows on the public site again; it had been hidden as a typed claim.
+The figures are the design's typed ones from `statCards` in the copy, not measurements; if any of them is not true yet the
+honest fix is a measured number from the database or a different phrase, on the owner's word. The launch suite now expects
+the strip and still refuses the random-walk visitor counter and the picker that uploads nothing.

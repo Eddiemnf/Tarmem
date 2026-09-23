@@ -50,8 +50,10 @@ const waText = (url) => decodeURIComponent(url.split('?text=')[1] || '');
 
 // A — nothing invented on the home page
 await load();
-const invented = await page.evaluate(() => ['.ph-live', '.ai2-stats', '.sugbox', '.ai2-att'].filter((s) => document.querySelector(s)));
-check('home page carries no invented visitor counter or headline figures, and no photo picker that uploads nothing', invented.length === 0, invented.join(' '));
+const invented = await page.evaluate(() => ['.ph-live', '.sugbox', '.ai2-att'].filter((s) => document.querySelector(s)));
+check('home page carries no invented visitor counter, and no photo picker that uploads nothing', invented.length === 0, invented.join(' '));
+// the owner asked (23 Sep 2026) for the design's headline-figures strip back under the description box
+check('the headline figures strip (contractors, projects, satisfaction) is on the home page again', (await page.locator('.ai2-stats .ai2-stat').count()) === 3);
 // the owner confirmed (21 Sep 2026) the testimonials are real customers' and the partners are signed, so both show
 check('testimonials and partners are shown', (await page.locator('.tsti-wrap').count()) === 1 && (await page.locator('.prtnrs').count()) === 1);
 check('the early-access notice sits under the home hero', (await page.locator('[role="note"]').count()) === 1);

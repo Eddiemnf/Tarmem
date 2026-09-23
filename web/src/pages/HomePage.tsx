@@ -59,11 +59,11 @@ export default function HomePage({ vm }: { vm: VM }) {
           <label className="skick" htmlFor="v-ai-in"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.ai.label}</label>
           <h2 className="sh2 ai2-h">{vm.dir === 'ltr' ? "Describe your project and we'll connect you" : "صف لنا مشروعك، ونوصلك بالمقاول"} <br />{vm.dir === 'ltr' ? "with the right contractor." : "المناسب."}</h2>
         </div>
-        {vm.launch ? null : (<div className="ai2-stats">
+        <div className="ai2-stats">
           <div className="ai2-stat"><span className="ai2-sv">{vm.hsA.v}</span><span className="ai2-sl">{vm.hsA.l}</span></div>
           <div className="ai2-stat"><span className="ai2-sv">{vm.hsB.v}</span><span className="ai2-sl">{vm.hsB.l}</span></div>
           <div className="ai2-stat"><span className="ai2-sv">{vm.hsC.v}</span><span className="ai2-sl">{vm.hsC.l}</span></div>
-        </div>)}
+        </div>
         </div>
         <div className="ai2-main">
         <div className="ai2-box">

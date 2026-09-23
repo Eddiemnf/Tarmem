@@ -394,7 +394,6 @@ demo renders exactly as designed. A rule that stops matching fails the run.
 """
 LAUNCH_HIDDEN_CLASSES = {
     "ph-live": "a live-visitor counter that is a random walk, not a measurement",
-    "ai2-stats": "headline figures (contractors, projects, satisfaction) that are not real yet",
     "drop": "a file picker that uploads nothing, until photos have somewhere to go (vm.uploads: src/platform/files.ts)",
     "ai2-att": "the same, on the home page's description box: it feeds the assistant, which is not public",
     "wa-card": "the WhatsApp card (the number, a test message, the channel, quiet hours): shown once the owner has switched WhatsApp updates on in the database (vm.whatsapp, supabase/013)",
