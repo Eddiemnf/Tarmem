@@ -912,7 +912,7 @@ Rules:
     const adminStats=[{v:s.projects.length,l:t.admin.sProjects},{v:s.contractors.length,l:t.admin.sContractors},{v:Object.keys(this.D.USERS).length,l:t.admin.sHomeowners},{v:fmt(held),l:t.admin.sHeld}];
     const cases = s.cases.map(c=>({id:c.id,project:L(this.proj(c.pid)?.title),issue:L(c.issue),open:c.open,status:c.open?t.admin.open:t.admin.resolved,cls:c.open?'tag-a':'tag-g'}));
     const payRows=[]; s.projects.filter(x=>x.funded).forEach(x=>{ const am=this.msAmounts(x); x.ms.forEach((m,i)=>{ if(m!=='released') payRows.push({project:L(x.title),ms:t.ws.ms[i].n,amount:fmt(am[i]),status:t.ws.msSt[m],cls:MS_TAG[m]}); }); });
-    const userRows=[...Object.entries(this.D.USERS).map(([id,u])=>({name:u[lang],role:t.roles.homeowner,city:cityL(u.city),status:t.admin.active,cls:'tag-g'})), ...s.contractors.map(c=>({name:c.name[lang],role:t.roles.contractor,city:cityL(c.city),status:c.verified?t.verified:s.rejected.includes(c.id)?t.admin.rejected:t.admin.pending,cls:c.verified?'tag-g':s.rejected.includes(c.id)?'tag-a':'tag-w'}))];
+    const userRows=[...Object.entries(this.D.USERS).map(([id,u])=>({id,kind:'h',name:u[lang],role:t.roles.homeowner,city:cityL(u.city),status:t.admin.active,cls:'tag-g'})), ...s.contractors.map(c=>({id:c.id,kind:'c',name:c.name[lang],role:t.roles.contractor,city:cityL(c.city),status:c.verified?t.verified:s.rejected.includes(c.id)?t.admin.rejected:t.admin.pending,cls:c.verified?'tag-g':s.rejected.includes(c.id)?'tag-a':'tag-w'}))];
 
     const V = Math.max(10000, s.calcRaw || 10000), fee = Math.round(V*0.01), comm = Math.round(V*0.09);
     const feeVat = Math.round(fee*0.15), commVat = Math.round(comm*0.15);
@@ -1076,6 +1076,37 @@ Rules:
       hasAny:!!nItems.length, empty:!nItems.length, open:s.notifOpen, badge: nItems.filter(x=>!s.notifRead.includes(x.id)).length || '' };
 
 
+    // the console's detail views: one application, one support case, one person (site: real rows, supabase/021)
+    const dv = t.admin.dv || {};
+    const dvDate = iso => iso ? new Date(iso).toLocaleDateString(lang==='ar'?'ar-SA-u-ca-gregory-nu-latn':'en-GB',{day:'numeric',month:'long',year:'numeric'}) : '';
+    const dvWhen = w => w && /^\d{4}-/.test(String(w)) ? dvDate(w) : (w||'');
+    const telOf = m => m ? 'tel:'+String(m).replace(/\s/g,'') : '';
+    const mailOf = m => m ? 'mailto:'+m : '';
+    const aview = s.adminView || null;
+    const av = {app:null, case:null, user:null};
+    if(aview && aview.kind==='app'){ const c=this.con(aview.id); if(c){ const rej=s.rejected.includes(c.id);
+      av.app = {id:c.id, name:c.name[lang], person:c.person||'—', city:cityL(c.city), mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email), cr:c.cr||'—',
+        applied: c.appliedAt?dvDate(c.appliedAt):'4 Sep 2026', account: c.hasAccount===false?dv.noAccount:dv.hasAccount,
+        status: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, cls: c.verified?'tag-g':rej?'tag-a':'tag-w', pending: !c.verified && !rej,
+        trades:(c.trades||[]).map(x=>({label:tradeL(x)})), checks:[['id',t.admin.chk.id],['cr',t.admin.chk.cr],['pf',t.admin.chk.pf]].map(([k,label])=>({label:(c.checks[k]?'✓ ':'· ')+label, cls:c.checks[k]?'tag-g':'tag-w'})),
+        note: L(c.bio)||c.note||'—'}; } }
+    if(aview && aview.kind==='case'){ const c=s.cases.find(x=>x.id===aview.id); if(c){ const rl=(c.replies||[]).map(r=>({when:dvWhen(r.when), text:r.text, how:r.email?dv.sentByEmail:dv.noted, cls:r.email?'tag-g':'tag-w'}));
+      av.case = {id:c.id, title: c.topic || L(c.issue).slice(0,70), from: c.from || L(this.proj(c.pid)?.title) || '—', mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email),
+        received: c.receivedAt?dvDate(c.receivedAt):(c.when||'—'), message: c.message || L(c.issue),
+        status: c.open?((c.answeredAt||rl.length)?dv.answered:t.admin.open):t.admin.resolved, cls: c.open?(rl.length?'tag-w':'tag-a'):'tag-g', open:c.open,
+        replies: rl, noReplies: !rl.length, replyDisabled: !(s.caseReply||'').trim() || !!s.caseReplyBusy, sendLabel: c.email?dv.sendReply:dv.keepReply, replyError: s.caseReplyError||''}; } }
+    if(aview && aview.kind==='user'){
+      if(aview.ukind==='c'){ const c=this.con(aview.id); if(c){ const rej=s.rejected.includes(c.id);
+        const bids = s.projects.flatMap(p=>(p.bids||[]).filter(b=>b.cid===c.id).map(b=>({project:p.id, title:L(p.title), price:fmt(b.price), days:String(b.days||'—'), status: p.contractorId===c.id?dv.won:(b.status||dv.submitted)})));
+        av.user = {name:c.name[lang], role:t.roles.contractor, city:cityL(c.city), mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email), company:c.name[lang], language: c.lang==='en'?'English':'العربية',
+          joined: c.appliedAt?dvDate(c.appliedAt):String(c.since||'—'), lastSeen: c.lastSeen?dvDate(c.lastSeen):dv.never, status: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, cls: c.verified?'tag-g':rej?'tag-a':'tag-w',
+          isContractor:true, projects:[], projectCount:'0', noProjects:true, hasProjects:false, bids, bidCount:String(bids.length), noBids:!bids.length, hasBids:bids.length>0,
+          application: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, portfolio:String(c.portfolio??'—'), reviews:String(c.reviews??'—')}; } }
+      else { const u=this.D.USERS[aview.id]; if(u){ const mine=s.projects.filter(p=>p.ownerId===aview.id).map(p=>{ const d=decorateP(p); return {id:d.id, title:d.title, statusLabel:d.statusLabel, tagClass:d.tagClass, bids:String((p.bids||[]).length)}; });
+        av.user = {name:u[lang], role:t.roles.homeowner, city:cityL(u.city), mobile:u.mobile||'—', tel:telOf(u.mobile), email:u.email||'—', mailto:mailOf(u.email), company:'—', language: u.lang==='en'?'English':'العربية',
+          joined: u.createdAt?dvDate(u.createdAt):L(u.joined)||'—', lastSeen: u.lastSeen?dvDate(u.lastSeen):dv.never, status:t.admin.active, cls:'tag-g',
+          isContractor:false, projects:mine, projectCount:String(mine.length), noProjects:!mine.length, hasProjects:mine.length>0, bids:[], bidCount:'0', noBids:true, hasBids:false, application:'—', portfolio:'—', reviews:'—'}; } }
+    }
     return { dir: lang==='ar'?'rtl':'ltr', t, r, cur, curPre, curPost, curLbl, user:s.user, isGuest:!role, isUser:!!role, isHomeowner:role==='homeowner', isContractor:role==='contractor', isNotContractor:role!=='contractor', isAdmin:role==='admin',
       featured, results:pageItems, resultCount:arNumerals(results.length, lang), pg, pageFrom: arNumerals(results.length? (page-1)*PER+1 : 0, lang), pageTo: arNumerals(Math.min(page*PER, results.length), lang), filt:s.filt, prof, cities:this.D.CITIES.map(c=>({id:c.id,label:c[lang]})), trades:this.D.TRADES.map(c=>({id:c.id,label:c[lang]})), tradeGroups:this.D.TRADE_GROUPS.map(g=>({label:g[lang],items:this.D.TRADES.filter(c=>c.g===g.id).map(c=>({id:c.id,label:c[lang]}))})),
       showAiPill: s.scrolled && s.route==='home',
@@ -1346,7 +1377,7 @@ Rules:
       setGa: e => this.setState({gaDraft:e.target.value, gaErr:false}),
       connectGa: () => { const v = String(s.gaDraft||'').trim().toUpperCase(); if(!/^G-[A-Z0-9]{6,12}$/.test(v)) return this.setState({gaErr:true}); this.setState({gaId:v, gaErr:false, gaDraft:''}); },
       disconnectGa: () => this.setState({gaId:null}),
-      fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
+      av, caseReply: s.caseReply||'', fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
 
       goAuth: e => { const rl=e.currentTarget.dataset.signup;
         this.setState({route:'auth', menuOpen:false, navOpen:false, auth:{...s.auth, mode:'signup', step:1, role:rl, error:''}});
@@ -1393,7 +1424,13 @@ Rules:
       postNext: () => { const f=s.post.f; if(s.post.step===1 && (!f.title||!f.desc)) return this.setState({post:{...s.post,error:t.post.errTitle}}); if(s.post.step===2 && (!f.min||!f.max)) return this.setState({post:{...s.post,error:t.post.errBudget}}); if(s.post.step<4) return this.setState({post:{...s.post,step:s.post.step+1,error:''}}); if((+f.max||0) > 1000000) return this.setState({post:{...s.post,error:t.post.capNote}}); if(!s.post.pledge) return this.setState({post:{...s.post,error:t.post.pledgeErr}}); if(role!=='homeowner'){ this.setState({pendingPost:true, auth:{...s.auth,mode:'signup',role:'homeowner',step:1}}); this.nav('auth'); return; } this.publishPost(); },
       setTab: e => this.setState({tab:e.currentTarget.dataset.tab}),
       setAdminTab: e => this.setState({atab:e.currentTarget.dataset.tab}),
-      openAdminProject: e => this.nav('project',{curId:e.currentTarget.dataset.id, tab:'overview'}),
+      openAdminProject: e => { this.setState({adminView:null}); this.nav('project',{curId:e.currentTarget.dataset.id, tab:'overview'}); },
+      openVerif: e => this.setState({adminView:{kind:'app', id:e.currentTarget.dataset.id}}),
+      openCase: e => this.setState({adminView:{kind:'case', id:e.currentTarget.dataset.id}, caseReply:'', caseReplyError:''}),
+      openUser: e => this.setState({adminView:{kind:'user', id:e.currentTarget.dataset.id, ukind:e.currentTarget.dataset.kind}}),
+      closeAdminView: () => this.setState({adminView:null, caseReplyError:''}),
+      setCaseReply: e => this.setState({caseReply:e.target.value, caseReplyError:''}),
+      sendCaseReply: e => { const id=e.currentTarget.dataset.id; const text=(s.caseReply||'').trim(); if(!text) return; this.setState({cases:s.cases.map(c=>c.id===id?{...c, replies:[...(c.replies||[]), {when:t.ws.today, text, email:!!c.email}]}:c), caseReply:''}); },
       setBidField: e => { const {name,value}=e.target; this.setState({bidF:{...s.bidF,[name]:value,error:''}}); },
       setBidToggle: e => { const {name,checked}=e.target; this.setState({bidF:{...s.bidF,[name]:checked,error:''}}); },
       reviewBid: () => { const b=s.bidF;

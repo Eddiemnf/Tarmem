@@ -812,7 +812,11 @@ def main() -> None:
     extras = {"hed.open": ("components/HomeownerEditModal.tsx", "HomeownerEditModal"),
               "ed.open": ("components/ContractorEditModal.tsx", "ContractorEditModal"),
               "giftOpen": ("components/GiftModal.tsx", "GiftModal"),
-              "showBack": ("components/BackLink.tsx", "BackLink")}
+              "showBack": ("components/BackLink.tsx", "BackLink"),
+              # the admin console's detail views (an application, a support case, a person)
+              "av.app": ("components/AdminApplicationModal.tsx", "AdminApplicationModal"),
+              "av.case": ("components/AdminCaseModal.tsx", "AdminCaseModal"),
+              "av.user": ("components/AdminUserModal.tsx", "AdminUserModal")}
 
     seen_routes = []
     seen_extras = []

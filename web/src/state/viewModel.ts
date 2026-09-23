@@ -24,7 +24,7 @@ import { openWhatsApp } from '../launch/deliver';
 import { guardLaunchState, type SentRequest } from '../launch/guard';
 import { isLaunch } from '../launch/mode';
 import { connectUrls } from '../launch/urls';
-import { EMPTY_ANALYTICS, analyticsVals } from '../platform/admin';
+import { EMPTY_ANALYTICS, adminLogicState, analyticsVals, loadAdminData, replyToCase, userDetail, type UserDetail } from '../platform/admin';
 import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { VIDEO_MAX_BYTES, VIDEO_TYPES, acceptFiles, holdFiles, uploadFile } from '../platform/files';
 import { platformOn } from '../platform/client';
@@ -67,17 +67,60 @@ function createHost(): LogicHost {
 /** What the public site changes in the bindings: a flag the generated markup checks, and a few strings —
     including the footer's line about a licensed payment partner, which stays off until one is signed. */
 /** The designed admin console, on real figures: everything the design's logic makes up is replaced here. */
-function adminVals(vm: LogicVals, state: LogicState): LogicVals {
+/** The console's "one person" view from admin_user_detail, in the shape the design's modal reads. */
+function userView(d: UserDetail, vm: LogicVals, when: (iso: string) => string): LogicVals {
+  const t = vm.t; const dv = t.admin.dv || {}; const st: Record<string, string> = dv.statuses || {};
+  const p = d.profile; const isCo = p.role === 'contractor'; const app = d.application;
+  const cityLabel = ((vm.cities || []) as { id: string; label: string }[]).find((c) => c.id === p.city)?.label || p.city;
+  const tag = (status: string) => (status === 'completed' ? 'tag-g' : status === 'active' ? 'tag-a' : 'tag-w');
+  const appStatus = app?.status === 'verified' ? t.verified : app?.status === 'declined' ? t.admin.rejected : t.admin.pending;
+  return {
+    name: p.full_name, role: isCo ? t.roles.contractor : p.role === 'admin' ? t.admin.kicker : t.roles.homeowner, city: cityLabel,
+    mobile: p.mobile || '—', tel: p.mobile ? 'tel:' + String(p.mobile).replace(/\s/g, '') : '', email: d.email || '—', mailto: d.email ? 'mailto:' + d.email : '',
+    company: p.company || '—', language: p.lang === 'en' ? 'English' : 'العربية', joined: when(d.created_at), lastSeen: d.last_sign_in_at ? when(d.last_sign_in_at) : dv.never,
+    status: isCo ? appStatus : t.admin.active, cls: isCo ? (app?.status === 'verified' ? 'tag-g' : app?.status === 'declined' ? 'tag-a' : 'tag-w') : 'tag-g',
+    isContractor: isCo,
+    projects: d.projects.map((pr) => ({ id: pr.code, title: pr.title, statusLabel: st[pr.status] || pr.status, tagClass: tag(pr.status), bids: String(pr.bids) })),
+    projectCount: String(d.projects.length), noProjects: !d.projects.length, hasProjects: d.projects.length > 0,
+    bids: d.bids.map((b) => ({ project: b.project_code, title: b.project_title, price: Number(b.price).toLocaleString('en-US'), days: String(b.days ?? '—'), status: st[b.status] || b.status })),
+    bidCount: String(d.bids.length), noBids: !d.bids.length, hasBids: d.bids.length > 0,
+    application: app ? appStatus : '—', portfolio: String(d.portfolio), reviews: String(d.reviews),
+  };
+}
+
+function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (state.user?.role !== 'admin' || !vm.t?.admin) return vm;
   const ar = vm.dir !== 'ltr';
+  const copy = PLATFORM_COPY[ar ? 'ar' : 'en'];
   const when = (iso: string) => new Date(iso).toLocaleDateString(ar ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const applicants = new Map<string, LogicState>((state.contractors || []).map((c: LogicState) => [c.id, c]));
   const senders = new Map<string, LogicState>((state.cases || []).map((c: LogicState) => [c.id, c]));
   const budgets: number[] = (state.projects || []).map((p: LogicState) => (Number(p.min) + Number(p.max)) / 2);
   const average = budgets.length ? Math.round(budgets.reduce((a, b) => a + b, 0) / budgets.length) : 0;
+  // the "one person" view: the account behind the row (a homeowner's profile id, or the account a contractor's application made)
+  const view = state.adminView as { kind: string; id: string; ukind?: string } | null;
+  const viewedId = view?.kind === 'user' ? (view.ukind === 'c' ? (applicants.get(view.id)?.userId as string | null) : view.id) : null;
+  const detail = viewedId && state.adminDetail?.id === viewedId ? (state.adminDetail.data as UserDetail) : null;
   return {
     ...vm,
     ...analyticsVals(state.adminAn || EMPTY_ANALYTICS(state.anRange || 'week'), vm),
+    av: detail && vm.av ? { ...vm.av, user: userView(detail, vm, when) } : vm.av,
+    openUser: (e: { currentTarget: HTMLElement }) => {
+      const id = e.currentTarget.dataset.id || ''; const kind = e.currentTarget.dataset.kind || 'h';
+      const uuid = kind === 'h' ? id : (applicants.get(id)?.userId as string | null) || null;
+      host.setLogicState({ adminView: { kind: 'user', id, ukind: kind } });
+      if (uuid && state.adminDetail?.id !== uuid) void userDetail(uuid).then((d) => { if (d) host.setLogicState({ adminDetail: { id: uuid, data: d } }); });
+    },
+    sendCaseReply: (e: { currentTarget: HTMLElement }) => {
+      const row = senders.get(e.currentTarget.dataset.id || ''); const text = String(state.caseReply || '').trim();
+      if (!row?.dbId || !text || state.caseReplyBusy) return;
+      host.setLogicState({ caseReplyBusy: true, caseReplyError: '' });
+      void replyToCase(row.dbId as number, text).then(async (r) => {
+        if (!r.ok) return host.setLogicState({ caseReplyBusy: false, caseReplyError: copy.err.caseReply });
+        const data = await loadAdminData();
+        host.setLogicState({ ...(data ? adminLogicState(data) : {}), caseReply: '', caseReplyBusy: false });
+      });
+    },
     // the design dates every application "4 Sep 2026"; the team also needs to know whom to call
     verifQueue: (vm.verifQueue || []).map((row: LogicState) => {
       const c = applicants.get(row.id);
@@ -376,7 +419,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     // covers the end of a form's fields and buttons, so it stays off the form pages there
     showWaFab: vm.showWaFab && !vm.r?.sent && !(PHONE() && ['post', 'join', 'contact', 'auth'].includes(String(state.route))),
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state), state), state), state, host), state, host), state, host), state, host);
+  }, state, host), state), state), state, host), state, host), state, host), state, host);
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

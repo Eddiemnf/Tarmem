@@ -22,8 +22,16 @@ import { supabase } from './client';
 import { homeownerRecord, toLogicProject, type Profile, type ProjectRow } from './data';
 
 export interface ApplicationRow { id: number; created_at: string; company: string; person: string; mobile: string; email: string | null; city: string; trades: string[]; cr_number: string | null; note: string | null; status: 'new' | 'contacted' | 'verified' | 'declined' }
-export interface MessageRow { id: number; created_at: string; name: string; email: string | null; mobile: string | null; topic: string | null; message: string; handled: boolean }
-export interface AdminData { profiles: Profile[]; projects: ProjectRow[]; applications: ApplicationRow[]; messages: MessageRow[]; promos: LogicState[]; affiliates: LogicState[] }
+export interface MessageRow { id: number; created_at: string; name: string; email: string | null; mobile: string | null; topic: string | null; message: string; handled: boolean; lang?: string; answered_at?: string | null }
+export interface CaseReplyRow { id: number; case_id: number; admin_id: string | null; body: string; sent_by_email: boolean; created_at: string }
+export interface AdminData { profiles: Profile[]; projects: ProjectRow[]; applications: ApplicationRow[]; messages: MessageRow[]; replies: CaseReplyRow[]; promos: LogicState[]; affiliates: LogicState[] }
+/** One person in full, from admin_user_detail (supabase/021). */
+export interface UserDetail {
+  profile: Profile; email: string | null; created_at: string; last_sign_in_at: string | null; email_confirmed_at: string | null;
+  projects: { id: string; code: string; title: string; status: string; city: string; trade: string; budget_min: number; budget_max: number; created_at: string; bids: number }[];
+  bids: { id: string; project_code: string; project_title: string; price: number; days: number | null; status: string; created_at: string }[];
+  application: ApplicationRow | null; messages: number; portfolio: number; reviews: number;
+}
 
 type Series = { k: string; n: number }[];
 interface PeriodStats { visitors: number; views: number; signups: number; posts: number; avg_seconds: number; bounce_pct: number }
@@ -44,11 +52,14 @@ export async function loadAdminData(): Promise<AdminData | null> {
       supabase.from('admin_state').select('key, value'),
     ]);
     if (profiles.error || projects.error || applications.error || messages.error) return null;
+    // replies to support cases arrive with 021; until that has been run there are none
+    const replies = await supabase.from('case_replies').select('*').order('created_at', { ascending: true }).limit(2000)
+      .then((r) => (r.error ? [] : (r.data as CaseReplyRow[])), () => [] as CaseReplyRow[]);
     // admin_state arrives with 002; until that has been run the two lists are simply empty
     const list = (key: string) => ((lists.data || []).find((row) => row.key === key)?.value as LogicState[] | undefined) || [];
     return {
       profiles: profiles.data as Profile[], projects: projects.data as ProjectRow[],
-      applications: applications.data as ApplicationRow[], messages: messages.data as MessageRow[],
+      applications: applications.data as ApplicationRow[], messages: messages.data as MessageRow[], replies,
       promos: list('promos'), affiliates: list('affiliates'),
     };
   } catch { return null; }
@@ -66,6 +77,22 @@ export const setApplicationStatus = async (id: number, status: 'verified' | 'dec
   Boolean(supabase && !(await supabase.from('contractor_applications').update({ status }).eq('id', id)).error);
 export const setMessageHandled = async (id: number) =>
   Boolean(supabase && !(await supabase.from('contact_messages').update({ handled: true }).eq('id', id)).error);
+/** Answer a support case from the console: emailed to the sender when they left an email, kept either way (supabase/021). */
+export async function replyToCase(id: number, body: string): Promise<{ ok: boolean; sent: boolean }> {
+  if (!supabase) return { ok: false, sent: false };
+  try {
+    const { data, error } = await supabase.rpc('admin_reply_case', { p_case: id, p_body: body });
+    return error ? { ok: false, sent: false } : { ok: true, sent: Boolean((data as { sent?: boolean } | null)?.sent) };
+  } catch { return { ok: false, sent: false }; }
+}
+/** Everything the team may need about one account (supabase/021). */
+export async function userDetail(id: string): Promise<UserDetail | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.rpc('admin_user_detail', { p_user: id });
+    return error || !data ? null : (data as UserDetail);
+  } catch { return null; }
+}
 export const saveConsoleList = async (key: 'promos' | 'affiliates', value: LogicState[]) =>
   Boolean(supabase && !(await supabase.from('admin_state').upsert({ key, value, updated_at: new Date().toISOString() })).error);
 
@@ -84,12 +111,15 @@ export function adminLogicState(data: AdminData): LogicState {
     contractors: data.applications.map((a) => ({
       id: 'A-' + a.id, dbId: a.id, name: both(a.company), city: a.city, trades: a.trades || [], rating: 0, reviews: 0, done: 0,
       verified: a.status === 'verified', since: a.created_at.slice(0, 4), onTime: '—', response: '—', bio: both(a.note || ''),
-      checks: { id: false, cr: Boolean(a.cr_number), pf: false }, person: a.person, mobile: a.mobile, email: a.email, appliedAt: a.created_at, lang: (a as ApplicationRow & { lang?: string }).lang === 'en' ? 'en' : 'ar', hasAccount: Boolean((a as ApplicationRow & { user_id?: string | null }).user_id),
+      checks: { id: false, cr: Boolean(a.cr_number), pf: false }, person: a.person, mobile: a.mobile, email: a.email, appliedAt: a.created_at, cr: a.cr_number || '', note: a.note || '', userId: (a as ApplicationRow & { user_id?: string | null }).user_id || null, lang: (a as ApplicationRow & { lang?: string }).lang === 'en' ? 'en' : 'ar', hasAccount: Boolean((a as ApplicationRow & { user_id?: string | null }).user_id),
     })),
     rejected: data.applications.filter((a) => a.status === 'declined').map((a) => 'A-' + a.id),
     cases: data.messages.map((m) => ({
       id: 'M-' + m.id, dbId: m.id, pid: null, issue: both(m.topic ? `${m.topic} — ${m.message}` : m.message), open: !m.handled,
       from: [m.name, m.mobile, m.email].filter(Boolean).join(' · '),
+      // the detail view: the whole message, the sender's details, and the team's replies
+      name: m.name, email: m.email, mobile: m.mobile, topic: m.topic, message: m.message, lang: m.lang || 'ar', receivedAt: m.created_at, answeredAt: m.answered_at || null,
+      replies: (data.replies || []).filter((r) => r.case_id === m.id).map((r) => ({ when: r.created_at, text: r.body, email: r.sent_by_email })),
     })),
     promos: data.promos, affiliates: data.affiliates, strikes: [], refunds: [],
   };

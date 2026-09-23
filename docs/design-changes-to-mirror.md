@@ -152,3 +152,13 @@ look as before, fully rounded to match the primary pill. The public site's phone
 
 Why: the owner asked for a proper confirmation after publishing, and for the team to reach a project's photos from the
 console. Both are in the design so the site keeps generating from it.
+
+
+## Changed 23 September 2026 — the console's detail views
+
+> New top-level blocks `av.app`, `av.case`, `av.user` (mapped by the converter to
+> `components/Admin{Application,Case,User}Modal.tsx`), opened from "view" buttons on the verification, support and users
+> rows (`openVerif`, `openCase`, `openUser`; `closeAdminView`); the case view has a reply box (`caseReply`, `setCaseReply`,
+> `sendCaseReply`); state `adminView`; copy under `t.admin.dv`; styles `.dv-*`; `userRows` carry `id` and `kind`.
+
+Why: the owner wants to see everything behind a row before approving, resolving or contacting anyone.

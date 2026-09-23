@@ -541,7 +541,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
         ))}
         </div></td>
                 <td className="muted">{v.date}</td>
-                <td style={{ textAlign: 'end', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button className="btn btn-p btn-sm" data-id={v.id} onClick={vm.approveVerif}>{vm.t.admin.approve}</button><button className="btn btn-s btn-sm" data-id={v.id} onClick={vm.rejectVerif}>{vm.t.admin.reject}</button></div></td></tr>
+                <td style={{ textAlign: 'end', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button className="btn btn-s btn-sm" data-id={v.id} onClick={vm.openVerif}>{vm.t.admin.dv.view}</button><button className="btn btn-p btn-sm" data-id={v.id} onClick={vm.approveVerif}>{vm.t.admin.approve}</button><button className="btn btn-s btn-sm" data-id={v.id} onClick={vm.rejectVerif}>{vm.t.admin.reject}</button></div></td></tr>
             </React.Fragment>
       ))}
       </tbody></table>
@@ -556,9 +556,9 @@ export default function AdminPage({ vm }: { vm: VM }) {
           <div className="card" style={{ padding: '8px' }}><table className="table"><thead><tr><th>ID</th><th>{vm.t.project}</th><th>{vm.t.admin.issue}</th><th>{vm.t.status}</th><th></th></tr></thead>
             <tbody>
       {((vm.cases) || []).map((c: any, _i0: number) => (
-        <React.Fragment key={_i0}><tr><td className="muted num">{c.id}</td><td style={{ fontWeight: '500' }}>{c.project}</td><td style={{ fontSize: '13.5px', color: '#5B5A7A' }}>{c.issue}</td><td><span className={`tag ${c.cls}`}>{c.status}</span></td><td style={{ textAlign: 'end' }}>
+        <React.Fragment key={_i0}><tr><td className="muted num">{c.id}</td><td style={{ fontWeight: '500' }}>{c.project}</td><td style={{ fontSize: '13.5px', color: '#5B5A7A' }}>{c.issue}</td><td><span className={`tag ${c.cls}`}>{c.status}</span></td><td style={{ textAlign: 'end', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button className="btn btn-s btn-sm" data-id={c.id} onClick={vm.openCase}>{vm.t.admin.dv.view}</button>
         {c.open ? (<><button className="btn btn-s btn-sm" data-id={c.id} onClick={vm.closeCase}>{vm.t.admin.resolve}</button></>) : null}
-        </td></tr></React.Fragment>
+        </div></td></tr></React.Fragment>
       ))}
       </tbody></table></div>
         </>) : null}
@@ -578,10 +578,10 @@ export default function AdminPage({ vm }: { vm: VM }) {
         
     {vm.atab.users ? (<>
           <h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464', marginBottom: '24px' }}>{vm.t.admin.users}</h1>
-          <div className="card" style={{ padding: '8px' }}><table className="table"><thead><tr><th>{vm.t.auth.fullName}</th><th>{vm.t.admin.role}</th><th>{vm.t.auth.city}</th><th>{vm.t.status}</th></tr></thead>
+          <div className="card" style={{ padding: '8px' }}><table className="table"><thead><tr><th>{vm.t.auth.fullName}</th><th>{vm.t.admin.role}</th><th>{vm.t.auth.city}</th><th>{vm.t.status}</th><th></th></tr></thead>
             <tbody>
       {((vm.userRows) || []).map((u: any, _i0: number) => (
-        <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}>{u.name}</td><td>{u.role}</td><td>{u.city}</td><td><span className={`tag ${u.cls}`}>{u.status}</span></td></tr></React.Fragment>
+        <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}>{u.name}</td><td>{u.role}</td><td>{u.city}</td><td><span className={`tag ${u.cls}`}>{u.status}</span></td><td style={{ textAlign: 'end' }}><button className="btn btn-s btn-sm" data-id={u.id} data-kind={u.kind} onClick={vm.openUser}>{vm.t.admin.dv.view}</button></td></tr></React.Fragment>
       ))}
       </tbody></table></div>
         </>) : null}

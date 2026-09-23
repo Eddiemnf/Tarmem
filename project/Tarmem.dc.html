@@ -907,6 +907,12 @@
     .post-done-next{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-direction:column;gap:10px;text-align:start;max-width:52ch;width:100%}
     .post-done-next li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:#5B5A7A;line-height:1.7}
     .post-done-next .num{flex:none;width:26px;height:26px;border-radius:50%;background:#F3F2FA;color:#1B1464;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600}
+    .dv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 18px}
+    .dv-k{font-size:11.5px;color:#9B9AB4;letter-spacing:.02em}
+    .dv-v{font-size:14.5px;color:#1B1464;font-weight:500;word-break:break-word}
+    .dv-msg{white-space:pre-wrap;background:#F7F6FC;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.8;color:#3A385C;margin:0}
+    .dv-reply{border:1px solid #E6E5F0;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+    .dv-table td{font-size:13.5px}
   </style>
 </helmet>
 <div dir="{{ dir }}" style="min-height:100vh;display:flex;flex-direction:column">
@@ -3387,14 +3393,14 @@
               <tr><td><div style="font-weight:600;color:#1B1464">{{ v.name }}</div><div class="muted" style="font-size:12.5px">{{ v.city }}</div></td>
                 <td><div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ v.checks }}" as="ch" hint-placeholder-count="3"><span class="tag {{ ch.cls }}">{{ ch.label }}</span></sc-for></div></td>
                 <td class="muted">{{ v.date }}</td>
-                <td style="text-align:end;white-space:nowrap"><div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-p btn-sm" data-id="{{ v.id }}" onClick="{{ approveVerif }}">{{ t.admin.approve }}</button><button class="btn btn-s btn-sm" data-id="{{ v.id }}" onClick="{{ rejectVerif }}">{{ t.admin.reject }}</button></div></td></tr>
+                <td style="text-align:end;white-space:nowrap"><div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-s btn-sm" data-id="{{ v.id }}" onClick="{{ openVerif }}">{{ t.admin.dv.view }}</button><button class="btn btn-p btn-sm" data-id="{{ v.id }}" onClick="{{ approveVerif }}">{{ t.admin.approve }}</button><button class="btn btn-s btn-sm" data-id="{{ v.id }}" onClick="{{ rejectVerif }}">{{ t.admin.reject }}</button></div></td></tr>
             </sc-for></tbody></table>
             <sc-if value="{{ noVerif }}"><p class="muted" style="padding:16px 12px">{{ t.admin.queueEmpty }}</p></sc-if></div>
         </sc-if>
         <sc-if value="{{ atab.support }}">
           <h1 style="font-size:clamp(26px,3vw,34px);color:#1B1464;margin-bottom:24px">{{ t.admin.support }}</h1>
           <div class="card" style="padding:8px"><table class="table"><thead><tr><th>ID</th><th>{{ t.project }}</th><th>{{ t.admin.issue }}</th><th>{{ t.status }}</th><th></th></tr></thead>
-            <tbody><sc-for list="{{ cases }}" as="c" hint-placeholder-count="2"><tr><td class="muted num">{{ c.id }}</td><td style="font-weight:500">{{ c.project }}</td><td style="font-size:13.5px;color:#5B5A7A">{{ c.issue }}</td><td><span class="tag {{ c.cls }}">{{ c.status }}</span></td><td style="text-align:end"><sc-if value="{{ c.open }}"><button class="btn btn-s btn-sm" data-id="{{ c.id }}" onClick="{{ closeCase }}">{{ t.admin.resolve }}</button></sc-if></td></tr></sc-for></tbody></table></div>
+            <tbody><sc-for list="{{ cases }}" as="c" hint-placeholder-count="2"><tr><td class="muted num">{{ c.id }}</td><td style="font-weight:500">{{ c.project }}</td><td style="font-size:13.5px;color:#5B5A7A">{{ c.issue }}</td><td><span class="tag {{ c.cls }}">{{ c.status }}</span></td><td style="text-align:end;white-space:nowrap"><div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-s btn-sm" data-id="{{ c.id }}" onClick="{{ openCase }}">{{ t.admin.dv.view }}</button><sc-if value="{{ c.open }}"><button class="btn btn-s btn-sm" data-id="{{ c.id }}" onClick="{{ closeCase }}">{{ t.admin.resolve }}</button></sc-if></div></td></tr></sc-for></tbody></table></div>
         </sc-if>
         <sc-if value="{{ atab.payments }}">
           <h1 style="font-size:clamp(26px,3vw,34px);color:#1B1464">{{ t.admin.payments }}</h1>
@@ -3404,11 +3410,104 @@
         </sc-if>
         <sc-if value="{{ atab.users }}">
           <h1 style="font-size:clamp(26px,3vw,34px);color:#1B1464;margin-bottom:24px">{{ t.admin.users }}</h1>
-          <div class="card" style="padding:8px"><table class="table"><thead><tr><th>{{ t.auth.fullName }}</th><th>{{ t.admin.role }}</th><th>{{ t.auth.city }}</th><th>{{ t.status }}</th></tr></thead>
-            <tbody><sc-for list="{{ userRows }}" as="u" hint-placeholder-count="5"><tr><td style="font-weight:500">{{ u.name }}</td><td>{{ u.role }}</td><td>{{ u.city }}</td><td><span class="tag {{ u.cls }}">{{ u.status }}</span></td></tr></sc-for></tbody></table></div>
+          <div class="card" style="padding:8px"><table class="table"><thead><tr><th>{{ t.auth.fullName }}</th><th>{{ t.admin.role }}</th><th>{{ t.auth.city }}</th><th>{{ t.status }}</th><th></th></tr></thead>
+            <tbody><sc-for list="{{ userRows }}" as="u" hint-placeholder-count="5"><tr><td style="font-weight:500">{{ u.name }}</td><td>{{ u.role }}</td><td>{{ u.city }}</td><td><span class="tag {{ u.cls }}">{{ u.status }}</span></td><td style="text-align:end"><button class="btn btn-s btn-sm" data-id="{{ u.id }}" data-kind="{{ u.kind }}" onClick="{{ openUser }}">{{ t.admin.dv.view }}</button></td></tr></sc-for></tbody></table></div>
         </sc-if>
       </div>
     </section>
+  </sc-if>
+
+  <!-- ADMIN DETAIL VIEWS: an application, a support case, a person -->
+  <sc-if value="{{ av.app }}">
+    <div class="modalveil" onClick="{{ closeAdminView }}"></div>
+    <div class="modal dv" role="dialog" aria-labelledby="dv-app-title" style="width:min(640px,calc(100vw - 40px))">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span class="kick">{{ t.admin.dv.appTitle }}</span>
+        <h2 id="dv-app-title" style="font-size:22px;color:#1B1464">{{ av.app.name }}</h2>
+        <p class="muted" style="font-size:13px">{{ av.app.person }} · {{ av.app.city }}</p>
+      </div>
+      <div class="dv-grid">
+        <div><div class="dv-k">{{ t.admin.dv.mobile }}</div><div class="dv-v num"><a class="lnk" href="{{ av.app.tel }}">{{ av.app.mobile }}</a></div></div>
+        <div><div class="dv-k">{{ t.admin.dv.email }}</div><div class="dv-v"><a class="lnk" href="{{ av.app.mailto }}">{{ av.app.email }}</a></div></div>
+        <div><div class="dv-k">{{ t.admin.dv.cr }}</div><div class="dv-v num">{{ av.app.cr }}</div></div>
+        <div><div class="dv-k">{{ t.admin.dv.applied }}</div><div class="dv-v">{{ av.app.applied }}</div></div>
+        <div><div class="dv-k">{{ t.admin.dv.account }}</div><div class="dv-v">{{ av.app.account }}</div></div>
+        <div><div class="dv-k">{{ t.status }}</div><div class="dv-v"><span class="tag {{ av.app.cls }}">{{ av.app.status }}</span></div></div>
+      </div>
+      <div><div class="dv-k" style="margin-bottom:6px">{{ t.admin.dv.trades }}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ av.app.trades }}" as="tr" hint-placeholder-count="2"><span class="tag tag-w">{{ tr.label }}</span></sc-for></div></div>
+      <div><div class="dv-k" style="margin-bottom:6px">{{ t.admin.checks }}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ av.app.checks }}" as="ch" hint-placeholder-count="3"><span class="tag {{ ch.cls }}">{{ ch.label }}</span></sc-for></div></div>
+      <div><div class="dv-k" style="margin-bottom:6px">{{ t.admin.dv.note }}</div><p class="dv-msg">{{ av.app.note }}</p></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-s" onClick="{{ closeAdminView }}">{{ t.admin.dv.close }}</button>
+        <sc-if value="{{ av.app.pending }}"><button class="btn btn-s" data-id="{{ av.app.id }}" onClick="{{ rejectVerif }}">{{ t.admin.reject }}</button><button class="btn btn-p" data-id="{{ av.app.id }}" onClick="{{ approveVerif }}">{{ t.admin.approve }}</button></sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ av.case }}">
+    <div class="modalveil" onClick="{{ closeAdminView }}"></div>
+    <div class="modal dv" role="dialog" aria-labelledby="dv-case-title" style="width:min(640px,calc(100vw - 40px))">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span class="kick">{{ t.admin.dv.caseTitle }} <span class="num">{{ av.case.id }}</span></span>
+        <h2 id="dv-case-title" style="font-size:22px;color:#1B1464">{{ av.case.title }}</h2>
+        <p class="muted" style="font-size:13px">{{ av.case.from }}</p>
+      </div>
+      <div class="dv-grid">
+        <div><div class="dv-k">{{ t.admin.dv.mobile }}</div><div class="dv-v num"><a class="lnk" href="{{ av.case.tel }}">{{ av.case.mobile }}</a></div></div>
+        <div><div class="dv-k">{{ t.admin.dv.email }}</div><div class="dv-v"><a class="lnk" href="{{ av.case.mailto }}">{{ av.case.email }}</a></div></div>
+        <div><div class="dv-k">{{ t.admin.dv.received }}</div><div class="dv-v">{{ av.case.received }}</div></div>
+        <div><div class="dv-k">{{ t.status }}</div><div class="dv-v"><span class="tag {{ av.case.cls }}">{{ av.case.status }}</span></div></div>
+      </div>
+      <div><div class="dv-k" style="margin-bottom:6px">{{ t.admin.dv.message }}</div><p class="dv-msg">{{ av.case.message }}</p></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="dv-k">{{ t.admin.dv.replies }}</div>
+        <sc-if value="{{ av.case.noReplies }}"><p class="muted" style="font-size:13px">{{ t.admin.dv.noReplies }}</p></sc-if>
+        <sc-for list="{{ av.case.replies }}" as="rp" hint-placeholder-count="1"><div class="dv-reply"><div class="muted" style="display:flex;justify-content:space-between;gap:10px;font-size:12px"><span>{{ rp.when }}</span><span class="tag {{ rp.cls }}">{{ rp.how }}</span></div><p style="font-size:14px;line-height:1.7;color:#3A385C;white-space:pre-wrap">{{ rp.text }}</p></div></sc-for>
+        <textarea class="input" id="dv-reply" rows="3" value="{{ caseReply }}" onChange="{{ setCaseReply }}" placeholder="{{ t.admin.dv.replyPh }}"></textarea>
+        <sc-if value="{{ av.case.replyError }}"><p style="font-size:13px;color:#D9401F">{{ av.case.replyError }}</p></sc-if>
+        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn btn-s" onClick="{{ closeAdminView }}">{{ t.admin.dv.close }}</button>
+          <sc-if value="{{ av.case.open }}"><button class="btn btn-s" data-id="{{ av.case.id }}" onClick="{{ closeCase }}">{{ t.admin.resolve }}</button></sc-if>
+          <button class="btn btn-p" data-id="{{ av.case.id }}" disabled="{{ av.case.replyDisabled }}" onClick="{{ sendCaseReply }}">{{ av.case.sendLabel }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ av.user }}">
+    <div class="modalveil" onClick="{{ closeAdminView }}"></div>
+    <div class="modal dv" role="dialog" aria-labelledby="dv-user-title" style="width:min(720px,calc(100vw - 40px))">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span class="kick">{{ t.admin.dv.userTitle }}</span>
+        <h2 id="dv-user-title" style="font-size:22px;color:#1B1464">{{ av.user.name }}</h2>
+        <p class="muted" style="font-size:13px">{{ av.user.role }} · {{ av.user.city }}</p>
+      </div>
+      <div class="dv-grid">
+        <div><div class="dv-k">{{ t.admin.dv.mobile }}</div><div class="dv-v num"><a class="lnk" href="{{ av.user.tel }}">{{ av.user.mobile }}</a></div></div>
+        <div><div class="dv-k">{{ t.admin.dv.email }}</div><div class="dv-v"><a class="lnk" href="{{ av.user.mailto }}">{{ av.user.email }}</a></div></div>
+        <div><div class="dv-k">{{ t.admin.dv.company }}</div><div class="dv-v">{{ av.user.company }}</div></div>
+        <div><div class="dv-k">{{ t.admin.dv.language }}</div><div class="dv-v">{{ av.user.language }}</div></div>
+        <div><div class="dv-k">{{ t.admin.dv.joined }}</div><div class="dv-v">{{ av.user.joined }}</div></div>
+        <div><div class="dv-k">{{ t.admin.dv.lastSeen }}</div><div class="dv-v">{{ av.user.lastSeen }}</div></div>
+        <div><div class="dv-k">{{ t.status }}</div><div class="dv-v"><span class="tag {{ av.user.cls }}">{{ av.user.status }}</span></div></div>
+        <sc-if value="{{ av.user.isContractor }}"><div><div class="dv-k">{{ t.admin.dv.application }}</div><div class="dv-v">{{ av.user.application }}</div></div><div><div class="dv-k">{{ t.admin.dv.portfolio }} · {{ t.admin.dv.reviewsCount }}</div><div class="dv-v num">{{ av.user.portfolio }} · {{ av.user.reviews }}</div></div></sc-if>
+      </div>
+      <div>
+        <div class="dv-k" style="margin-bottom:6px">{{ t.admin.dv.projects }} <span class="num">({{ av.user.projectCount }})</span></div>
+        <sc-if value="{{ av.user.noProjects }}"><p class="muted" style="font-size:13px">{{ t.admin.dv.noProjects }}</p></sc-if>
+        <sc-if value="{{ av.user.hasProjects }}"><table class="table dv-table"><thead><tr><th>#</th><th>{{ t.project }}</th><th>{{ t.status }}</th><th>{{ t.admin.dv.bids }}</th><th></th></tr></thead><tbody>
+          <sc-for list="{{ av.user.projects }}" as="p" hint-placeholder-count="2"><tr><td class="muted num">{{ p.id }}</td><td style="font-weight:500">{{ p.title }}</td><td><span class="tag {{ p.tagClass }}">{{ p.statusLabel }}</span></td><td class="num">{{ p.bids }}</td><td style="text-align:end"><button class="lnkbtn" data-id="{{ p.id }}" onClick="{{ openAdminProject }}">{{ t.admin.dv.openProject }}</button></td></tr></sc-for>
+        </tbody></table></sc-if>
+      </div>
+      <sc-if value="{{ av.user.isContractor }}"><div>
+        <div class="dv-k" style="margin-bottom:6px">{{ t.admin.dv.bids }} <span class="num">({{ av.user.bidCount }})</span></div>
+        <sc-if value="{{ av.user.noBids }}"><p class="muted" style="font-size:13px">{{ t.admin.dv.noBids }}</p></sc-if>
+        <sc-if value="{{ av.user.hasBids }}"><table class="table dv-table"><thead><tr><th>{{ t.project }}</th><th>{{ t.ws.amount }}</th><th>{{ t.admin.dv.days }}</th><th>{{ t.status }}</th><th></th></tr></thead><tbody>
+          <sc-for list="{{ av.user.bids }}" as="b" hint-placeholder-count="2"><tr><td style="font-weight:500"><span class="muted num">{{ b.project }}</span> {{ b.title }}</td><td class="num">{{ curPre }}{{ b.price }}{{ curPost }}</td><td class="num">{{ b.days }}</td><td>{{ b.status }}</td><td style="text-align:end"><button class="lnkbtn" data-id="{{ b.project }}" onClick="{{ openAdminProject }}">{{ t.admin.dv.openProject }}</button></td></tr></sc-for>
+        </tbody></table></sc-if>
+      </div></sc-if>
+      <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-s" onClick="{{ closeAdminView }}">{{ t.admin.dv.close }}</button></div>
+    </div>
   </sc-if>
 
   <!-- DISPUTE RULES -->
@@ -4478,7 +4577,7 @@ Rules:
     const adminStats=[{v:s.projects.length,l:t.admin.sProjects},{v:s.contractors.length,l:t.admin.sContractors},{v:Object.keys(this.D.USERS).length,l:t.admin.sHomeowners},{v:fmt(held),l:t.admin.sHeld}];
     const cases = s.cases.map(c=>({id:c.id,project:L(this.proj(c.pid)?.title),issue:L(c.issue),open:c.open,status:c.open?t.admin.open:t.admin.resolved,cls:c.open?'tag-a':'tag-g'}));
     const payRows=[]; s.projects.filter(x=>x.funded).forEach(x=>{ const am=this.msAmounts(x); x.ms.forEach((m,i)=>{ if(m!=='released') payRows.push({project:L(x.title),ms:t.ws.ms[i].n,amount:fmt(am[i]),status:t.ws.msSt[m],cls:MS_TAG[m]}); }); });
-    const userRows=[...Object.entries(this.D.USERS).map(([id,u])=>({name:u[lang],role:t.roles.homeowner,city:cityL(u.city),status:t.admin.active,cls:'tag-g'})), ...s.contractors.map(c=>({name:c.name[lang],role:t.roles.contractor,city:cityL(c.city),status:c.verified?t.verified:s.rejected.includes(c.id)?t.admin.rejected:t.admin.pending,cls:c.verified?'tag-g':s.rejected.includes(c.id)?'tag-a':'tag-w'}))];
+    const userRows=[...Object.entries(this.D.USERS).map(([id,u])=>({id,kind:'h',name:u[lang],role:t.roles.homeowner,city:cityL(u.city),status:t.admin.active,cls:'tag-g'})), ...s.contractors.map(c=>({id:c.id,kind:'c',name:c.name[lang],role:t.roles.contractor,city:cityL(c.city),status:c.verified?t.verified:s.rejected.includes(c.id)?t.admin.rejected:t.admin.pending,cls:c.verified?'tag-g':s.rejected.includes(c.id)?'tag-a':'tag-w'}))];
 
     const V = Math.max(10000, s.calcRaw || 10000), fee = Math.round(V*0.01), comm = Math.round(V*0.09);
     const feeVat = Math.round(fee*0.15), commVat = Math.round(comm*0.15);
@@ -4642,6 +4741,37 @@ Rules:
       hasAny:!!nItems.length, empty:!nItems.length, open:s.notifOpen, badge: nItems.filter(x=>!s.notifRead.includes(x.id)).length || '' };
 
 
+    // the console's detail views: one application, one support case, one person (site: real rows, supabase/021)
+    const dv = t.admin.dv || {};
+    const dvDate = iso => iso ? new Date(iso).toLocaleDateString(lang==='ar'?'ar-SA-u-ca-gregory-nu-latn':'en-GB',{day:'numeric',month:'long',year:'numeric'}) : '';
+    const dvWhen = w => w && /^\d{4}-/.test(String(w)) ? dvDate(w) : (w||'');
+    const telOf = m => m ? 'tel:'+String(m).replace(/\s/g,'') : '';
+    const mailOf = m => m ? 'mailto:'+m : '';
+    const aview = s.adminView || null;
+    const av = {app:null, case:null, user:null};
+    if(aview && aview.kind==='app'){ const c=this.con(aview.id); if(c){ const rej=s.rejected.includes(c.id);
+      av.app = {id:c.id, name:c.name[lang], person:c.person||'—', city:cityL(c.city), mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email), cr:c.cr||'—',
+        applied: c.appliedAt?dvDate(c.appliedAt):'4 Sep 2026', account: c.hasAccount===false?dv.noAccount:dv.hasAccount,
+        status: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, cls: c.verified?'tag-g':rej?'tag-a':'tag-w', pending: !c.verified && !rej,
+        trades:(c.trades||[]).map(x=>({label:tradeL(x)})), checks:[['id',t.admin.chk.id],['cr',t.admin.chk.cr],['pf',t.admin.chk.pf]].map(([k,label])=>({label:(c.checks[k]?'✓ ':'· ')+label, cls:c.checks[k]?'tag-g':'tag-w'})),
+        note: L(c.bio)||c.note||'—'}; } }
+    if(aview && aview.kind==='case'){ const c=s.cases.find(x=>x.id===aview.id); if(c){ const rl=(c.replies||[]).map(r=>({when:dvWhen(r.when), text:r.text, how:r.email?dv.sentByEmail:dv.noted, cls:r.email?'tag-g':'tag-w'}));
+      av.case = {id:c.id, title: c.topic || L(c.issue).slice(0,70), from: c.from || L(this.proj(c.pid)?.title) || '—', mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email),
+        received: c.receivedAt?dvDate(c.receivedAt):(c.when||'—'), message: c.message || L(c.issue),
+        status: c.open?((c.answeredAt||rl.length)?dv.answered:t.admin.open):t.admin.resolved, cls: c.open?(rl.length?'tag-w':'tag-a'):'tag-g', open:c.open,
+        replies: rl, noReplies: !rl.length, replyDisabled: !(s.caseReply||'').trim() || !!s.caseReplyBusy, sendLabel: c.email?dv.sendReply:dv.keepReply, replyError: s.caseReplyError||''}; } }
+    if(aview && aview.kind==='user'){
+      if(aview.ukind==='c'){ const c=this.con(aview.id); if(c){ const rej=s.rejected.includes(c.id);
+        const bids = s.projects.flatMap(p=>(p.bids||[]).filter(b=>b.cid===c.id).map(b=>({project:p.id, title:L(p.title), price:fmt(b.price), days:String(b.days||'—'), status: p.contractorId===c.id?dv.won:(b.status||dv.submitted)})));
+        av.user = {name:c.name[lang], role:t.roles.contractor, city:cityL(c.city), mobile:c.mobile||'—', tel:telOf(c.mobile), email:c.email||'—', mailto:mailOf(c.email), company:c.name[lang], language: c.lang==='en'?'English':'العربية',
+          joined: c.appliedAt?dvDate(c.appliedAt):String(c.since||'—'), lastSeen: c.lastSeen?dvDate(c.lastSeen):dv.never, status: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, cls: c.verified?'tag-g':rej?'tag-a':'tag-w',
+          isContractor:true, projects:[], projectCount:'0', noProjects:true, hasProjects:false, bids, bidCount:String(bids.length), noBids:!bids.length, hasBids:bids.length>0,
+          application: c.verified?t.verified:rej?t.admin.rejected:t.admin.pending, portfolio:String(c.portfolio??'—'), reviews:String(c.reviews??'—')}; } }
+      else { const u=this.D.USERS[aview.id]; if(u){ const mine=s.projects.filter(p=>p.ownerId===aview.id).map(p=>{ const d=decorateP(p); return {id:d.id, title:d.title, statusLabel:d.statusLabel, tagClass:d.tagClass, bids:String((p.bids||[]).length)}; });
+        av.user = {name:u[lang], role:t.roles.homeowner, city:cityL(u.city), mobile:u.mobile||'—', tel:telOf(u.mobile), email:u.email||'—', mailto:mailOf(u.email), company:'—', language: u.lang==='en'?'English':'العربية',
+          joined: u.createdAt?dvDate(u.createdAt):L(u.joined)||'—', lastSeen: u.lastSeen?dvDate(u.lastSeen):dv.never, status:t.admin.active, cls:'tag-g',
+          isContractor:false, projects:mine, projectCount:String(mine.length), noProjects:!mine.length, hasProjects:mine.length>0, bids:[], bidCount:'0', noBids:true, hasBids:false, application:'—', portfolio:'—', reviews:'—'}; } }
+    }
     return { dir: lang==='ar'?'rtl':'ltr', t, r, cur, curPre, curPost, curLbl, user:s.user, isGuest:!role, isUser:!!role, isHomeowner:role==='homeowner', isContractor:role==='contractor', isNotContractor:role!=='contractor', isAdmin:role==='admin',
       featured, results:pageItems, resultCount:arNumerals(results.length, lang), pg, pageFrom: arNumerals(results.length? (page-1)*PER+1 : 0, lang), pageTo: arNumerals(Math.min(page*PER, results.length), lang), filt:s.filt, prof, cities:this.D.CITIES.map(c=>({id:c.id,label:c[lang]})), trades:this.D.TRADES.map(c=>({id:c.id,label:c[lang]})), tradeGroups:this.D.TRADE_GROUPS.map(g=>({label:g[lang],items:this.D.TRADES.filter(c=>c.g===g.id).map(c=>({id:c.id,label:c[lang]}))})),
       showAiPill: s.scrolled && s.route==='home',
@@ -4912,7 +5042,7 @@ Rules:
       setGa: e => this.setState({gaDraft:e.target.value, gaErr:false}),
       connectGa: () => { const v = String(s.gaDraft||'').trim().toUpperCase(); if(!/^G-[A-Z0-9]{6,12}$/.test(v)) return this.setState({gaErr:true}); this.setState({gaId:v, gaErr:false, gaDraft:''}); },
       disconnectGa: () => this.setState({gaId:null}),
-      fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
+      av, caseReply: s.caseReply||'', fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
 
       goAuth: e => { const rl=e.currentTarget.dataset.signup;
         this.setState({route:'auth', menuOpen:false, navOpen:false, auth:{...s.auth, mode:'signup', step:1, role:rl, error:''}});
@@ -4959,7 +5089,13 @@ Rules:
       postNext: () => { const f=s.post.f; if(s.post.step===1 && (!f.title||!f.desc)) return this.setState({post:{...s.post,error:t.post.errTitle}}); if(s.post.step===2 && (!f.min||!f.max)) return this.setState({post:{...s.post,error:t.post.errBudget}}); if(s.post.step<4) return this.setState({post:{...s.post,step:s.post.step+1,error:''}}); if((+f.max||0) > 1000000) return this.setState({post:{...s.post,error:t.post.capNote}}); if(!s.post.pledge) return this.setState({post:{...s.post,error:t.post.pledgeErr}}); if(role!=='homeowner'){ this.setState({pendingPost:true, auth:{...s.auth,mode:'signup',role:'homeowner',step:1}}); this.nav('auth'); return; } this.publishPost(); },
       setTab: e => this.setState({tab:e.currentTarget.dataset.tab}),
       setAdminTab: e => this.setState({atab:e.currentTarget.dataset.tab}),
-      openAdminProject: e => this.nav('project',{curId:e.currentTarget.dataset.id, tab:'overview'}),
+      openAdminProject: e => { this.setState({adminView:null}); this.nav('project',{curId:e.currentTarget.dataset.id, tab:'overview'}); },
+      openVerif: e => this.setState({adminView:{kind:'app', id:e.currentTarget.dataset.id}}),
+      openCase: e => this.setState({adminView:{kind:'case', id:e.currentTarget.dataset.id}, caseReply:'', caseReplyError:''}),
+      openUser: e => this.setState({adminView:{kind:'user', id:e.currentTarget.dataset.id, ukind:e.currentTarget.dataset.kind}}),
+      closeAdminView: () => this.setState({adminView:null, caseReplyError:''}),
+      setCaseReply: e => this.setState({caseReply:e.target.value, caseReplyError:''}),
+      sendCaseReply: e => { const id=e.currentTarget.dataset.id; const text=(s.caseReply||'').trim(); if(!text) return; this.setState({cases:s.cases.map(c=>c.id===id?{...c, replies:[...(c.replies||[]), {when:t.ws.today, text, email:!!c.email}]}:c), caseReply:''}); },
       setBidField: e => { const {name,value}=e.target; this.setState({bidF:{...s.bidF,[name]:value,error:''}}); },
       setBidToggle: e => { const {name,checked}=e.target; this.setState({bidF:{...s.bidF,[name]:checked,error:''}}); },
       reviewBid: () => { const b=s.bidF;

@@ -272,6 +272,16 @@ const tab = async (id) => { await page.locator(`.side[data-tab="${id}"]`).click(
 await tab('verification');
 check('verification lists the real application, with who to call', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: '0501112223' }).count()) === 1
   && (await page.locator('main', { hasText: '4 Sep 2026' }).count()) === 0);
+// the detail views (supabase/021): open the application before deciding
+await page.locator('button[data-id="A-1"]', { hasText: 'عرض' }).click();
+await settle(400);
+check('opening an application shows everything the applicant typed: company, person, mobile, email, trades and note', (await page.locator('.modal.dv').count()) === 1
+  && (await page.locator('.modal.dv', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('.modal.dv', { hasText: 'خالد العتيبي' }).count()) === 1
+  && (await page.locator('.modal.dv', { hasText: '0501112223' }).count()) === 1 && (await page.locator('.modal.dv', { hasText: 'khalid@build.example' }).count()) === 1
+  && (await page.locator('.modal.dv .btn-p').count()) === 1, (await page.locator('.modal.dv').innerText().catch(() => '-')).replace(/\s+/g, ' ').slice(0, 220));
+await page.locator('.modal.dv button', { hasText: 'إغلاق' }).click();
+await settle(300);
+check('…and closes again', (await page.locator('.modal.dv').count()) === 0);
 await page.evaluate(() => { window.__opened.length = 0; });
 await page.locator('button[data-id="A-1"].btn-p').click();
 await settle();
@@ -281,11 +291,30 @@ check('…and opens WhatsApp to the contractor\'s own number, with the "your acc
   told.length === 1 && told[0].startsWith('https://wa.me/966501112223?text=') && decodeURIComponent(told[0]).includes('تم توثيق حساب') && decodeURIComponent(told[0]).includes('/signin'), told[0]?.slice(0, 80));
 await tab('support');
 check('support cases are the contact-form messages, with the sender', (await page.locator('main', { hasText: 'هل تغطون جدة؟' }).count()) === 1 && (await page.locator('main', { hasText: '0555123456' }).count()) === 1);
-await page.locator('button[data-id="M-1"]').click();
+await page.locator('button[data-id="M-1"]', { hasText: 'عرض' }).click();
+await settle(400);
+check('opening a case shows the whole message and who sent it', (await page.locator('.modal.dv', { hasText: 'هل تغطون جدة؟' }).count()) === 1 && (await page.locator('.modal.dv', { hasText: '0555123456' }).count()) === 1, (await page.locator('.modal.dv').innerText().catch(() => '-')).replace(/\s+/g, ' ').slice(0, 200));
+await page.locator('#dv-reply').fill('نعم، نغطي جدة من هذا الشهر.');
+await page.locator('.modal.dv .btn-p', { hasText: 'احفظ الرد' }).click();
+await settle(900);
+check('a reply is kept on the case — this sender left a mobile only, so nothing is emailed — and the case reads "answered"',
+  db.caseReplies.length === 1 && db.caseReplies[0].body === 'نعم، نغطي جدة من هذا الشهر.' && db.caseReplies[0].sent_by_email === false && Boolean(db.contact[0]?.answered_at)
+  && (await page.locator('.modal.dv', { hasText: 'مدوَّن' }).count()) === 1 && (await page.locator('.modal.dv .tag', { hasText: 'تم الرد' }).count()) === 1,
+  `${JSON.stringify(db.caseReplies[0] || null)} ${(await page.locator('.modal.dv').innerText().catch(() => '-')).replace(/\s+/g, ' ').slice(0, 160)}`);
+await page.locator('.modal.dv button', { hasText: 'إغلاق' }).click();
+await settle(300);
+await page.locator('button[data-id="M-1"]', { hasText: 'حل' }).click();
 await settle();
 check('…and resolving one marks it handled in the database', db.contact[0].handled === true);
 await tab('users');
 check('users lists real people only', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: 'عبدالله' }).count()) === 0);
+await page.locator('button[data-kind="c"]', { hasText: 'عرض' }).first().click();
+await settle(900);
+check('opening a person shows their record from the database: email, mobile, company, and their verification', (await page.locator('.modal.dv').count()) === 1
+  && (await page.locator('.modal.dv', { hasText: 'khalid@build.example' }).count()) === 1 && (await page.locator('.modal.dv', { hasText: '0501112223' }).count()) === 1
+  && (await page.locator('.modal.dv', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1, (await page.locator('.modal.dv').innerText().catch(() => '-')).replace(/\s+/g, ' ').slice(0, 220));
+await page.locator('.modal.dv button', { hasText: 'إغلاق' }).click();
+await settle(300);
 await tab('analytics');
 await settle(600);
 check('analytics says its figures are real, and shows the recorded visits', (await page.locator('main', { hasText: 'بيانات حقيقية' }).count()) === 1 && (await page.locator('main', { hasText: 'بيانات تجريبية' }).count()) === 0

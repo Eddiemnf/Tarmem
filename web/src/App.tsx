@@ -13,6 +13,9 @@ import Footer from './components/Footer';
 import GiftModal from './components/GiftModal';
 import Header from './components/Header';
 import HomeownerEditModal from './components/HomeownerEditModal';
+import AdminApplicationModal from './components/AdminApplicationModal';
+import AdminCaseModal from './components/AdminCaseModal';
+import AdminUserModal from './components/AdminUserModal';
 import ShellBlocks from './components/ShellBlocks';
 import JoinPage from './launch/JoinPage';
 import LaunchNotice from './launch/LaunchNotice';
@@ -83,6 +86,9 @@ export default function App() {
         <Page vm={vm} />
         <GiftModal vm={vm} />
         <HomeownerEditModal vm={vm} />
+        <AdminApplicationModal vm={vm} />
+        <AdminCaseModal vm={vm} />
+        <AdminUserModal vm={vm} />
         <ContractorEditModal vm={vm} />
       </main>
       <Footer vm={vm} />

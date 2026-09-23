@@ -15,7 +15,7 @@ const subOf = (header) => { try { return JSON.parse(Buffer.from(String(header ||
 export const recoveryFragment = (userId) => `#access_token=${jwt(userId)}&refresh_token=refresh-${userId}&expires_in=3600&token_type=bearer&type=recovery`;
 
 export async function installSupabaseMock(context, supabaseUrl) {
-  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], agreements: [], portfolio: [], captions: [], refused: [], unknown: [] };
+  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], agreements: [], portfolio: [], captions: [], caseReplies: [], refused: [], unknown: [] };
   let nextCode = 2001;
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
   const send = (route, status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
@@ -153,6 +153,24 @@ export async function installSupabaseMock(context, supabaseUrl) {
         (db.messages ||= []).push({ id: (db.messages || []).length + 1, ...body, from_id: me, created_at: new Date().toISOString(), read_at: null });
         return send(route, 201);
       }
+    }
+    if (path === '/rest/v1/case_replies' && method === 'GET') return admin ? rows(db.caseReplies) : rows([]);
+    if (path === '/rest/v1/rpc/admin_reply_case' && method === 'POST') {
+      if (!admin) return refuse(route, 'admins only');
+      const m = db.contact[Number(body.p_case) - 1]; if (!m) return send(route, 400, { message: 'no such case' }); m.id = Number(body.p_case); // rows carry no id until read back
+      if (!String(body.p_body || '').trim()) return send(route, 400, { message: 'the reply is empty' });
+      const reply = { id: db.caseReplies.length + 1, case_id: m.id, admin_id: me, body: String(body.p_body).trim(), sent_by_email: Boolean(m.email), created_at: new Date().toISOString() };
+      db.caseReplies.push(reply); m.answered_at = reply.created_at;
+      return send(route, 200, { id: reply.id, sent: reply.sent_by_email });
+    }
+    if (path === '/rest/v1/rpc/admin_user_detail' && method === 'POST') {
+      if (!admin) return refuse(route, 'admins only');
+      const p = db.profiles.find((x) => x.id === body.p_user); const u = db.users.find((x) => x.id === body.p_user);
+      if (!p || !u) return send(route, 400, { message: 'no such user' });
+      const projects = db.projects.filter((x) => x.owner_id === p.id).map((x) => ({ id: x.id, code: x.code, title: x.title, status: x.status, city: x.city, trade: x.trade, budget_min: x.budget_min, budget_max: x.budget_max, created_at: x.created_at, bids: (db.bids || []).filter((b) => b.project_id === x.id && b.status !== 'withdrawn').length }));
+      const bids = (db.bids || []).filter((b) => b.contractor_id === p.id).map((b) => { const x = db.projects.find((y) => y.id === b.project_id) || {}; return { id: b.id, project_code: x.code, project_title: x.title, price: b.price, days: b.days ?? null, status: b.status || 'submitted', created_at: b.created_at || new Date().toISOString() }; });
+      const application = db.applications.find((a) => a.user_id === p.id) || null;
+      return send(route, 200, { profile: p, email: u.email, created_at: u.created_at, last_sign_in_at: null, email_confirmed_at: u.created_at, projects, bids, application, messages: db.contact.filter((m) => m.email && u.email && m.email.toLowerCase() === u.email.toLowerCase()).length, portfolio: db.portfolio.filter((f) => f.path.startsWith(p.id + '/')).length, reviews: 0 });
     }
     if (path === '/rest/v1/rpc/mobile_taken' && method === 'POST') { const key = (m) => { const d = String(m || '').replace(/[^0-9]/g, ''); return !d ? null : d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '966' + d.slice(1) : d.length === 9 && d.startsWith('5') ? '966' + d : d; }; return send(route, 200, key(body.p_mobile) !== null && db.profiles.some((p) => key(p.mobile) === key(body.p_mobile))); }
     if (path === '/rest/v1/rpc/my_performance' && method === 'POST') { if (!me) return refuse(route, 'sign in first'); return send(route, 200, { views: (db.visits || []).filter((v) => v.path === '/firm/co-' + String(me).slice(0, 8) && v.user_id !== me).length, bids: (db.bids || []).filter((b) => b.contractor_id === me && b.status !== 'withdrawn').length, won: (db.bids || []).filter((b) => b.contractor_id === me && b.status === 'chosen').length }); }

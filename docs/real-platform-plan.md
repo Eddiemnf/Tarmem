@@ -481,3 +481,22 @@ the project's team addresses until custom SMTP (Resend) is set — guide step 7 
 
 **Admins see the photos.** Storage already let admins read every project file (003). What was missing was a way in:
 the console's "all projects" rows now open the project page, whose files tab lists the photos with signed links.
+
+## The console opens a row — 23 September 2026 (asks five to seven)
+
+The owner could approve an application, resolve a case or read a user's name, but never see what was behind a row.
+Three detail views now live in the design and on the site (`av.app`, `av.case`, `av.user`; components
+`AdminApplicationModal`, `AdminCaseModal`, `AdminUserModal`), each opened by a "view" button on its row:
+
+- **An application**: company, contact person, mobile (a tel link), email, city, trades, CR number, the applicant's own
+  note, when it was made, whether an account exists, the checks — and Approve / Decline for one still pending.
+- **A support case**: the sender's details, when it arrived, the whole message, every reply the team has sent, and a
+  reply box. Sending goes through `admin_reply_case` (021): emailed to the sender when they left an email (logged in
+  `email_log` like every other message), kept on the case either way, and the case reads "answered"; "resolve" still
+  closes it.
+- **A person**: the profile, email, when they joined and last signed in, their projects with bid counts (each opens
+  the project page), a contractor's bids on named projects, their verification, portfolio and review counts — from
+  `admin_user_detail` (021); before it answers, what the console already holds.
+
+The design's demo shows the same three views on its invented rows; the site fills them from the database. Owner step:
+run 021 (the console's rows still open without it; replies and the full person record need it).

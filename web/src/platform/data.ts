@@ -52,6 +52,7 @@ export function homeownerRecord(profile: Profile | null) {
   const year = (profile?.created_at || new Date().toISOString()).slice(0, 4);
   return {
     ...both(name), city: profile?.city || 'riyadh', nafath: false,
+    mobile: profile?.mobile || '', email: profile?.email || '', lang: profile?.lang || 'ar', createdAt: profile?.created_at || '',
     joined: { en: `Joined ${year}`, ar: `انضم في ${year}` },
     rating: 0, reviews: 0, done: 0, onTimeApproval: '—', avgApproval: both('—'), disputes: 0,
     about: both(profile?.about || ''), revs: [],
