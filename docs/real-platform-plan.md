@@ -390,3 +390,15 @@ only; the cron runs with no user). The inbox (`InboxPage.tsx`) gained a "Message
 outcome. Also: approving a contractor no longer pops a ready-written WhatsApp once `whatsapp_live` is on — the database sends
 the "account verified" template itself. Owner step: run 018.
 
+## A visitor's full walk — 23 September 2026
+
+Fourteen public pages on desktop and phone in both languages (80 screenshots), then 101 signed-in states as customer,
+contractor and team. Fixed and live (commit be66399): sign in shown over the home video (`[data-launch] .ulnk.hide-over`);
+settings wording (email signs in, mobile is for contact/WhatsApp) and only the three real notification switches; the
+homeowner "verified with Nafath" card and the contractor dashboard's typed-in performance figures hidden (design markers
+`hp-identity`, `perf-card`); the contractor profile's protect line without Nafath; saved contractors kept in `prefs.saved`;
+the Messages tab honest (`messagesVals`: no composer, a note) until messaging is real; contact topics reordered; bids-tab copy
+names WhatsApp when it is on; the portfolio grid fills columns. Report for the owner: the "Tarmem visitor walk" artifact.
+Next builds it recommends: real in-project messaging; measured profile performance; a "page not found" line; WebP trade
+photos; hiding the WhatsApp fab on form pages on phones.
+
