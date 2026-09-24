@@ -602,3 +602,14 @@ still gets the sign-up number check, and still cannot call trigger functions or 
   4. `insert into public.app_secrets (key, value) values ('supabase_url', 'https://api.tarmem.sa') on conflict (key) do
      update set value = excluded.value;` so `auth_send_email()` (024) builds its links on api.tarmem.sa. The site itself
      can stay on the supabase.co address.
+
+## WhatsApp works end to end — 24 September 2026
+
+Meta lifted the "API access blocked" hold around 00:40 Riyadh on 24 September (the business verification); the tests
+after that reached Meta and failed only on the missing value that 025 put back. Meta's template list, read from the
+database at 12:50, has all 21 approved, `tarmem_new_message` (ar/en) included. At 11:48 the owner's test from the
+settings page was accepted by Meta and arrived on his phone in Arabic, with his number and the Settings button. From
+now on every customer with a Saudi mobile gets their project updates on WhatsApp too, unless they chose email only in
+Settings; nothing goes between 23:00 and 08:00 Riyadh time except stage approvals and issues, which go at once.
+Still to do: the authentication template `tarmem_otp` never reached Meta (022 submitted it during the block); the owner
+runs `select public.wa_submit_otp_template();` and, once Meta approves it, decides on `select public.set_otp(true);`.
