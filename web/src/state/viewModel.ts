@@ -29,7 +29,7 @@ import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { VIDEO_MAX_BYTES, VIDEO_TYPES, acceptFiles, holdFiles, uploadFile } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { currentAccount, deleteMyAccount, normalizeMobile, refreshAccount, sendMessage, sendWhatsAppTest, stageStep, updateProfile, validMobile, type MessageRow } from '../platform/session';
+import { approveChange, currentAccount, deleteMyAccount, normalizeMobile, proposeChange, refreshAccount, sendMessage, sendWhatsAppTest, stageStep, updateProfile, validMobile, type MessageRow } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -104,7 +104,8 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
   const detail = viewedId && state.adminDetail?.id === viewedId ? (state.adminDetail.data as UserDetail) : null;
   return {
     ...vm,
-    ...analyticsVals(state.adminAn || EMPTY_ANALYTICS(state.anRange || 'week'), vm),
+    // real figures from the site's own visit record; the design's "connect Google Analytics" box installed nothing and remembered the id in one browser only
+    ...((real) => ({ ...real, an: { ...real.an, gaCard: false } }))(analyticsVals(state.adminAn || EMPTY_ANALYTICS(state.anRange || 'week'), vm)),
     av: !vm.av?.user ? vm.av : {
       ...vm.av,
       user: {
@@ -152,6 +153,8 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
     pm: vm.pm?.kpis ? { ...vm.pm, kpis: vm.pm.kpis.map((k: LogicState, i: number) => (i === 3 ? { ...k, v: average ? average.toLocaleString('en-US') : '—' } : k)) } : vm.pm,
     t: { ...vm.t, admin: { ...vm.t.admin, an: { ...vm.t.admin.an,
       sub: ar ? 'الزوار الآن وأرقام اليوم، من سجل زيارات الموقع نفسه: بلا ملفات تعريف ارتباط وبلا عناوين IP.' : 'Live visitors and daily figures, from the site\'s own visit record: no cookies, no IP addresses.' } } },
+    // late stages and refunds come with payments: until then the tab would describe a record that does not exist
+    ...(currentAccount()?.paymentsLive ? {} : { adminTabs: ((vm.adminTabs as LogicState[]) || []).filter((tab) => tab.id !== 'late') }),
   };
 }
 
@@ -401,11 +404,58 @@ function messagesVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   };
 }
 
+/** Change requests are rows (supabase/027): proposing and approving go to the database, and both parties see them. */
+function changeVals(given: LogicVals, state: LogicState, host: LogicHost): LogicVals {
+  if (!platformOn || !given.pj) return given;
+  // only a homeowner has a profile page to open (their own); for a contractor or the team the owner's name is plain text
+  const ownProfile = currentAccount()?.profile.role === 'homeowner';
+  const vm: LogicVals = { ...given, pj: { ...given.pj, ownerLink: ownProfile, ownerPlain: !ownProfile } };
+  const pr = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
+  if (!pr?.dbId) return vm;
+  const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const submit = () => {
+    const f = (state.crF as LogicState | undefined) || {};
+    const desc = String(f.desc || '').trim();
+    if (!desc) return host.setLogicState({ crError: vm.t.ws.cr.errDesc });
+    if (state.crBusy) return;
+    host.setLogicState({ crBusy: true, crError: '' });
+    void proposeChange(String(pr.dbId), desc, Math.round(Number(f.amount) || 0), Math.round(Number(f.days) || 0)).then((r) =>
+      host.setLogicState(r.ok ? { crBusy: false, crOpen: false, crF: { desc: '', amount: '', days: '' }, crError: '' } : { crBusy: false, crError: copy.err[r.error] }));
+  };
+  const approve = (e: { currentTarget: { dataset: { id?: string } } }) => {
+    const change = ((pr.changes as LogicState[] | undefined) || []).find((c) => c.id === e.currentTarget.dataset.id);
+    if (!change?.dbId || state.crBusy) return;
+    host.setLogicState({ crBusy: true });
+    void approveChange(Number(change.dbId)).then((r) => host.setLogicState(r.ok ? { crBusy: false, crError: '' } : { crBusy: false, crOpen: true, crError: copy.err[r.error] }));
+  };
+  return { ...vm, crSubmit: submit, crApprove: approve };
+}
+
+/** While payment on the site is off, nobody is asked to "fund the project": the team arranges the first payment, as the
+    Payments tab says. The bell and the dashboard's "waiting for you" list leave that one out until payments are live. */
+function bellVals(vm: LogicVals): LogicVals {
+  if (!platformOn || currentAccount()?.paymentsLive) return vm;
+  const out: LogicVals = { ...vm };
+  if (vm.nt) {
+    const items = ((vm.nt.items as LogicState[]) || []).filter((x) => x.kind !== 'fund');
+    const unread = items.filter((x) => x.unread).length;
+    out.nt = { ...vm.nt, items, count: unread, hasAny: items.length > 0, empty: !items.length, badge: unread || '' };
+  }
+  // the project page's "next step" said "fund the project in the Payments tab" (or, to the contractor, "waiting for the homeowner to fund")
+  const next = vm.t?.ws?.next;
+  if (vm.pj && next && (vm.pj.nextStep === next.funding || vm.pj.nextStep === next.fundingCo)) out.pj = { ...vm.pj, nextStep: PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'].nextArrange };
+  if (Array.isArray(vm.hActions)) {
+    const actions = (vm.hActions as LogicState[]).filter((a) => a.tab !== 'payments');
+    out.hActions = actions; out.noHActions = !actions.length;
+  }
+  return out;
+}
+
 function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
-  return messagesVals(profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
+  return bellVals(changeVals(messagesVals(profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
     ...vm,
     launch: true,
     // the footer's legal line, once the owner fills site.config.json (the commercial registration and VAT numbers)
@@ -453,7 +503,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     // covers the end of a form's fields and buttons, so it stays off the form pages there
     showWaFab: vm.showWaFab && !vm.r?.sent && !(PHONE() && ['post', 'join', 'contact', 'auth'].includes(String(state.route))),
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state, host), state), state), state, host), state, host), state, host), state, host);
+  }, state, host), state), state), state, host), state, host), state, host), state, host), state, host));
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

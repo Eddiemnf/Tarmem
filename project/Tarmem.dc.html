@@ -2686,7 +2686,7 @@
               <tr><td class="muted">{{ t.post.timing }}</td><td>{{ pj.timingLabel }}</td></tr>
               <tr><td class="muted">{{ t.ws.posted }}</td><td>{{ pj.posted }}</td></tr>
               <tr><td class="muted">{{ t.roles.contractor }}</td><td>{{ pj.contractorName }}</td></tr>
-              <tr><td class="muted">{{ t.hprofile.ownerOf }}</td><td><a class="lnk" style="color:#FF5A3C;font-weight:500" data-route="homeowner" data-id="{{ pj.ownerId }}" onClick="{{ go }}">{{ pj.ownerName }}</a></td></tr>
+              <tr><td class="muted">{{ t.hprofile.ownerOf }}</td><td><sc-if value="{{ pj.ownerLink }}"><a class="lnk" style="color:#FF5A3C;font-weight:500" data-route="homeowner" data-id="{{ pj.ownerId }}" onClick="{{ go }}">{{ pj.ownerName }}</a></sc-if><sc-if value="{{ pj.ownerPlain }}">{{ pj.ownerName }}</sc-if></td></tr>
             </tbody></table>
           </div>
           <aside style="display:flex;flex-direction:column;gap:16px">
@@ -3290,7 +3290,7 @@
             </div>
           </div>
 
-          <div class="card" style="margin-top:20px;padding:26px;gap:14px">
+          <sc-if value="{{ an.gaCard }}"><div class="card" style="margin-top:20px;padding:26px;gap:14px">
             <div style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:flex-start">
               <div style="max-width:52ch">
                 <h3 style="font-size:18px;color:#1B1464">{{ t.admin.an.ga }}</h3>
@@ -3307,7 +3307,7 @@
               <p class="muted" style="font-size:12px">{{ t.admin.an.gaNote }}</p>
             </sc-if>
             <sc-if value="{{ an.gaOn }}"><button class="btn btn-s btn-sm" style="align-self:flex-start" onClick="{{ disconnectGa }}">{{ t.admin.an.gaOff }}</button></sc-if>
-          </div>
+          </div></sc-if>
         </sc-if>
         <sc-if value="{{ atab.overview }}">
           <h1 style="font-size:clamp(26px,3vw,34px);color:#1B1464">{{ t.admin.overview }}</h1>
@@ -4136,7 +4136,7 @@ class Component extends DCLogic {
       topPages: share(A.pages, [5210, 2840, 2310, 1620, 1180, 760, 540], 'n'),
       sources: share(A.srcs, [38, 27, 14, 9, 7, 5], '%'),
       cities: share(A.citiesL, [41, 22, 13, 9, 8, 7], '%'),
-      gaOn: !!s.gaId, gaOff: !s.gaId, gaId: s.gaId || '', gaDraft: s.gaDraft || '', gaErr: !!s.gaErr,
+      gaCard: true, gaOn: !!s.gaId, gaOff: !s.gaId, gaId: s.gaId || '', gaDraft: s.gaDraft || '', gaErr: !!s.gaErr,
       srcLabel: s.gaId ? 'GA4 · ' + s.gaId : A.simulated, srcCls: s.gaId ? 'tag-g' : 'tag-n'
     };
   }
@@ -4556,6 +4556,7 @@ Rules:
           canApprove: crAwarded && !both && !mine };
       });
       pj.crNone = !(pr.changes||[]).length;
+      pj.ownerLink = true; pj.ownerPlain = false;
       const nafOk = !!s.user?.nafath;
       const bidStage = isCo && pr.status==='open' && !pr.bids.some(b=>b.cid===me);
       if(pr.pending) pj.bidRows = pj.bidRows.map(b=>({...b, canAccept:false}));

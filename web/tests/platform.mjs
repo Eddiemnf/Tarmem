@@ -352,6 +352,7 @@ await settle(600);
 check('analytics says its figures are real, and shows the recorded visits', (await page.locator('main', { hasText: 'بيانات حقيقية' }).count()) === 1 && (await page.locator('main', { hasText: 'بيانات تجريبية' }).count()) === 0
   && (await page.locator('main', { hasText: 'يتصفح' }).count()) === 1,
   `real=${await page.locator('main', { hasText: 'بيانات حقيقية' }).count()} demo=${await page.locator('main', { hasText: 'بيانات تجريبية' }).count()} feed=${(await page.locator('main').innerText()).includes('يتصفح')}`);
+check('…and the design\u2019s "connect Google Analytics" box, which installed nothing, is not shown', (await page.locator('main', { hasText: 'Google Analytics' }).count()) === 0);
 await tab('promos');
 await page.locator('button', { hasText: /كود جديد|إنشاء كود|New code/ }).first().click().catch(() => undefined);
 await settle(300);
@@ -360,7 +361,7 @@ await page.locator('#pm-value').fill('10');
 await page.locator('.btn-p', { hasText: /حفظ|إنشاء|Save|Create/ }).last().click();
 await settle();
 check('a promo code made in the console is saved to the database', db.adminState.promos?.[0]?.code === 'WELCOME10' && db.adminState.promos.length === 1, JSON.stringify(db.adminState.promos || null).slice(0, 120));
-await tab('late');
+check('the delays and refunds tab waits for payments: it would describe a record that does not exist yet', (await page.locator('.side[data-tab="late"]').count()) === 0 && (await page.locator('.side[data-tab="analytics"]').count()) === 1);
 check('nothing invented is left: no seeded strikes, refunds or affiliates', !(await saved()).strikes?.length && !(await saved()).refunds?.length && !(await saved()).affiliates?.length);
 check("the team's own browsing is not counted as traffic", db.visits.length === before, `${before} → ${db.visits.length}`);
 db.emailLog = [
@@ -490,6 +491,7 @@ await settle(900);
 const awarded = db.projects.find((p) => p.code === 'P-9001');
 check("the contractor's signature awards the project: active, theirs, at the agreed amount, both signatures kept",
   awarded.status === 'active' && awarded.contractor_id === coUser?.id && awarded.amount === 24000 && Boolean(db.agreements[0].contractor_signed_at) && db.agreements[0].contractor_name === 'مؤسسة البناء المتقن' && db.refused.length === 0, db.refused.join('; ') || awarded.status);
+check('the contractor sees the owner\u2019s name as plain text, not a link that would bounce them', (await page.locator('main a[data-route="homeowner"]').count()) === 0);
 await page.locator('.tab[data-tab="messages"]').click();
 await settle(800);
 check('the contractor sees the homeowner\u2019s message, named by role only, and it is marked read', (await page.locator('main .card', { hasText: 'متى يمكن معاينة الموقع؟' }).count()) === 1 && (await page.locator('main .card', { hasText: 'صاحب المنزل' }).count()) === 1 && Boolean(db.messages[0].read_at) && (await page.locator('text=العتيبي').count()) === 0);
@@ -515,6 +517,11 @@ await open('project/P-9001');
 await page.locator('[role="tab"][data-tab="overview"]').click();
 await settle(300);
 check('the signed agreement shows both parties and both dates', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: 'سارة العتيبي' }).count()) === 1);
+await page.locator('button.ntf, [aria-label*="الإشعارات"], .bell').first().click().catch(() => 0);
+await settle(300);
+check('while payment is off, neither the bell nor the dashboard asks the homeowner to fund the project', (await page.locator('text=موّل المشروع').count()) === 0);
+if (await page.locator('.acctveil').count()) await page.locator('.acctveil').first().click({ force: true });
+await settle(200);
 await page.locator('[role="tab"][data-tab="payments"]').click();
 await settle(400);
 check('the homeowner is told plainly that payment on the site is not live yet — no card form, no Nafath theatre', (await page.locator('main .card h3', { hasText: 'الدفع عبر الموقع قيد التفعيل' }).count()) === 1 && (await page.locator('main .nafmark:visible').count()) === 0 && (await page.locator('input[name="card"], input[autocomplete="cc-number"]').count()) === 0
@@ -522,6 +529,29 @@ check('the homeowner is told plainly that payment on the site is not live yet �
 await page.locator('[role="tab"][data-tab="milestones"]').click();
 await settle(300);
 check('…and that stages start with the first payment', (await page.locator('text=تبدأ المراحل بعد ترتيب الدفعة الأولى').count()) === 1);
+
+// J1 — change requests are rows (supabase/027): proposed by one side, approved by the other, and the value moves
+await page.locator('[role="tab"][data-tab="changes"]').click();
+await settle(300);
+await page.locator('button', { hasText: 'إنشاء طلب تغيير' }).click();
+await page.locator('textarea[name="desc"]').fill('إضافة نقاط إنارة في السقف');
+await page.locator('input[name="amount"]').fill('2500');
+await page.locator('input[name="days"]').fill('3');
+await page.locator('button', { hasText: 'إرسال الطلب' }).click();
+await settle(900);
+const cr = (db.changes || [])[0];
+check('a change request proposed by the homeowner is saved, and shows as waiting for the contractor', cr?.by_side === 'ho' && cr.amount === 2500 && cr.days === 3 && cr.description === 'إضافة نقاط إنارة في السقف' && !cr.applied_at
+  && (await page.locator('main', { hasText: 'بانتظار اعتماد الطرف الآخر' }).count()) === 1 && (await page.locator('main', { hasText: 'إضافة نقاط إنارة في السقف' }).count()) === 1, JSON.stringify(cr) + ' ' + db.refused.join('; '));
+await page.locator('button.acct').click(); await page.locator('.acctmenu .acctitem').last().click(); await settle();
+await open('signin'); await page.locator('#au-email').fill('khalid@build.example'); await page.locator('#au-password').fill('contractor-pass-1'); await submit.click(); await settle(900);
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="changes"]').click();
+await settle(500);
+check('…the contractor sees it after signing in (it is not only in the homeowner’s browser)', (await page.locator('main', { hasText: 'إضافة نقاط إنارة في السقف' }).count()) === 1 && (await page.locator('button', { hasText: 'اعتماد الطلب' }).count()) === 1);
+await page.locator('button', { hasText: 'اعتماد الطلب' }).click();
+await settle(900);
+check('…approves it: the change is applied and the project’s value becomes 26,500', Boolean(db.changes[0].applied_at) && db.projects.find((p) => p.code === 'P-9001').amount === 26500
+  && (await page.locator('main', { hasText: 'طُبِّق على قيمة الاتفاق والمراحل' }).count()) === 1 && (await page.locator('main', { hasText: '26,500' }).count()) >= 1, db.refused.join('; '));
 
 // J2 — stages: built and waiting. They appear only when the owner switches payments on in the database.
 db.paymentsLive = true;

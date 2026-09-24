@@ -455,7 +455,7 @@ class Component extends DCLogic {
       topPages: share(A.pages, [5210, 2840, 2310, 1620, 1180, 760, 540], 'n'),
       sources: share(A.srcs, [38, 27, 14, 9, 7, 5], '%'),
       cities: share(A.citiesL, [41, 22, 13, 9, 8, 7], '%'),
-      gaOn: !!s.gaId, gaOff: !s.gaId, gaId: s.gaId || '', gaDraft: s.gaDraft || '', gaErr: !!s.gaErr,
+      gaCard: true, gaOn: !!s.gaId, gaOff: !s.gaId, gaId: s.gaId || '', gaDraft: s.gaDraft || '', gaErr: !!s.gaErr,
       srcLabel: s.gaId ? 'GA4 · ' + s.gaId : A.simulated, srcCls: s.gaId ? 'tag-g' : 'tag-n'
     };
   }
@@ -875,6 +875,7 @@ Rules:
           canApprove: crAwarded && !both && !mine };
       });
       pj.crNone = !(pr.changes||[]).length;
+      pj.ownerLink = true; pj.ownerPlain = false;
       const nafOk = !!s.user?.nafath;
       const bidStage = isCo && pr.status==='open' && !pr.bids.some(b=>b.cid===me);
       if(pr.pending) pj.bidRows = pj.bidRows.map(b=>({...b, canAccept:false}));

@@ -183,3 +183,13 @@ spam protection that costs visitors nothing.
 
 Why: the owner needed to send the WhatsApp test to their own number as the admin, and three fast presses had sent three.
 > Also: the WhatsApp card reports the test's outcome under its button (`wa.error`, red, beside the existing `wa.sentTo` line).
+
+## Changed 24 September 2026 — two switches for the real site
+
+> The analytics tab's "Connect Google Analytics 4" card is wrapped in `<sc-if value="{{ an.gaCard }}">` (the design sets
+> `gaCard: true`). The project overview's owner name is a link inside `<sc-if value="{{ pj.ownerLink }}">`, with a plain-text
+> twin under `pj.ownerPlain` (the design sets `ownerLink: true, ownerPlain: false`). The demo is unchanged.
+
+Why: on the real site the GA card installed nothing and remembered the id in one browser only, so it is off there; and
+only a homeowner has a profile page to open, so contractors and the team see the owner's name as text instead of a link
+that bounced them to their dashboard.

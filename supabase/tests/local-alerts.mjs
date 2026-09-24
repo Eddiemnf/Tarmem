@@ -39,12 +39,12 @@ check('a visitor cannot read the settings, write them, or read the log', Boolean
 await as('authenticated', ADMIN);
 check('not even an admin account can read the key or change the settings', Boolean(await fails(`select * from public.app_secrets`)) && Boolean(await fails(`select public.set_alerts('re_x')`)));
 // switched on from the SQL editor
-await db.exec(`reset role; select public.set_alerts('re_TEST_KEY', 'Tarmem <alerts@tarmem.sa>', 'support@tarmem.sa');`);
+await db.exec(`reset role; select public.set_alerts('re_TESTKEY_abcdefghijklmnopqrstuvwxyz01', 'Tarmem <alerts@tarmem.sa>', 'support@tarmem.sa');`);
 await as('anon');
 await db.exec(`insert into public.contact_messages (name, mobile, message) values ('خالد','0500000000','متى تبدأون؟')`);
 let last = (await db.query(`select * from public.sent order by ctid desc limit 1`)).rows[0];
 check('a contact message sends an email to the team, with the key in the header and the message in the body',
-  last?.url === 'https://api.resend.com/emails' && last.headers.Authorization === 'Bearer re_TEST_KEY' && last.body.to[0] === 'support@tarmem.sa' && last.body.subject.includes('خالد') && last.body.html.includes('متى تبدأون؟'),
+  last?.url === 'https://api.resend.com/emails' && last.headers.Authorization === 'Bearer re_TESTKEY_abcdefghijklmnopqrstuvwxyz01' && last.body.to[0] === 'support@tarmem.sa' && last.body.subject.includes('خالد') && last.body.html.includes('متى تبدأون؟'),
   JSON.stringify(last?.body || null).slice(0, 180));
 await db.exec(`insert into public.contractor_applications (company, person, mobile, city, trades) values ('مؤسسة البناء','خالد','0501112223','riyadh',array['kitchen'])`);
 last = (await db.query(`select * from public.sent order by ctid desc limit 1`)).rows[0];

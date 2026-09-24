@@ -20,11 +20,14 @@
 import type { LogicState, LogicVals } from '../state/designRuntime';
 import { supabase } from './client';
 import { homeownerRecord, toLogicProject, type Profile, type ProjectRow } from './data';
+import type { AgreementRow, BidRow, ChangeRow } from './session';
 
 export interface ApplicationRow { id: number; created_at: string; company: string; person: string; mobile: string; email: string | null; city: string; trades: string[]; cr_number: string | null; note: string | null; status: 'new' | 'contacted' | 'verified' | 'declined' }
 export interface MessageRow { id: number; created_at: string; name: string; email: string | null; mobile: string | null; topic: string | null; message: string; handled: boolean; lang?: string; answered_at?: string | null }
 export interface CaseReplyRow { id: number; case_id: number; admin_id: string | null; body: string; sent_by_email: boolean; created_at: string }
-export interface AdminData { profiles: Profile[]; projects: ProjectRow[]; applications: ApplicationRow[]; messages: MessageRow[]; replies: CaseReplyRow[]; promos: LogicState[]; affiliates: LogicState[] }
+export interface AdminData { profiles: Profile[]; projects: ProjectRow[]; applications: ApplicationRow[]; messages: MessageRow[]; replies: CaseReplyRow[]; promos: LogicState[]; affiliates: LogicState[];
+  /** Every bid, agreement and change request, so a project opened from the console shows what its two parties see. */
+  bids: BidRow[]; agreements: AgreementRow[]; changes: ChangeRow[] }
 /** One person in full, from admin_user_detail (supabase/021). */
 export interface UserDetail {
   profile: Profile; email: string | null; created_at: string; last_sign_in_at: string | null; email_confirmed_at: string | null;
@@ -55,12 +58,14 @@ export async function loadAdminData(): Promise<AdminData | null> {
     // replies to support cases arrive with 021; until that has been run there are none
     const replies = await supabase.from('case_replies').select('*').order('created_at', { ascending: true }).limit(2000)
       .then((r) => (r.error ? [] : (r.data as CaseReplyRow[])), () => [] as CaseReplyRow[]);
+    const all = async <T,>(table: string) => supabase!.from(table).select('*').limit(5000).then((r) => (r.error ? [] : (r.data as T[]) || []), () => [] as T[]);
+    const [bids, agreements, changes] = await Promise.all([all<BidRow>('bids'), all<AgreementRow>('agreements'), all<ChangeRow>('change_requests')]);
     // admin_state arrives with 002; until that has been run the two lists are simply empty
     const list = (key: string) => ((lists.data || []).find((row) => row.key === key)?.value as LogicState[] | undefined) || [];
     return {
       profiles: profiles.data as Profile[], projects: projects.data as ProjectRow[],
       applications: applications.data as ApplicationRow[], messages: messages.data as MessageRow[], replies,
-      promos: list('promos'), affiliates: list('affiliates'),
+      promos: list('promos'), affiliates: list('affiliates'), bids, agreements, changes,
     };
   } catch { return null; }
 }

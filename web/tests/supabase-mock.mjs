@@ -254,6 +254,28 @@ export async function installSupabaseMock(context, supabaseUrl) {
       db.stages = [...(db.stages || []), ...[0, 1, 2].map((idx) => ({ project_id: row.project_id, idx, status: 'pending' }))];
       return send(route, 200, row);
     }
+    // change requests (supabase/027): the two parties read them; proposing and approving go through the two functions
+    if (path === '/rest/v1/change_requests') return rows((db.changes || []).filter((c) => { const p = db.projects.find((x) => x.id === c.project_id); return admin || p?.owner_id === me || p?.contractor_id === me; }));
+    if ((path === '/rest/v1/rpc/change_request_create' || path === '/rest/v1/rpc/change_request_approve') && method === 'POST') {
+      db.changes ||= [];
+      const c = path.endsWith('approve') ? db.changes.find((x) => x.id === body.p_id) : null;
+      const project = db.projects.find((p) => p.id === (c ? c.project_id : body.p_project));
+      const side = project?.owner_id === me ? 'ho' : project?.contractor_id === me ? 'co' : null;
+      if (!side) return refuse(route, 'only the project\'s two parties can propose a change');
+      if (project.status !== 'active') return refuse(route, 'change requests open once both parties have signed');
+      const total = Number(project.amount) + (c ? c.amount : Number(body.p_amount) || 0);
+      if (total < 100 || total > 1000000) return send(route, 400, { code: '22023', message: 'the project\'s value would leave its limits (100 to 1,000,000 riyals)' });
+      if (!c) {
+        const row = { id: db.changes.length + 1, project_id: project.id, code: 'CR-' + (db.changes.filter((x) => x.project_id === project.id).length + 1), by_side: side, description: String(body.p_desc || '').trim(), amount: Number(body.p_amount) || 0, days: Number(body.p_days) || 0,
+          ho_ok_at: side === 'ho' ? new Date().toISOString() : null, co_ok_at: side === 'co' ? new Date().toISOString() : null, applied_at: null, created_at: new Date().toISOString() };
+        db.changes.push(row);
+        return send(route, 200, row);
+      }
+      if ((side === 'ho' && c.ho_ok_at) || (side === 'co' && c.co_ok_at)) return refuse(route, 'the other party approves a change you proposed');
+      Object.assign(c, { ho_ok_at: c.ho_ok_at || new Date().toISOString(), co_ok_at: c.co_ok_at || new Date().toISOString(), applied_at: new Date().toISOString() });
+      project.amount = total;
+      return send(route, 200, c);
+    }
     if (path === '/rest/v1/portfolio') {
       if (method === 'GET') return rows(db.captions.filter((c) => !eq('user_id') || c.user_id === eq('user_id')));
       if (!isVerified(me) || String(body.path || '').split('/')[0] !== me) return refuse(route, 'portfolio captions: refused');

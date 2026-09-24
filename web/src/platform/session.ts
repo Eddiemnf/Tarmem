@@ -12,6 +12,8 @@ import { setTrackContext, track } from './track';
 
 export interface BidRow { id: string; project_id: string; contractor_id: string; price: number; days: number; note: string | null; details: Record<string, unknown>; status: 'submitted' | 'withdrawn' | 'chosen'; created_at: string }
 export interface AgreementRow { project_id: string; bid_id: string; homeowner_id: string; contractor_id: string; amount: number; days: number; homeowner_name: string; homeowner_signed_at: string; contractor_name: string | null; contractor_signed_at: string | null }
+/** A change request on a signed project (supabase/027): proposed by one side, applied once the other approves. */
+export interface ChangeRow { id: number; project_id: string; code: string; by_side: 'ho' | 'co'; description: string; amount: number; days: number; ho_ok_at: string | null; co_ok_at: string | null; applied_at: string | null; created_at: string }
 export interface StageRow { project_id: string; idx: number; status: 'pending' | 'submitted' | 'released' | 'disputed' }
 export interface Bidder { user_id: string; company: string; city: string; trades: string[]; since: string; rating?: number | null; reviews?: number | null; done?: number | null; bio?: string | null }
 export interface PublicReview { contractor_id: string; stars: number; body: string; created_at: string; reviewer: string }
@@ -26,6 +28,8 @@ export interface Account {
   agreements: AgreementRow[];
   /** Stages exist for every awarded project, but nothing moves until the owner switches payments on in the database. */
   stages: StageRow[];
+  /** Change requests on this person's signed projects (supabase/027; none before it). */
+  changes: ChangeRow[];
   paymentsLive: boolean;
   /** The owner has switched WhatsApp updates on in the database (supabase/013): the settings page shows the designed card. */
   whatsappLive: boolean;
@@ -92,6 +96,9 @@ function failure(error: { message?: string; status?: number; code?: string } | n
   if (/rate limit|too many|over_request|over_email/.test(text) || error?.status === 429) return 'rate';
   if (/pwned|known to be weak|easy to guess/.test(text)) return 'pwned'; // Supabase's leaked-password check (Pro)
   if (/weak_password|password should/.test(text)) return 'password';
+  if (/leave its limits/.test(text)) return 'crLimits';
+  if (/too many change requests/.test(text)) return 'crTooMany';
+  if (/once both parties have signed|no longer takes changes/.test(text)) return 'crNotYet';
   if (/invalid.*email|email_address_invalid|validation_failed/.test(text)) return 'email';
   if (/only homeowners/.test(text)) return 'notHomeowner';
   if (/open projects/.test(text)) return 'tooMany';
@@ -365,12 +372,13 @@ async function loadAgreements(): Promise<AgreementRow[]> {
 }
 
 /** (empty, and off, until 007 has been run) */
-async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | 'whatsappLive' | 'otpLive' | 'reviews' | 'wallet' | 'payout' | 'standing' | 'performance'>> {
-  if (!supabase) return { stages: [], paymentsLive: false, whatsappLive: false, otpLive: false, reviews: [], wallet: [], payout: null, standing: null, performance: null };
+async function loadStages(): Promise<Pick<Account, 'stages' | 'changes' | 'paymentsLive' | 'whatsappLive' | 'otpLive' | 'reviews' | 'wallet' | 'payout' | 'standing' | 'performance'>> {
+  if (!supabase) return { stages: [], changes: [], paymentsLive: false, whatsappLive: false, otpLive: false, reviews: [], wallet: [], payout: null, standing: null, performance: null };
   const [flag, rows] = await Promise.all([
     supabase.from('platform_flags').select('key, enabled').in('key', ['payments_live', 'whatsapp_live', 'otp_live']),
     supabase.from('stages').select('project_id, idx, status').order('idx', { ascending: true }),
   ]);
+  const changes = await supabase.from('change_requests').select('*').order('id', { ascending: true }).then((r) => (r.error ? [] : (r.data as ChangeRow[]) || []), () => [] as ChangeRow[]);
   const { data: who } = await supabase.auth.getUser();
   const mine = who.user ? await supabase.from('reviews').select('*').or(`homeowner_id.eq.${who.user.id},contractor_id.eq.${who.user.id}`) : null;
   const flags = new Map(((flag.data as { key: string; enabled: boolean }[] | null) || []).map((f) => [f.key, f.enabled]));
@@ -381,7 +389,7 @@ async function loadStages(): Promise<Pick<Account, 'stages' | 'paymentsLive' | '
     live ? supabase.from('payout_accounts').select('holder, bank, iban').eq('user_id', who.user.id).maybeSingle() : null,
     supabase.from('verified_contractors').select('*').eq('user_id', who.user.id).maybeSingle(),
   ]) : [null, null, null];
-  return { stages: (rows.data as StageRow[]) || [], paymentsLive: live, whatsappLive: Boolean(flags.get('whatsapp_live')), otpLive: Boolean(flags.get('otp_live')), reviews: (mine?.data as ReviewRow[]) || [],
+  return { stages: (rows.data as StageRow[]) || [], changes, paymentsLive: live, whatsappLive: Boolean(flags.get('whatsapp_live')), otpLive: Boolean(flags.get('otp_live')), reviews: (mine?.data as ReviewRow[]) || [],
     wallet: (wallet?.data as WalletTxn[]) || [], payout: (payout?.data as PayoutAccount | null) || null, standing: (standing?.data as Bidder | null) || null, performance: perf };
 }
 
@@ -611,5 +619,27 @@ export async function loadInbox(): Promise<Result<Inbox>> {
       whatsapp: whatsapp.map((w) => ({ ...w, id: Number(w.id), account: w.profile_id ? String(owners.get(w.profile_id)?.full_name || '') || null : null })),
       sent: ((sent.data as Partial<SentRow>[] | null) || []).map((r) => ({ id: Number(r.id), at: String(r.at || ''), recipient: String(r.recipient || ''), template: String(r.template || ''), status: String(r.status || ''), detail: r.detail ?? null, channel: String(r.channel || 'email'), answer: r.answer ?? null, answer_code: r.answer_code ?? null, delivery: r.delivery ?? null, delivery_detail: r.delivery_detail ?? null })),
     } };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** Propose a change on a signed project (supabase/027): the other party is emailed and approves it on the project page. */
+export async function proposeChange(projectId: string, description: string, amount: number, days: number): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.rpc('change_request_create', { p_project: projectId, p_desc: description, p_amount: amount, p_days: days });
+    if (error) return { error: failure(error) };
+    await refreshAccount();
+    return { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** Approve the other party's change request: once both have, the project's value and days move by it. */
+export async function approveChange(id: number): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.rpc('change_request_approve', { p_id: id });
+    if (error) return { error: failure(error) };
+    await refreshAccount();
+    return { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }

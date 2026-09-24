@@ -409,32 +409,34 @@ export default function AdminPage({ vm }: { vm: VM }) {
             </div>
           </div>
 
-          <div className="card" style={{ marginTop: '20px', padding: '26px', gap: '14px' }}>
+          
+      {vm.an.gaCard ? (<><div className="card" style={{ marginTop: '20px', padding: '26px', gap: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
               <div style={{ maxWidth: '52ch' }}>
                 <h3 style={{ fontSize: '18px', color: '#1B1464' }}>{vm.t.admin.an.ga}</h3>
                 <p className="muted" style={{ fontSize: '13px', marginTop: '6px', lineHeight: '1.7' }}>{vm.t.admin.an.gaSub}</p>
               </div>
               
-      {vm.an.gaOn ? (<><span className="tag tag-g num">{vm.t.admin.an.gaOn} {vm.an.gaId}</span></>) : null}
-      
+        {vm.an.gaOn ? (<><span className="tag tag-g num">{vm.t.admin.an.gaOn} {vm.an.gaId}</span></>) : null}
+        
             </div>
             
-      {vm.an.gaOff ? (<>
+        {vm.an.gaOff ? (<>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <input className="input num" style={{ maxWidth: '280px', direction: 'ltr' }} value={vm.an.gaDraft} onChange={vm.setGa} placeholder={vm.t.admin.an.gaPh} aria-label={vm.t.admin.an.ga} />
                 <button className="btn btn-p" onClick={vm.connectGa}>{vm.t.admin.an.gaBtn}</button>
               </div>
               
-        {vm.an.gaErr ? (<><p style={{ fontSize: '12.5px', color: '#B3261E' }}>{vm.t.admin.an.gaErr}</p></>) : null}
-        
+          {vm.an.gaErr ? (<><p style={{ fontSize: '12.5px', color: '#B3261E' }}>{vm.t.admin.an.gaErr}</p></>) : null}
+          
               <p className="muted" style={{ fontSize: '12px' }}>{vm.t.admin.an.gaNote}</p>
             </>) : null}
-      
+        
             
-      {vm.an.gaOn ? (<><button className="btn btn-s btn-sm" style={{ alignSelf: 'flex-start' }} onClick={vm.disconnectGa}>{vm.t.admin.an.gaOff}</button></>) : null}
+        {vm.an.gaOn ? (<><button className="btn btn-s btn-sm" style={{ alignSelf: 'flex-start' }} onClick={vm.disconnectGa}>{vm.t.admin.an.gaOff}</button></>) : null}
+        
+          </div></>) : null}
       
-          </div>
         </>) : null}
     
         

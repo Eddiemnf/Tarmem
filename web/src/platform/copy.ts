@@ -25,6 +25,7 @@ export const PLATFORM_COPY = {
     err: {
       email: 'اكتب بريدًا إلكترونيًا صحيحًا.', password: 'كلمة المرور 8 أحرف على الأقل.',
       pwned: 'كلمة المرور هذه ظهرت في تسريبات بيانات سابقة على الإنترنت، فهي غير آمنة. اختر كلمة مرور أخرى.',
+      crLimits: 'بعد هذا التغيير تخرج قيمة المشروع عن حدودها (من 100 إلى 1,000,000 ريال).', crTooMany: 'على المشروع عشرة طلبات بانتظار الاعتماد. اعتمدوا بعضها أولًا.', crNotYet: 'تتاح طلبات التغيير بعد توقيع الطرفين للاتفاقية.',
       name: 'اكتب اسمك الكامل.', mobile: 'اكتب رقم جوال صحيحًا، مثل 0551234567.', agree: 'يلزم قبول الشروط وسياسة الخصوصية.',
       wrong: 'البريد أو كلمة المرور غير صحيحة.', exists: 'يوجد حساب بهذا البريد. سجّل دخولك بدلًا من ذلك.',
       mobileTaken: 'رقم الجوال هذا مسجّل لحساب آخر. سجّل الدخول إليه، أو استخدم رقمًا آخر.', passwordMatch: 'كلمتا المرور غير متطابقتين.',
@@ -44,6 +45,7 @@ export const PLATFORM_COPY = {
       : `مرحبًا ${person}، معك فريق ترميم.\nتم قبول طلب «${company}». لإكمال التسجيل أنشئ حسابك من صفحة انضمام المقاولين:\n${link.replace('/signin', '/join')}`,
     coPendingTitle: 'حسابك قيد التوثيق', coPendingNote: 'استلمنا طلبك وأنشأنا حسابك. يراجع فريق ترميم بياناتك ويتواصل معك على جوالك، وتصلك رسالة على بريدك فور تفعيل الحساب. بعدها تظهر لك المشاريع المفتوحة هنا.',
     choseNote: 'اخترت عرض «{co}». يتواصل فريق ترميم معك ومع المقاول لإتمام الاتفاقية وبدء العمل.', chosenNote: 'اختار صاحب المنزل عرضك. يتواصل معك فريق ترميم لإتمام الاتفاقية وبدء العمل.',
+    nextArrange: 'يتواصل معكما فريق ترميم لترتيب الدفعة الأولى وبدء العمل، والتفاصيل في تبويب الدفعات.',
     paySoonTitle: 'الدفع عبر الموقع قيد التفعيل', paySoonNote: 'وقّع الطرفان الاتفاقية، وهي محفوظة باسميكما وتاريخ التوقيع. يتواصل فريق ترميم معكما لترتيب الدفعة الأولى وبدء العمل. عند تفعيل الدفع عبر الموقع تُودَع الدفعات هنا وتُصرف مع اعتماد كل مرحلة.', refresh: 'تحديث',
     stagesAfterAward: 'تبدأ المراحل بعد إسناد المشروع إلى مقاول.',
     stagesSoon: 'تبدأ المراحل بعد ترتيب الدفعة الأولى. اعتماد المراحل وصرف دفعاتها عبر الموقع يُفعَّل مع الدفع.',
@@ -86,6 +88,7 @@ export const PLATFORM_COPY = {
     err: {
       email: 'Enter a valid email address.', password: 'The password needs at least 8 characters.',
       pwned: 'This password has appeared in a data breach elsewhere, so it is not safe. Choose a different one.',
+      crLimits: 'After this change the project’s value would leave its limits (100 to 1,000,000 riyals).', crTooMany: 'Ten change requests are already waiting on this project. Approve some first.', crNotYet: 'Change requests open once both parties have signed the agreement.',
       name: 'Enter your full name.', mobile: 'Enter a valid mobile number, like 0551234567.', agree: 'Please accept the Terms and the Privacy Policy.',
       wrong: 'The email or password is not right.', exists: 'An account with this email already exists. Sign in instead.',
       mobileTaken: 'This mobile number belongs to another account. Sign in to it, or use a different number.', passwordMatch: 'The two passwords do not match.',
@@ -105,6 +108,7 @@ export const PLATFORM_COPY = {
       : `Hello ${person}, this is the Tarmem team.\n${company}'s application is accepted. To finish, create your account on the contractor page:\n${link.replace('/signin', '/join')}`,
     coPendingTitle: 'Your account is being verified', coPendingNote: 'We have your application and your account is created. The Tarmem team reviews your details and contacts you on your mobile; you get an email the moment the account is live. Open projects then appear here.',
     choseNote: 'You chose the bid from {co}. The Tarmem team will contact you and the contractor to complete the agreement and start the work.', chosenNote: 'The homeowner chose your bid. The Tarmem team will contact you to complete the agreement and start the work.',
+    nextArrange: 'The Tarmem team will contact you both to arrange the first payment and the start of work; the Payments tab has the details.',
     paySoonTitle: 'Payment on the site is being set up', paySoonNote: 'Both sides have signed the agreement; it is saved with your names and the time of each signature. The Tarmem team will contact you both to arrange the first payment and start the work. Once payment on the site is live, payments are made here and released as each stage is approved.', refresh: 'Refresh',
     stagesAfterAward: 'Stages start once the project is awarded to a contractor.',
     stagesSoon: 'Stages start once the first payment is arranged. Approving stages and releasing their payments on the site goes live together with payment.',

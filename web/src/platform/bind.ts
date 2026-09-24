@@ -12,7 +12,7 @@ import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleL
 import { openWhatsAppTo } from '../launch/deliver';
 import { contractorRecord, runtimeData, setEveryone, toLogicProject } from './data';
 import { forgetHeldFiles, heldFile, listFiles, listPortfolio, uploadFile, type StoredFile } from './files';
-import { createProject, currentAccount, loadContractorReviews, onAccountChange, refreshAccount, saveBid, savePayoutAccount, saveReview, sendContact, signAgreement, walletRequest, withdrawProject, type AgreementRow, type BidRow, loadMessages, markMessagesRead, type MessageRow } from './session';
+import { createProject, currentAccount, loadContractorReviews, onAccountChange, refreshAccount, saveBid, savePayoutAccount, saveReview, sendContact, signAgreement, walletRequest, withdrawProject, type AgreementRow, type BidRow, type ChangeRow, loadMessages, markMessagesRead, type MessageRow } from './session';
 import { trackRoutes } from './track';
 
 const langOf = (state: LogicState): 'ar' | 'en' => (state.lang === 'en' ? 'en' : 'ar');
@@ -31,18 +31,40 @@ function agreementState(a: AgreementRow | undefined, cidOf: (userId: string) => 
   return { contractorId: cidOf(a.contractor_id), amount: a.amount, pending: null, ms: stages, sig: { ho, co: { name: a.contractor_name || '', at: a.contractor_signed_at.slice(0, 10) } }, agreementSaved: 'both' };
 }
 
+/** A signed project's change requests in the design's shape (supabase/027), and the value and days they have moved it to. */
+function changeState(a: AgreementRow | undefined, list: ChangeRow[]): LogicState {
+  if (!a?.contractor_signed_at) return { changes: [] };
+  let amount = a.amount, days = a.days, running = a.amount;
+  for (const c of list) if (c.applied_at) { amount += c.amount; days += c.days; }
+  const changes = list.map((c) => {
+    if (c.applied_at) running += c.amount;
+    return { id: c.code, dbId: c.id, by: c.by_side, desc: c.description, amount: c.amount, days: c.days, hoOk: Boolean(c.ho_ok_at), coOk: Boolean(c.co_ok_at),
+      applied: Boolean(c.applied_at), newTotal: c.applied_at ? running : amount + c.amount };
+  });
+  return { changes, amount, days };
+}
+
+/** The bell's read marks, kept per person in this browser: a notice read before a reload stays read. */
+const readKey = (id: string) => 'tarmem-notif-read-' + id;
+function readMarks(id: string | undefined): string[] {
+  if (!id) return [];
+  try { const v = JSON.parse(localStorage.getItem(readKey(id)) || '[]'); return Array.isArray(v) ? v.map(String) : []; } catch { return []; }
+}
+
 function accountState(): LogicState {
   const account = currentAccount();
   const contractor = account?.profile.role === 'contractor';
   return {
     user: account?.logicUser ?? null,
+    notifRead: readMarks(account?.profile.id),
     // a contractor's own bid is "c1"'s, exactly as they are "c1"; a homeowner sees each bidder under a short id
     projects: (account?.projects || []).map((row) => {
       const cidOf = (userId: string) => (contractor ? 'c1' : bidderId(userId));
       return { ...toLogicProject(row), bids: (account?.bids || []).filter((b) => b.project_id === row.id).map((b) => logicBid(b, cidOf(b.contractor_id))),
         ...agreementState((account?.agreements || []).find((a) => a.project_id === row.id), cidOf,
           // stages show only once the owner has switched payments on in the database; until then an awarded project has none to act on
-          account?.paymentsLive ? account.stages.filter((st) => st.project_id === row.id).sort((x, y) => x.idx - y.idx).map((st) => st.status) : []) };
+          account?.paymentsLive ? account.stages.filter((st) => st.project_id === row.id).sort((x, y) => x.idx - y.idx).map((st) => st.status) : []),
+        ...changeState((account?.agreements || []).find((a) => a.project_id === row.id), (account?.changes || []).filter((c) => c.project_id === row.id)) };
     }),
     // reviews already written, in the design's shape, so a reviewed project does not ask for another
     reviews: (account?.reviews || []).map((r) => ({ pid: account?.projects.find((p) => p.id === r.project_id)?.code, by: 'homeowner', stars: r.stars, text: r.body, date: r.created_at.slice(0, 10), saved: true })),
@@ -160,7 +182,16 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     if (!data || !isAdmin()) return;
     setEveryone(adminUsers(data));
     logic.D = runtimeData(currentAccount()?.profile ?? null);
-    put(adminLogicState(data));
+    const state = adminLogicState(data);
+    // a project opened from the console shows its bids, signatures and change requests, as its two parties see them
+    const firmOf = new Map(data.applications.filter((a) => (a as { user_id?: string | null }).user_id).map((a) => [(a as { user_id?: string | null }).user_id as string, 'A-' + a.id]));
+    const cidOf = (userId: string) => firmOf.get(userId) || bidderId(userId);
+    state.projects = (state.projects as LogicState[]).map((p) => {
+      const agreement = data.agreements.find((a) => a.project_id === p.dbId);
+      return { ...p, bids: data.bids.filter((b) => b.project_id === p.dbId && b.status !== 'withdrawn').map((b) => logicBid(b, cidOf(b.contractor_id))),
+        ...agreementState(agreement, cidOf), ...changeState(agreement, data.changes.filter((c) => c.project_id === p.dbId).sort((x, y) => x.id - y.id)) };
+    });
+    put(state);
   };
   const refreshAnalytics = async () => {
     const raw = await loadAnalytics(host.logic.state.anRange || 'week');
@@ -291,7 +322,10 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     const p = s.payout as LogicState;
     if (account.profile.role === 'contractor' && p?.saved && p.iban && p.iban !== (account.payout?.iban || '') && p.iban !== savedIban) {
       savedIban = p.iban;
-      void savePayoutAccount({ holder: p.holder, bank: p.bank, iban: p.iban });
+      void savePayoutAccount({ holder: p.holder, bank: p.bank, iban: p.iban }).then((result) => {
+        // the design shows "saved" at once; when the database refuses, the form opens again with the reason
+        if (!result.ok) { savedIban = ''; host.setLogicState((st) => ({ payout: { ...st.payout, saved: false, editing: true, error: PLATFORM_COPY[langOf(st)].err[result.error] } })); }
+      });
     }
   };
 
@@ -402,7 +436,16 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   const stopReviews = host.subscribe(saveNewReviews);
   const stopWallet = host.subscribe(saveWallet);
   const stopProfile = host.subscribe(loadProfileReviews);
+  let lastRead = '';
+  const stopRead = host.subscribe(() => {
+    const id = currentAccount()?.profile.id, marks = host.logic.state.notifRead;
+    if (!id || !Array.isArray(marks)) return;
+    const value = JSON.stringify(marks.slice(-300));
+    if (value === lastRead) return;
+    lastRead = value;
+    try { localStorage.setItem(readKey(id), value); } catch { /* private window: the marks last until the tab closes */ }
+  });
   loadProjectFiles();
   const stopTracking = trackRoutes(host);
-  return () => { stopAccount(); stopWatching(); stopFiles(); stopMessages(); stopBids(); stopSigning(); stopReviews(); stopWallet(); stopProfile(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
+  return () => { stopAccount(); stopWatching(); stopFiles(); stopMessages(); stopBids(); stopSigning(); stopReviews(); stopWallet(); stopProfile(); stopRead(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
 }

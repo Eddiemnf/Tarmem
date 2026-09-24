@@ -190,7 +190,11 @@ export default function ProjectPage({ vm }: { vm: VM }) {
               <tr><td className="muted">{vm.t.post.timing}</td><td>{vm.pj.timingLabel}</td></tr>
               <tr><td className="muted">{vm.t.ws.posted}</td><td>{vm.pj.posted}</td></tr>
               <tr><td className="muted">{vm.t.roles.contractor}</td><td>{vm.pj.contractorName}</td></tr>
-              <tr><td className="muted">{vm.t.hprofile.ownerOf}</td><td>{vm.launch && !vm.accounts ? null : (<a className="lnk" style={{ color: '#FF5A3C', fontWeight: '500' }} data-route="homeowner" data-id={vm.pj.ownerId} onClick={vm.go}>{vm.pj.ownerName}</a>)}</td></tr>
+              <tr><td className="muted">{vm.t.hprofile.ownerOf}</td><td>
+      {vm.pj.ownerLink ? (<>{vm.launch && !vm.accounts ? null : (<a className="lnk" style={{ color: '#FF5A3C', fontWeight: '500' }} data-route="homeowner" data-id={vm.pj.ownerId} onClick={vm.go}>{vm.pj.ownerName}</a>)}</>) : null}
+      
+      {vm.pj.ownerPlain ? (<>{vm.pj.ownerName}</>) : null}
+      </td></tr>
             </tbody></table>
           </div>
           <aside style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

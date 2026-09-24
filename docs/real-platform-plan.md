@@ -661,3 +661,35 @@ subscribed, and `subscribed_apps` lists the Tarmem app. At 13:57 the owner wrote
 https://www.tarmem.sa/privacy (privacy and data deletion) and /terms, replacing an empty privacy link and facebook.com
 placeholders. The app was then **published**: Meta's alert reads "Tarmem was switched to live mode on 24 Sep, 2026".
 Messages from every customer now reach the webhook, not only those from the app's admins.
+
+## The three-role audit, and what it fixed — 24 September 2026 (supabase/027)
+
+A walk through the site as a homeowner, a contractor and the team (56 screenshots), plus a check of every action in the
+design's logic against the database, found what only pretended to work:
+
+- **Change requests were browser-only** (the design's `crSubmit`/`crApprove`): the other party never saw them, and the
+  next refresh erased them. 027 adds `change_requests` with two functions. `change_request_create` is for either party of a
+  signed project: at most ten waiting, and the value must stay between 100 and 1,000,000 riyals. It emails the other side.
+  `change_request_approve` is for the other party: it applies the change, moves `projects.amount`, and emails the proposer.
+  The signed agreement is kept as signed; `change_total()` gives the current value. On the site (`changeVals`,
+  `changeState`), the project page lists them with who proposed, amount, days, status and the value after them.
+  17 database checks and three browser checks, including that the contractor sees the homeowner's request after signing in.
+- **The console showed awarded projects as "not assigned", 0 riyals,** and a project opened from it had no bids or
+  signatures: the team's view loaded none. It now loads every bid, agreement and change request (`loadAdminData`), so a
+  row shows its contractor and value, and opening it shows the project as its two parties see it (messages stay between
+  the two parties).
+- **"Connect Google Analytics"** saved the id in one browser and installed nothing: hidden on the real site (`an.gaCard`,
+  design and site). The console's figures are the site's own visit record.
+- **The "delays and refunds" tab** described automatic lateness records that do not exist yet: hidden until payments are
+  live.
+- **"Fund the project"** was asked of homeowners while payment on the site is off: in the bell, the dashboard's "waiting for
+  you" list and the project's "next step" card. While payments are off the next step now says the team arranges the first
+  payment.
+- **The bell forgot what was read** on every reload: the read marks are kept per person in the browser.
+- **The owner's name on a project** was a link that bounced contractors and the team back to their dashboard: it is a
+  link only for the homeowner, plain text for others (`pj.ownerLink`, design and site).
+- **Bank details said "saved" when the database refused them:** the form reopens with the reason.
+- **Checked and left as designed:** the contractor directory (`contractors`) and the assistant (`plan`) still lead to the
+  request form with the trade filled in, an early-access choice to switch on once there are more verified contractors;
+  and stages, funding, disputes, refunds and payouts wait for the payment gateway. There is no way yet to resolve a
+  dispute; it belongs to that work.
