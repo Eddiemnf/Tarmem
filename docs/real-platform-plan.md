@@ -693,3 +693,12 @@ design's logic against the database, found what only pretended to work:
   request form with the trade filled in, an early-access choice to switch on once there are more verified contractors;
   and stages, funding, disputes, refunds and payouts wait for the payment gateway. There is no way yet to resolve a
   dispute; it belongs to that work.
+
+**Second pass, same day (supabase/028, run on production):** the privacy policy now names the service providers
+(Vercel, Supabase in the EU, Resend, Meta) and how WhatsApp updates and messages are handled; the pricing page has an
+h1; the inbox names the change-request emails; and the bell's read marks are tested across a reload. The live
+database's 13 accounts all look like the owner's own tests (three with open test projects that real contractors can
+see), so they should be erased before launch from the console (Users → view → erase). That exposed an erasure gap, fixed
+in 028: `erase_account` now withdraws the person's open projects and waiting bids, and deletes their contractor
+application (matched by account or email), so an erased contractor no longer shows as verified. 8 local checks
+(`supabase/tests/local-erasure-cleanup.mjs`); 022's 38 still pass.
