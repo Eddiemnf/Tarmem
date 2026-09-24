@@ -580,3 +580,20 @@ The same file fixes what Supabase's advisors listed, without changing what anyon
 17 local checks (`supabase/tests/local-advisor-fixes.mjs`), including one that counts, for a visitor, two homeowners, a
 contractor and an admin, the rows of every table before and after (125 pairs, all unchanged). **Owner step:** run 025
 in the SQL editor; its last line should read 0, 0, 0, 0.
+
+## Leaked passwords refused, and links on tarmem.sa — 24 September 2026
+
+- **Leaked passwords (done):** Supabase → Authentication → Sign In / Providers → Email: "Prevent use of leaked
+  passwords" is on (HaveIBeenPwned, a Pro feature), and the minimum password length is 8, as the site already asked.
+  Supabase answers such a password with `weak_password` / "known to be weak"; the site now says the password appeared
+  in a data breach and asks for another (sign-up, the contractor form, the reset page), instead of "at least 8
+  characters". Two platform checks cover it.
+- **Links on tarmem.sa (waiting on the owner):** the Custom Domain add-on costs $10 a month, billed at the end of the
+  cycle and prorated by the hour. Enabling it was refused to me as a domain change, so the owner presses **Confirm** in
+  Settings → Add-ons → Custom domain. Then, in order:
+  1. Settings → General → Custom domains: `api.tarmem.sa`.
+  2. At T2: CNAME `api` → `rdqlnsqdmaosghpxexup.supabase.co`, plus the TXT record Supabase shows (certificate check).
+  3. Verify, then Activate in Supabase. The old address keeps working.
+  4. `insert into public.app_secrets (key, value) values ('supabase_url', 'https://api.tarmem.sa') on conflict (key) do
+     update set value = excluded.value;` so `auth_send_email()` (024) builds its links on api.tarmem.sa. The site itself
+     can stay on the supabase.co address.
