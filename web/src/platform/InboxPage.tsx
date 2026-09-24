@@ -35,7 +35,13 @@ const EVENT_LABELS: Record<string, [string, string]> = {
   project_posted: ['نشر المشروع', 'Project posted'], new_bid: ['عطاء جديد', 'New bid'], agreement_accepted: ['قبول العطاء', 'Bid accepted'],
   agreement_signed: ['توقيع الاتفاقية', 'Agreement signed'], application_verified: ['توثيق الحساب', 'Account verified'], stage_submitted: ['تقديم مرحلة', 'Stage submitted'],
   stage_released: ['اعتماد مرحلة', 'Stage approved'], stage_disputed: ['ملاحظة على مرحلة', 'Stage issue'], wa_test: ['رسالة تجريبية', 'Test message'], contact_receipt: ['إيصال رسالة', 'Message receipt'],
+  case_reply: ['رد على رسالة', 'Reply to a message'], password_changed: ['تغيير كلمة المرور', 'Password changed'], otp: ['رمز التحقق', 'Verification code'],
+  // Supabase's sign-in emails, sent by the database since 024 (template 'auth_<kind>')
+  auth_recovery: ['إعادة تعيين كلمة المرور', 'Password reset'], auth_signup: ['تأكيد البريد', 'Email confirmation'], auth_magiclink: ['رابط الدخول', 'Sign-in link'],
+  auth_invite: ['دعوة', 'Invitation'], auth_email_change: ['تغيير البريد', 'Email change'], auth_reauthentication: ['رمز التحقق', 'Verification code'],
 };
+const eventLabel = (template: string): [string, string] | undefined =>
+  EVENT_LABELS[template] || (template.startsWith('auth_') ? ['بريد الدخول', 'Sign-in email'] : undefined);
 /** One line about what happened to a message, in the team's language: the provider's answer where it has arrived, our own reason otherwise. */
 function outcome(r: SentRow, ar: boolean): { text: string; cls: string } {
   const provider = r.channel === 'whatsapp' ? 'Meta' : 'Resend';
@@ -128,7 +134,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
         <H>{`${ar ? 'الرسائل المرسلة' : 'Messages sent'} (${inbox.sent.length})`}</H>
         <p className="muted" style={{ fontSize: '12.5px', margin: '-4px 0 10px' }}>{ar ? 'كل بريد وكل رسالة واتساب أرسلها الموقع، وما ردّ به المزوّد عليها.' : 'Every email and WhatsApp the site sent, and what the provider answered.'}</p>
         <div className="card sent-log" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
-          {inbox.sent.map((r) => { const o = outcome(r, ar); const ev = EVENT_LABELS[r.template]; return (
+          {inbox.sent.map((r) => { const o = outcome(r, ar); const ev = eventLabel(r.template); return (
             <tr key={r.id}>
               <td style={cell} className="num"><span className="muted">{when(r.at)}</span><br /><span className="tag tag-n">{r.channel === 'whatsapp' ? 'WhatsApp' : ar ? 'بريد' : 'Email'}</span></td>
               <td style={cell}><strong style={{ color: '#1B1464' }}>{ev ? (ar ? ev[0] : ev[1]) : r.template}</strong><br /><span className="num" dir="ltr">{r.recipient === 'meta' ? '' : r.recipient}</span></td>

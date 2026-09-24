@@ -543,3 +543,18 @@ need only the legal name and address on the document (the commercial registratio
 carries Meta's domain-verification meta tag (`web/index.html`), so www.tarmem.sa can be verified with one click in
 Business settings → Domains, and the wizard can use "Domain verification" as the connection method. The document upload
 (the CR) stays the owner's.
+
+## Password-reset emails reach customers — 24 September 2026 (supabase/024)
+
+Supabase's built-in mailer sends its own emails (reset password, confirm email, sign-in links, codes) only to the
+project team's addresses and at most two an hour, so a customer's "forgot password" never arrived. 024 adds
+`auth_send_email(event)`, switched on as the **Send Email** Auth Hook (Authentication → Auth Hooks → Postgres →
+`public.auth_send_email`): Supabase hands the database the user and the email's data, and the database sends it with
+`send_email()` like every other message — from alerts@tarmem.sa through Resend, in the person's language, greeting them
+by first name, reply-to support@tarmem.sa, logged in `email_log` as `auth_<kind>` (the inbox names them). The button
+opens Supabase's `/auth/v1/verify` link, which signs the person in for recovery and returns them to /signin, where the
+site opens /reset-password. Security notices (`*_notification`) are skipped because 021 already emails "your password
+was changed". With the hook on, the project's email limit is 30 an hour (Authentication → Rate Limits). Checked live on
+24 September: the Arabic reset email arrived in the Gmail inbox, and its link answered 303 to /signin with a recovery
+session. 17 local checks (`supabase/tests/local-auth-emails.mjs`). No SMTP settings or new keys are needed: the Resend key
+already stored for 010 does the sending.
