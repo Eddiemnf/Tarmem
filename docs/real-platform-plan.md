@@ -558,3 +558,25 @@ was changed". With the hook on, the project's email limit is 30 an hour (Authent
 24 September: the Arabic reset email arrived in the Gmail inbox, and its link answered 303 to /signin with a recovery
 session. 17 local checks (`supabase/tests/local-auth-emails.mjs`). No SMTP settings or new keys are needed: the Resend key
 already stored for 010 does the sending.
+
+## While waiting for Meta: the WhatsApp test's value, and Supabase's advisors — 24 September 2026 (supabase/025)
+
+A look at the live database first: 315 page views and 8 sign-ups in the week; 8 homeowners, 4 contractors, 3 open
+projects; no browser errors from visitors and no failed emails in 14 days. The only failures were WhatsApp tests, and
+three of them were a real bug: `whatsapp_test()` (023) sent `tarmem_wa_test_2` without its one body value (the number),
+so Meta answered "(#132000) Number of parameters does not match". Every test would still fail that way once Meta lifts
+the block. 016 had passed the number; 023 kept 014's empty list. 025 puts the value back.
+
+The same file fixes what Supabase's advisors listed, without changing what anyone may read or write:
+- **Security (60 warnings):** trigger functions can no longer be called through the API (triggers still run: a trigger
+  does not need its caller's permission), `can_message()` needs a signed-in caller, and the nine helpers without a fixed
+  search_path get one.
+- **Speed (24 warnings, 13 suggestions):** row rules read the signed-in person once per query (`(select auth.uid())`),
+  and every foreign key gets an index.
+- **Left on purpose:** the two public views run as their owner (signed-in readers see a few public columns),
+  `is_admin()`, `my_role()` and `mobile_taken()` stay callable before sign-in, the portfolio bucket stays listable (profiles
+  list photos from storage), and pg_net stays where Supabase put it.
+
+17 local checks (`supabase/tests/local-advisor-fixes.mjs`), including one that counts, for a visitor, two homeowners, a
+contractor and an admin, the rows of every table before and after (125 pairs, all unchanged). **Owner step:** run 025
+in the SQL editor; its last line should read 0, 0, 0, 0.
