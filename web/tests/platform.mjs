@@ -441,6 +441,15 @@ await page.locator('#au-email').fill('sara@example.com');
 await page.locator('#au-password').fill('long-enough-1');
 await submit.click();
 await settle(900);
+// the bell's read marks survive a reload (they used to come back on every visit)
+if (await page.locator('.bell-b').count()) {
+  await page.locator('button.bell').click(); await settle(200);
+  await page.locator('button.lnkbtn', { hasText: 'تعليم الكل كمقروء' }).first().click().catch(() => 0); await settle(200);
+  if (await page.locator('.acctveil').count()) await page.locator('.acctveil').first().click({ force: true });
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForSelector('header'); await settle(900);
+  check('notices marked read stay read after a reload', (await page.locator('.bell-b').count()) === 0);
+} else check('a new bid shows in the bell as unread', false);
+
 await open('project/P-9001');
 await page.locator('[role="tab"][data-tab="bids"]').click();
 await settle(400);

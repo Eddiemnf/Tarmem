@@ -40,6 +40,8 @@ const EVENT_LABELS: Record<string, [string, string]> = {
   auth_recovery: ['إعادة تعيين كلمة المرور', 'Password reset'], auth_signup: ['تأكيد البريد', 'Email confirmation'], auth_magiclink: ['رابط الدخول', 'Sign-in link'],
   auth_invite: ['دعوة', 'Invitation'], auth_email_change: ['تغيير البريد', 'Email change'], auth_reauthentication: ['رمز التحقق', 'Verification code'],
   // WhatsApp replies (026): a customer's message emailed to the team, our automatic answer, and Meta's calls that failed their check
+  // change requests (027): the other party is told of a proposal, the proposer of its approval
+  change_request: ['طلب تغيير', 'Change request'], change_applied: ['اعتماد طلب تغيير', 'Change request approved'],
   wa_inbound: ['رسالة واتساب من عميل', 'WhatsApp from a customer'], wa_autoreply: ['رد تلقائي على واتساب', 'WhatsApp auto-reply'], wa_webhook: ['اتصال من Meta', 'Call from Meta'],
 };
 const eventLabel = (template: string): [string, string] | undefined =>
