@@ -657,7 +657,7 @@ and two platform checks for the inbox.
 both subscriptions, verifying the callback address on the way. Meta's health report no longer says the app isn't
 subscribed, and `subscribed_apps` lists the Tarmem app. At 13:57 the owner wrote «تجربة» to +966 53 450 7400. It was kept
 (matched to his account), emailed to support (accepted), and answered; the reply's updates arrived two seconds later
-(sent → delivered → read) and the log shows it read. Still to do: the app is **Unpublished**, and Meta says some
-webhooks are not sent in Dev mode (the owner is an app admin, so his own messages arrive either way). Its Basic
-settings still have no privacy link and facebook.com as terms and data-deletion links; saving
-tarmem.sa/privacy, /terms and /privacy there is the only requirement the Publish page lists.
+(sent → delivered → read) and the log shows it read. At the owner's request the app's Basic settings now link
+https://www.tarmem.sa/privacy (privacy and data deletion) and /terms, replacing an empty privacy link and facebook.com
+placeholders. The app was then **published**: Meta's alert reads "Tarmem was switched to live mode on 24 Sep, 2026".
+Messages from every customer now reach the webhook, not only those from the app's admins.
