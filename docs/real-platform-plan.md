@@ -592,9 +592,10 @@ still gets the sign-up number check, and still cannot call trigger functions or 
   Supabase answers such a password with `weak_password` / "known to be weak"; the site now says the password appeared
   in a data breach and asks for another (sign-up, the contractor form, the reset page), instead of "at least 8
   characters". Two platform checks cover it.
-- **Links on tarmem.sa (waiting on the owner):** the Custom Domain add-on costs $10 a month, billed at the end of the
-  cycle and prorated by the hour. Enabling it was refused to me as a domain change, so the owner presses **Confirm** in
-  Settings → Add-ons → Custom domain. Then, in order:
+- **Links on tarmem.sa (postponed by the owner, 24 September):** not needed now; worth doing before a marketing push or
+  before adding Google/Apple sign-in, whose consent screens show this address. The Custom Domain add-on costs $10 a
+  month, billed at the end of the cycle and prorated by the hour; enabling it is the owner's click (Settings → Add-ons →
+  Custom domain → Confirm). Then, in order:
   1. Settings → General → Custom domains: `api.tarmem.sa`.
   2. At T2: CNAME `api` → `rdqlnsqdmaosghpxexup.supabase.co`, plus the TXT record Supabase shows (certificate check).
   3. Verify, then Activate in Supabase. The old address keeps working.
