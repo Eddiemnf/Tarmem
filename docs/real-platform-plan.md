@@ -578,8 +578,12 @@ The same file fixes what Supabase's advisors listed, without changing what anyon
   list photos from storage), and pg_net stays where Supabase put it.
 
 17 local checks (`supabase/tests/local-advisor-fixes.mjs`), including one that counts, for a visitor, two homeowners, a
-contractor and an admin, the rows of every table before and after (125 pairs, all unchanged). **Owner step:** run 025
-in the SQL editor; its last line should read 0, 0, 0, 0.
+contractor and an admin, the rows of every table before and after (125 pairs, all unchanged). **Run on 24 September**
+by the owner: "ready | 0 | 0 | 0 | 0". Advisors re-run afterwards: security 60 warnings → 31 (the two views' errors stay,
+on purpose; what is left is pg_net, the portfolio listing, and the functions people are meant to call, each checking
+who is calling); performance 24 warnings → 4 (several permissive rules on contractor_applications, portfolio and
+projects, harmless at this size); the suggestions are now unused indexes, expected on a young database. A visitor
+still gets the sign-up number check, and still cannot call trigger functions or can_message.
 
 ## Leaked passwords refused, and links on tarmem.sa — 24 September 2026
 
