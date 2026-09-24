@@ -652,3 +652,12 @@ no one, and we never learned whether a message was delivered. Now:
 
 Tests: 24 database checks (`supabase/tests/local-whatsapp-inbox.mjs`), 9 for the function (`web/tests/wa-webhook.mjs`),
 and two platform checks for the inbox.
+
+**Live on 24 September.** 026 ran at ~13:40. At 13:54 the owner saved the app secret, and Meta answered `{"success":true}` to
+both subscriptions, verifying the callback address on the way. Meta's health report no longer says the app isn't
+subscribed, and `subscribed_apps` lists the Tarmem app. At 13:57 the owner wrote «تجربة» to +966 53 450 7400. It was kept
+(matched to his account), emailed to support (accepted), and answered; the reply's updates arrived two seconds later
+(sent → delivered → read) and the log shows it read. Still to do: the app is **Unpublished**, and Meta says some
+webhooks are not sent in Dev mode (the owner is an app admin, so his own messages arrive either way). Its Basic
+settings still have no privacy link and facebook.com as terms and data-deletion links; saving
+tarmem.sa/privacy, /terms and /privacy there is the only requirement the Publish page lists.
