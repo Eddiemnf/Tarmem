@@ -37,6 +37,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
     const eq = (name) => (url.searchParams.get(name) || '').replace(/^eq\./, '');
     const path = url.pathname;
 
+    const leaked = { code: 422, error_code: 'weak_password', msg: 'Password is known to be weak and easy to guess, please choose a different one.', weak_password: { reasons: ['pwned'] } };
+    if ((path === '/auth/v1/signup' || path === '/auth/v1/user') && ['POST', 'PUT'].includes(method) && body?.password === 'password1234') return send(route, 422, leaked);
     if (path === '/auth/v1/signup' && method === 'POST') {
       if (db.users.some((u) => u.email === body.email)) return send(route, 422, { code: 422, error_code: 'user_already_exists', msg: 'User already registered' });
       const user = { id: `00000000-0000-4000-8000-${String(db.users.length + 1).padStart(12, '0')}`, email: body.email, password: body.password, data: body.data || {}, created_at: new Date().toISOString() };

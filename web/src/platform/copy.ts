@@ -24,6 +24,7 @@ export const PLATFORM_COPY = {
     confirmSent: 'أرسلنا رسالة تأكيد إلى بريدك. افتح الرابط الذي فيها ثم سجّل دخولك.',
     err: {
       email: 'اكتب بريدًا إلكترونيًا صحيحًا.', password: 'كلمة المرور 8 أحرف على الأقل.',
+      pwned: 'كلمة المرور هذه ظهرت في تسريبات بيانات سابقة على الإنترنت، فهي غير آمنة. اختر كلمة مرور أخرى.',
       name: 'اكتب اسمك الكامل.', mobile: 'اكتب رقم جوال صحيحًا، مثل 0551234567.', agree: 'يلزم قبول الشروط وسياسة الخصوصية.',
       wrong: 'البريد أو كلمة المرور غير صحيحة.', exists: 'يوجد حساب بهذا البريد. سجّل دخولك بدلًا من ذلك.',
       mobileTaken: 'رقم الجوال هذا مسجّل لحساب آخر. سجّل الدخول إليه، أو استخدم رقمًا آخر.', passwordMatch: 'كلمتا المرور غير متطابقتين.',
@@ -84,6 +85,7 @@ export const PLATFORM_COPY = {
     confirmSent: 'We sent a confirmation email. Open the link in it, then sign in.',
     err: {
       email: 'Enter a valid email address.', password: 'The password needs at least 8 characters.',
+      pwned: 'This password has appeared in a data breach elsewhere, so it is not safe. Choose a different one.',
       name: 'Enter your full name.', mobile: 'Enter a valid mobile number, like 0551234567.', agree: 'Please accept the Terms and the Privacy Policy.',
       wrong: 'The email or password is not right.', exists: 'An account with this email already exists. Sign in instead.',
       mobileTaken: 'This mobile number belongs to another account. Sign in to it, or use a different number.', passwordMatch: 'The two passwords do not match.',

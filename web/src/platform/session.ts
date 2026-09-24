@@ -90,6 +90,7 @@ function failure(error: { message?: string; status?: number; code?: string } | n
   if (/already registered|user_already_exists/.test(text)) return 'exists';
   if (/not confirmed|email_not_confirmed/.test(text)) return 'unconfirmed';
   if (/rate limit|too many|over_request|over_email/.test(text) || error?.status === 429) return 'rate';
+  if (/pwned|known to be weak|easy to guess/.test(text)) return 'pwned'; // Supabase's leaked-password check (Pro)
   if (/weak_password|password should/.test(text)) return 'password';
   if (/invalid.*email|email_address_invalid|validation_failed/.test(text)) return 'email';
   if (/only homeowners/.test(text)) return 'notHomeowner';
