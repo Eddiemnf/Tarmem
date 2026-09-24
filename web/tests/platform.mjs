@@ -365,12 +365,21 @@ check('nothing invented is left: no seeded strikes, refunds or affiliates', !(aw
 check("the team's own browsing is not counted as traffic", db.visits.length === before, `${before} → ${db.visits.length}`);
 db.emailLog = [
   { id: 3, at: '2026-09-24T07:05:00Z', recipient: 'sara@example.com', template: 'auth_recovery', status: 'sent', detail: null, channel: 'email', answer: 'accepted', answer_code: 200 },
-  { id: 2, at: '2026-09-23T09:10:00Z', recipient: '966551234567', template: 'new_bid', status: 'sent', detail: null, channel: 'whatsapp', answer: 'accepted', answer_code: 200 },
+  { id: 2, at: '2026-09-23T09:10:00Z', recipient: '966551234567', template: 'new_bid', status: 'sent', detail: null, channel: 'whatsapp', answer: 'accepted', answer_code: 200, delivery: 'read', delivery_detail: null },
   { id: 1, at: '2026-09-23T09:10:00Z', recipient: 'sara@example.com', template: 'new_bid', status: 'sent', detail: null, channel: 'email', answer: '(#131047) Re-engagement message', answer_code: 400 },
+];
+db.waInbox = [
+  { id: 7, at: '2026-09-24T10:02:00Z', from_number: '966551234567', name: 'Sara', kind: 'text', body: 'متى يبدأ العمل في المطبخ؟', profile_id: db.users[0].id, replied_at: '2026-09-24T10:02:02Z' },
+  { id: 6, at: '2026-09-24T09:40:00Z', from_number: '966500000099', name: 'John', kind: 'image', body: 'the wall after painting', profile_id: null, replied_at: null },
 ];
 await page.locator('[data-route="inbox"]').click();
 await settle(700);
-check('the plain contact list is still one click away, now with a browser-errors table', (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 5 && (await page.locator('.error-log').count()) === 1);
+check('the plain contact list is still one click away, now with a browser-errors table', (await pathname()) === '/inbox' && (await page.locator('main table').count()) === 6 && (await page.locator('.error-log').count()) === 1);
+const waText = (await page.locator('.wa-inbox').innerText().catch(() => '')).replace(/\s+/g, ' ');
+check('the WhatsApp messages customers send to the Tarmem number are listed: who (account or WhatsApp name), the words, a link to answer, and whether they were auto-replied',
+  (await page.locator('.wa-inbox tr').count()) === 2 && waText.includes('متى يبدأ العمل في المطبخ؟') && waText.includes('John') && waText.includes('صورة')
+  && (await page.locator('.wa-inbox a[href="https://wa.me/966500000099"]').count()) === 1 && (await page.locator('.wa-inbox .tag-g', { hasText: 'رد تلقائي' }).count()) === 1, waText.slice(0, 200));
+check('a WhatsApp Meta reports as read says so under its outcome', (await page.locator('.sent-log .tag-g', { hasText: 'قرأها' }).count()) === 1);
 check('the inbox asks the database for the providers\u2019 answers, then lists every message sent with its outcome', db.reconciled >= 1 && (await page.locator('.sent-log tr').count()) === 3
   && (await page.locator('.sent-log .tag-g', { hasText: 'Meta' }).count()) === 1 && (await page.locator('.sent-log .tag-p', { hasText: 'Re-engagement' }).count()) === 1, String(await page.locator('.sent-log').innerText()).slice(0, 200));
 check('…including the password-reset emails the database now sends for Supabase, by name and with Resend\u2019s answer', (await page.locator('.sent-log tr', { hasText: 'إعادة تعيين كلمة المرور' }).locator('.tag-g', { hasText: 'Resend' }).count()) === 1

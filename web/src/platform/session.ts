@@ -561,7 +561,12 @@ export async function markMessagesRead(projectId: string, contractorId: string):
 }
 
 /** One line of the delivery log: an email or a WhatsApp the database sent, and what the provider answered (supabase/018). */
-export interface SentRow { id: number; at: string; recipient: string; template: string; status: string; detail: string | null; channel: string; answer: string | null; answer_code: number | null }
+export interface SentRow { id: number; at: string; recipient: string; template: string; status: string; detail: string | null; channel: string; answer: string | null; answer_code: number | null;
+  /** What Meta reported after sending a WhatsApp: delivered, read, or failed with its reason (supabase/026). */
+  delivery: string | null; delivery_detail: string | null }
+
+/** A WhatsApp message a customer sent to the Tarmem number (supabase/026). */
+export interface WaInboxRow { id: number; at: string; from_number: string; name: string | null; kind: string; body: string | null; profile_id: string | null; replied_at: string | null }
 
 export interface Inbox {
   projects: (ProjectRow & { owner: Pick<Profile, 'full_name' | 'mobile' | 'email' | 'city'> | null; bids: (BidRow & { company: string; mobile: string })[] })[];
@@ -571,6 +576,8 @@ export interface Inbox {
   sent: SentRow[];
   /** Browser errors visitors hit, newest first (supabase/022). */
   errors: { at: string; route: string; path: string; device: string; detail: string }[];
+  /** WhatsApp messages customers sent to the Tarmem number, newest first (supabase/026; empty before it). */
+  whatsapp: (WaInboxRow & { account: string | null })[];
 }
 
 /** Everything that has arrived, for the team. The database returns rows only to an admin. */
@@ -591,6 +598,8 @@ export async function loadInbox(): Promise<Result<Inbox>> {
     const bids = ((await supabase.from('bids').select('*').neq('status', 'withdrawn')).data as BidRow[]) || []; // empty until 005 has been run
     const errors = await supabase.from('visits').select('created_at, route, path, device, detail').eq('event', 'error').order('created_at', { ascending: false }).limit(50)
       .then((r) => (r.error ? [] : (r.data || []).map((v) => ({ at: String(v.created_at), route: String(v.route), path: String(v.path), device: String(v.device), detail: String(v.detail || '') }))), () => []);
+    const whatsapp = await supabase.from('wa_inbox').select('id, at, from_number, name, kind, body, profile_id, replied_at').order('at', { ascending: false }).limit(100)
+      .then((r) => (r.error ? [] : ((r.data || []) as WaInboxRow[])), () => [] as WaInboxRow[]);
     const firm = new Map((applications.data || []).filter((a) => a.user_id).map((a) => [a.user_id as string, a]));
     const owners = new Map((profiles.data || []).map((p) => [p.id as string, p]));
     return { ok: {
@@ -599,7 +608,8 @@ export async function loadInbox(): Promise<Result<Inbox>> {
         bids: bids.filter((b) => b.project_id === p.id).map((b) => ({ ...b, company: String(firm.get(b.contractor_id)?.company || '—'), mobile: String(firm.get(b.contractor_id)?.mobile || '') })),
       })),
       messages: messages.data || [], applications: applications.data || [], errors,
-      sent: ((sent.data as Partial<SentRow>[] | null) || []).map((r) => ({ id: Number(r.id), at: String(r.at || ''), recipient: String(r.recipient || ''), template: String(r.template || ''), status: String(r.status || ''), detail: r.detail ?? null, channel: String(r.channel || 'email'), answer: r.answer ?? null, answer_code: r.answer_code ?? null })),
+      whatsapp: whatsapp.map((w) => ({ ...w, id: Number(w.id), account: w.profile_id ? String(owners.get(w.profile_id)?.full_name || '') || null : null })),
+      sent: ((sent.data as Partial<SentRow>[] | null) || []).map((r) => ({ id: Number(r.id), at: String(r.at || ''), recipient: String(r.recipient || ''), template: String(r.template || ''), status: String(r.status || ''), detail: r.detail ?? null, channel: String(r.channel || 'email'), answer: r.answer ?? null, answer_code: r.answer_code ?? null, delivery: r.delivery ?? null, delivery_detail: r.delivery_detail ?? null })),
     } };
   } catch (e) { return { error: failure(e as Error) }; }
 }

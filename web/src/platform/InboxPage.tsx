@@ -39,13 +39,15 @@ const EVENT_LABELS: Record<string, [string, string]> = {
   // Supabase's sign-in emails, sent by the database since 024 (template 'auth_<kind>')
   auth_recovery: ['إعادة تعيين كلمة المرور', 'Password reset'], auth_signup: ['تأكيد البريد', 'Email confirmation'], auth_magiclink: ['رابط الدخول', 'Sign-in link'],
   auth_invite: ['دعوة', 'Invitation'], auth_email_change: ['تغيير البريد', 'Email change'], auth_reauthentication: ['رمز التحقق', 'Verification code'],
+  // WhatsApp replies (026): a customer's message emailed to the team, our automatic answer, and Meta's calls that failed their check
+  wa_inbound: ['رسالة واتساب من عميل', 'WhatsApp from a customer'], wa_autoreply: ['رد تلقائي على واتساب', 'WhatsApp auto-reply'], wa_webhook: ['اتصال من Meta', 'Call from Meta'],
 };
 const eventLabel = (template: string): [string, string] | undefined =>
   EVENT_LABELS[template] || (template.startsWith('auth_') ? ['بريد الدخول', 'Sign-in email'] : undefined);
 /** One line about what happened to a message, in the team's language: the provider's answer where it has arrived, our own reason otherwise. */
 function outcome(r: SentRow, ar: boolean): { text: string; cls: string } {
   const provider = r.channel === 'whatsapp' ? 'Meta' : 'Resend';
-  if (r.recipient === 'meta') return { text: r.status === 'submitted' ? (ar ? `قالب مُرسل للمراجعة (${r.detail || ''})` : `template submitted for review (${r.detail || ''})`) : (ar ? 'قالب محذوف' : 'template deleted'), cls: 'tag-n' };
+  if (r.recipient === 'meta' && r.template !== 'wa_webhook') return { text: r.status === 'submitted' ? (ar ? `قالب مُرسل للمراجعة (${r.detail || ''})` : `template submitted for review (${r.detail || ''})`) : (ar ? 'قالب محذوف' : 'template deleted'), cls: 'tag-n' };
   if (r.status === 'sent' && r.answer === 'accepted') return { text: ar ? `قبلها ${provider}` : `accepted by ${provider}`, cls: 'tag-g' };
   if (r.status === 'sent' && r.answer) return { text: ar ? `رفضها ${provider}: ${r.answer}` : `refused by ${provider}: ${r.answer}`, cls: 'tag-p' };
   if (r.status === 'sent') return { text: ar ? 'أُرسلت، بانتظار رد المزوّد' : 'sent, awaiting the provider\u2019s answer', cls: 'tag-n' };
@@ -54,6 +56,15 @@ function outcome(r: SentRow, ar: boolean): { text: string; cls: string } {
   if (r.status === 'throttled') return { text: ar ? `أُوقفت مؤقتًا: ${r.detail || ''}` : `throttled: ${r.detail || ''}`, cls: 'tag-p' };
   return { text: ar ? `فشلت: ${r.detail || ''}` : `failed: ${r.detail || ''}`, cls: 'tag-p' };
 }
+/** What Meta reported after a WhatsApp went out (supabase/026). */
+const DELIVERY: Record<string, [string, string, string]> = {
+  sent: ['في الطريق', 'on its way', 'tag-n'], delivered: ['وصلت إلى هاتفه', 'delivered', 'tag-g'], read: ['قرأها', 'read', 'tag-g'], failed: ['لم تصل', 'not delivered', 'tag-p'],
+};
+const WA_KIND: Record<string, [string, string]> = {
+  text: ['نص', 'Text'], image: ['صورة', 'Photo'], video: ['فيديو', 'Video'], audio: ['رسالة صوتية', 'Voice note'], document: ['ملف', 'File'], sticker: ['ملصق', 'Sticker'],
+  location: ['موقع', 'Location'], contacts: ['جهة اتصال', 'Contact'], reaction: ['تفاعل', 'Reaction'], button: ['زر', 'Button'], interactive: ['اختيار', 'Choice'],
+};
+const prettyWa = (n: string) => (/^9665\d{8}$/.test(n) ? `+966 ${n.slice(3, 5)} ${n.slice(5, 8)} ${n.slice(8)}` : `+${n}`);
 
 export default function InboxPage({ vm }: { vm: VM }) {
   const ar = vm.dir !== 'ltr';
@@ -119,6 +130,19 @@ export default function InboxPage({ vm }: { vm: VM }) {
           {!inbox.messages.length ? <tr><td style={cell} className="muted">{ar ? 'لا رسائل بعد.' : 'No messages yet.'}</td></tr> : null}
         </tbody></table></div>
 
+        <H>{`${ar ? 'رسائل واتساب من العملاء' : 'WhatsApp messages from customers'} (${inbox.whatsapp.length})`}</H>
+        <p className="muted" style={{ fontSize: '12.5px', margin: '-4px 0 10px' }}>{ar ? 'ما يكتبه العملاء إلى رقم ترميم للتحديثات. تصل كل رسالة بريدًا إلى الفريق، ويتلقى المرسل ردًا تلقائيًا مرة في اليوم. للرد عليه افتح المحادثة من رقمه.' : 'What customers write to the Tarmem updates number. Each message is emailed to the team, and the sender gets an automatic reply once a day. To answer, open the chat from their number.'}</p>
+        <div className="card wa-inbox" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
+          {inbox.whatsapp.map((w) => (
+            <tr key={w.id}>
+              <td style={cell} className="num"><span className="muted">{when(w.at)}</span><br /><span className="tag tag-n">{WA_KIND[w.kind] ? (ar ? WA_KIND[w.kind][0] : WA_KIND[w.kind][1]) : w.kind}</span></td>
+              <td style={cell}><strong style={{ color: '#1B1464' }}>{w.account || w.name || prettyWa(w.from_number)}</strong>{w.account && w.name ? <span className="muted"> · {w.name}</span> : null}<br />{w.body ? <span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{w.body}</span> : <span className="muted">{ar ? '(بلا نص)' : '(no text)'}</span>}</td>
+              <td style={cell}><a className="num" dir="ltr" href={`https://wa.me/${w.from_number}`} target="_blank" rel="noopener noreferrer">{prettyWa(w.from_number)}</a>{w.replied_at ? <><br /><span className="tag tag-g">{ar ? 'أُرسل له رد تلقائي' : 'auto-replied'}</span></> : null}</td>
+            </tr>
+          ))}
+          {!inbox.whatsapp.length ? <tr><td style={cell} className="muted">{ar ? 'لا رسائل واتساب بعد.' : 'No WhatsApp messages yet.'}</td></tr> : null}
+        </tbody></table></div>
+
         <H>{`${ar ? 'أخطاء المتصفح' : 'Browser errors'} (${inbox.errors.length})`}</H>
         <div className="card error-log" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.errors.map((e, i) => (
@@ -138,7 +162,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
             <tr key={r.id}>
               <td style={cell} className="num"><span className="muted">{when(r.at)}</span><br /><span className="tag tag-n">{r.channel === 'whatsapp' ? 'WhatsApp' : ar ? 'بريد' : 'Email'}</span></td>
               <td style={cell}><strong style={{ color: '#1B1464' }}>{ev ? (ar ? ev[0] : ev[1]) : r.template}</strong><br /><span className="num" dir="ltr">{r.recipient === 'meta' ? '' : r.recipient}</span></td>
-              <td style={cell}><span className={`tag ${o.cls}`}>{o.text}</span></td>
+              <td style={cell}><span className={`tag ${o.cls}`}>{o.text}</span>{r.delivery && DELIVERY[r.delivery] ? <><br /><span className={`tag ${DELIVERY[r.delivery][2]}`}>{ar ? DELIVERY[r.delivery][0] : DELIVERY[r.delivery][1]}{r.delivery === 'failed' && r.delivery_detail ? `: ${r.delivery_detail}` : ''}</span></> : null}</td>
             </tr>); })}
           {!inbox.sent.length ? <tr><td style={cell} className="muted">{ar ? 'لم يُرسل شيء بعد.' : 'Nothing sent yet.'}</td></tr> : null}
         </tbody></table></div>

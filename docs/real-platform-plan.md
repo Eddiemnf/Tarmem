@@ -621,3 +621,34 @@ passed business verification"). That is why `wa_submit_otp_template()` is refuse
 does not have permission to create message template", subcode 2388185): authentication templates need the verification.
 Re-run it once Meta approves. Meta also reports that the app is not subscribed to the message webhook, so replies
 customers send to the number reach no one; receiving them needs a small webhook receiver, which is not built yet.
+
+## WhatsApp replies reach the team — 24 September 2026 (supabase/026, api/wa-webhook.ts)
+
+Meta reported "Your app is not subscribed to the message webhook": anything a customer wrote to +966 53 450 7400 reached
+no one, and we never learned whether a message was delivered. Now:
+
+- **The address.** `api/wa-webhook.ts` is a small Vercel function at https://www.tarmem.sa/api/wa-webhook (vercel.json's
+  page fallback now skips `/api/`). GET answers Meta's handshake when the verify token is `tarmem-whatsapp-webhook`
+  (not a secret: it only lets Meta confirm the address). POST hands the raw body and Meta's `X-Hub-Signature-256` to
+  the database with the site's publishable key; it answers 200 once recorded, 401 for a bad signature, and 502/503 so
+  that Meta tries again when the database is unreachable or not configured yet.
+- **The lock.** `wa_webhook(raw, signature)` (026, callable by the site's key only) recomputes HMAC-SHA256 with the
+  app secret the owner saves in the database. `hmac_sha256()` is built on Postgres' own sha256, so no extension is
+  needed, and a local check compares it with Node's HMAC. A call that fails the check changes nothing and leaves one line
+  an hour in the log.
+- **A customer's message** goes into `wa_inbox`, once even if Meta resends it. It records the words, caption, button,
+  place or emoji, the WhatsApp name, and the Tarmem account with the same mobile. It is emailed to the team (`alert_to`)
+  and listed in the admin inbox with a wa.me link for answering from the business phone. It gets one automatic reply a
+  day per number, in the customer's language, saying it arrived and pointing to /contact. Reactions are kept but neither
+  emailed nor answered.
+- **Our own messages report back.** `wa_reconcile()` now keeps Meta's id for each accepted WhatsApp. Delivery updates
+  (`wa_statuses`) then land on the log row as sent, delivered, read, or failed with Meta's code and reason; an update
+  that arrives before Meta's answer waits and is applied later. The admin inbox shows it under each message.
+- **Erasure.** Erasing an account removes its WhatsApp messages (a trigger on `profiles.deleted_at`).
+- **The owner's one step.** In the SQL editor, run `select public.set_wa_app_secret('…');` with the App secret from
+  Meta for Developers → the Tarmem app → App settings → Basic. It saves the secret and asks Meta (`wa_setup_webhook()`)
+  for both subscriptions: the app's WhatsApp events to our address, field `messages`, using the app token
+  `app-id|secret`; and the WhatsApp account's events to the app (`subscribed_apps`).
+
+Tests: 24 database checks (`supabase/tests/local-whatsapp-inbox.mjs`), 9 for the function (`web/tests/wa-webhook.mjs`),
+and two platform checks for the inbox.

@@ -209,6 +209,7 @@ export async function installSupabaseMock(context, supabaseUrl) {
     if (path === '/rest/v1/rpc/my_performance' && method === 'POST') { if (!me) return refuse(route, 'sign in first'); return send(route, 200, { views: (db.visits || []).filter((v) => v.path === '/firm/co-' + String(me).slice(0, 8) && v.user_id !== me).length, bids: (db.bids || []).filter((b) => b.contractor_id === me && b.status !== 'withdrawn').length, won: (db.bids || []).filter((b) => b.contractor_id === me && b.status === 'chosen').length }); }
     if (path === '/rest/v1/rpc/mark_messages_read' && method === 'POST') { let n = 0; for (const r of db.messages || []) if (r.project_id === body.p_project && r.contractor_id === body.p_contractor && r.from_id !== me && !r.read_at) { r.read_at = new Date().toISOString(); n += 1; } return send(route, 200, n); }
     if (path === '/rest/v1/email_log') return rows(admin ? (db.emailLog || []) : []);
+    if (path === '/rest/v1/wa_inbox') return rows(admin ? (db.waInbox || []) : []);
     if (path === '/rest/v1/rpc/wa_reconcile' && method === 'POST') { if (!admin) return refuse(route, 'admins only'); db.reconciled = (db.reconciled || 0) + 1; return send(route, 200, 0); }
     if (path === '/rest/v1/rpc/whatsapp_test' && method === 'POST') {
       if (!me) return refuse(route, 'sign in first');
