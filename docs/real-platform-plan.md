@@ -613,3 +613,11 @@ now on every customer with a Saudi mobile gets their project updates on WhatsApp
 Settings; nothing goes between 23:00 and 08:00 Riyadh time except stage approvals and issues, which go at once.
 Still to do: the authentication template `tarmem_otp` never reached Meta (022 submitted it during the block); the owner
 runs `select public.wa_submit_otp_template();` and, once Meta approves it, decides on `select public.set_otp(true);`.
+
+**The WhatsApp account, as Meta describes it (24 September, 13:10, `supabase/check_whatsapp_health.sql`):** account
+review APPROVED; number +966 53 450 7400 quality GREEN, daily limit TIER_250 (250 different customers a day), display
+name "Tarmem" approved; business verification **pending**, so the business entity is LIMITED ("The Business has not
+passed business verification"). That is why `wa_submit_otp_template()` is refused ("This WhatsApp business account
+does not have permission to create message template", subcode 2388185): authentication templates need the verification.
+Re-run it once Meta approves. Meta also reports that the app is not subscribed to the message webhook, so replies
+customers send to the number reach no one; receiving them needs a small webhook receiver, which is not built yet.
