@@ -8,7 +8,7 @@ export default function PricingPage({ vm }: { vm: VM }) {
   return (<>
     <section className="wrap fade" style={{ paddingBlock: '64px 8px', maxWidth: '1000px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-        <h2 style={{ fontSize: '28px', color: '#1B1464' }}>{vm.t.pricing2.whoTitle}</h2>
+        <h1 style={{ fontSize: '28px', color: '#1B1464' }}>{vm.t.pricing2.whoTitle}</h1>
         <div className="seg" style={{ padding: '4px' }}>
           <label><input type="radio" name="prole" value="homeowner" checked={vm.prIsHo} onChange={vm.setPriceRole} />{vm.t.pricing2.iAmHo}</label>
           <label><input type="radio" name="prole" value="contractor" checked={vm.prIsCo} onChange={vm.setPriceRole} />{vm.t.pricing2.iAmCo}</label>
