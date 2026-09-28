@@ -239,7 +239,7 @@ en: {
     finRev:'Tarmem revenue', finRevSub:'Commission + service fees', finRealised:'Realised', finPipeline:'Projected from live projects', finTotal:'Realised + projected',
     finFlow:'Where the money is', finFlowSub:'Everything homeowners have paid, and where it sits right now.', finToCo:'To contractors', finToTm:'To Tarmem', finEscrow:'Held with the payment provider', finRevDetail:'Revenue detail',
     finBreak:'Where revenue comes from', finComm:'Contractor commission (9%)', finFees:'Homeowner service fees (1%)', finHeld:'Still held with the payment provider', finAvg:'Average project value', finProjNote:'Projected revenue assumes open projects are awarded at the midpoint of their budget range.', chk:{id:'Identity',cr:'Commercial reg.',pf:'Portfolio'}},
-  footer:{help:'Help centre', soon:'Coming soon', tag:'A Saudi platform connecting homeowners with verified contractors, from describing a project to handing it over.', platform:'Platform', how:'How it works', about:'About Tarmem', company:'Company', legal:'Legal', rights:'. All rights reserved.', join:'Join as a contractor', rules:'Dispute resolution', terms:'Terms and conditions', privacy:'Privacy policy', contact:'Contact us', note:'Fund-holding and payment services are provided through a licensed payment partner.'}
+  footer:{help:'Help centre', soon:'Coming soon', tag:'A Saudi platform connecting homeowners with verified contractors, from describing a project to handing it over.', platform:'Platform', how:'How it works', about:'About Tarmem', company:'Company', legal:'Legal', rights:'. All rights reserved.', join:'Join as a contractor', rules:'Refunds & disputes', terms:'Terms and conditions', privacy:'Privacy policy', contact:'Contact us', note:'Fund-holding and payment services are provided through a licensed payment partner.'}
 },
 ar: {
 
@@ -481,7 +481,7 @@ ar: {
     finRev:'إيرادات ترميم', finRevSub:'العمولة + رسوم الخدمة', finRealised:'محقّق', finPipeline:'متوقع من المشاريع الجارية', finTotal:'المحقّق + المتوقع',
     finFlow:'أين تقف الأموال', finFlowSub:'كل ما دفعه أصحاب المنازل، وموقعه الآن.', finToCo:'للمقاولين', finToTm:'لـ ترميم', finEscrow:'محفوظ لدى مزود الدفع', finRevDetail:'تفصيل الإيراد',
     finBreak:'مصادر الإيراد', finComm:'عمولة المقاولين (⁦9%⁩)', finFees:'رسوم خدمة أصحاب المنازل (⁦1%⁩)', finHeld:'ما زال محفوظًا لدى مزود الدفع', finAvg:'متوسط قيمة المشروع', finProjNote:'الإيراد المتوقع يفترض إسناد المشاريع المفتوحة بمتوسط نطاق ميزانيتها.', chk:{id:'الهوية',cr:'السجل التجاري',pf:'الأعمال'}},
-  footer:{help:'مركز المساعدة', soon:'قريباً', tag:'منصة سعودية تربط أصحاب المنازل بمقاولين موثوقين، من أول وصف للمشروع حتى الاستلام.', platform:'المنصة', how:'طريقة العمل', about:'عن ترميم', company:'الشركة', legal:'السياسات والدعم', rights:'. جميع الحقوق محفوظة.', join:'انضم كمقاول', rules:'حل الخلافات', terms:'الشروط والأحكام', privacy:'سياسة الخصوصية', contact:'تواصل معنا', note:'تُقدَّم خدمات الدفع وحفظ الأموال من خلال شريك دفع مرخّص.'}
+  footer:{help:'مركز المساعدة', soon:'قريباً', tag:'منصة سعودية تربط أصحاب المنازل بمقاولين موثوقين، من أول وصف للمشروع حتى الاستلام.', platform:'المنصة', how:'طريقة العمل', about:'عن ترميم', company:'الشركة', legal:'السياسات والدعم', rights:'. جميع الحقوق محفوظة.', join:'انضم كمقاول', rules:'الاسترداد وحل الخلافات', terms:'الشروط والأحكام', privacy:'سياسة الخصوصية', contact:'تواصل معنا', note:'تُقدَّم خدمات الدفع وحفظ الأموال من خلال شريك دفع مرخّص.'}
 }};
 
 export const BUDGETS = {
