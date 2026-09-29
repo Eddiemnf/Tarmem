@@ -5,8 +5,9 @@
 
    It signs up two throw-away homeowners (rls-test-…@tarmem.sa) and leaves them, one withdrawn
    project, one contact message and one application behind, all marked "RLS TEST". Delete them from
-   the Supabase dashboard when convenient (Authentication → Users; Table editor). It needs "Confirm
-   email" to be off, and refuses to run otherwise. */
+   the Supabase dashboard when convenient (Authentication → Users; Table editor). The signed-in part
+   needs "Confirm email" to be off; with it on, run with RLS_VISITOR_ONLY=1 (add RLS_NO_WRITES=1 to leave
+   no rows behind) and only the visitor checks run. */
 
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -23,9 +24,6 @@ const check = (name, ok, detail = '') => results.push(`${ok ? 'PASS' : 'FAIL'}  
 const denied = (r) => Boolean(r.error) || (Array.isArray(r.data) && r.data.length === 0) || r.data === null;
 const stamp = Date.now().toString(36);
 const project = { title: 'RLS TEST — please ignore', trade: 'kitchen', description: 'Automated security test.', city: 'riyadh', district: null, budget_min: 1000, budget_max: 2000, timing: 'flexible' };
-
-const settings = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } }).then((r) => r.json());
-if (!settings.mailer_autoconfirm) { console.log('"Confirm email" is still on (Authentication → Sign In / Providers → Email). Turn it off, then run this again.'); process.exit(2); }
 
 // 1 — a visitor who is not signed in
 const anon = client();
@@ -76,6 +74,17 @@ check('visitor: cannot record a payment', Boolean((await anon.rpc('mark_funded',
 const walletProbe = await anon.rpc('wallet_request', { p_type: 'deposit', p_amount: 1, p_method: 'mada' });
 check('008 is installed: wallet requests exist, and are closed to visitors', Boolean(walletProbe.error) && !/PGRST202|could not find/i.test(`${walletProbe.error?.code} ${walletProbe.error?.message}`), `${walletProbe.error?.code} ${walletProbe.error?.message}`);
 check('visitor: cannot read wallets, bank accounts, contractor profiles or reviews', denied(await anon.from('wallet_txns').select('*')) && denied(await anon.from('payout_accounts').select('*')) && denied(await anon.from('verified_contractors').select('*')) && denied(await anon.from('contractor_reviews').select('*')));
+// 1i — 029: a visitor calls only what the public pages need (is_admin, mobile_taken, wa_webhook)
+const helper = await anon.rpc('wa_template_specs');
+check('029 is installed: a visitor cannot call the internal helpers', Boolean(helper.error), helper.error ? `${helper.error.code} ${helper.error.message}` : 'answered');
+const takenProbe = await anon.rpc('mobile_taken', { p_mobile: '0500000000' });
+check('visitor: the sign-up form can still ask whether a mobile number is taken', !takenProbe.error && typeof takenProbe.data === 'boolean', takenProbe.error?.message);
+// 1j — 030: finishing a project, the console's status change and claiming an application exist, and are closed to visitors
+const NOBODY = '00000000-0000-4000-8000-000000000001';
+const doneProbe = await anon.rpc('homeowner_confirm_complete', { p_project: NOBODY });
+check('030 is installed: confirming completion exists, and is closed to visitors', Boolean(doneProbe.error) && !/PGRST202|could not find/i.test(`${doneProbe.error?.code} ${doneProbe.error?.message}`), `${doneProbe.error?.code} ${doneProbe.error?.message}`);
+check('visitor: cannot change a project\'s status, confirm completion as a contractor, or claim an application', Boolean((await anon.rpc('admin_set_project_status', { p_project: NOBODY, p_status: 'withdrawn' })).error)
+  && Boolean((await anon.rpc('contractor_confirm_complete', { p_project: NOBODY })).error) && Boolean((await anon.rpc('claim_my_application')).error));
 if (process.env.RLS_VISITOR_ONLY) {
   console.log(results.join('\n'));
   const bad = results.filter((r) => r.startsWith('FAIL')).length;
@@ -83,7 +92,9 @@ if (process.env.RLS_VISITOR_ONLY) {
   process.exit(bad ? 1 : 0);
 }
 
-// 2 — two homeowners
+// 2 — two homeowners (sign-ups need "Confirm email" off; with it on, run with RLS_VISITOR_ONLY=1)
+const settings = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } }).then((r) => r.json());
+if (!settings.mailer_autoconfirm) { console.log(results.join('\n')); console.log('\n"Confirm email" is on (Authentication → Sign In / Providers → Email), so no test accounts can be made: the visitor checks above ran; run with RLS_VISITOR_ONLY=1, or turn it off for a full run.'); process.exit(2); }
 async function homeowner(tag) {
   const c = client();
   const { data, error } = await c.auth.signUp({ email: `rls-test-${tag}-${stamp}@tarmem.sa`, password: `T3st-${stamp}-${tag}-${Math.random().toString(36).slice(2)}` });
@@ -121,10 +132,21 @@ check("homeowner: cannot add a photo under somebody else's id, or to somebody el
 check('homeowner: a file that is not an image or a PDF is refused by the storage service', Boolean((await a.c.storage.from('project-files').upload(`${a.id}/${posted.data?.id}/x.html`, new Blob(['<p>x</p>'], { type: 'text/html' }))).error));
 check('homeowner: can list and open their own photo', ((await a.c.storage.from('project-files').list(`${a.id}/${posted.data?.id}`)).data || []).length === 1 && Boolean((await a.c.storage.from('project-files').createSignedUrl(mineKey, 60)).data?.signedUrl));
 check("second homeowner: cannot list or open the first one's photo", ((await b.c.storage.from('project-files').list(`${a.id}/${posted.data?.id}`)).data || []).length === 0 && !(await b.c.storage.from('project-files').createSignedUrl(mineKey, 60)).data?.signedUrl);
-check('homeowner: cannot delete or overwrite a photo from the website', ((await a.c.storage.from('project-files').remove([mineKey])).data || []).length === 0 && Boolean((await a.c.storage.from('project-files').upload(mineKey, PIXEL, { upsert: true })).error));
+check('homeowner: cannot overwrite a photo from the website', Boolean((await a.c.storage.from('project-files').upload(mineKey, PIXEL, { upsert: true })).error));
+check("second homeowner: cannot delete the first one's photo", ((await b.c.storage.from('project-files').remove([mineKey])).data || []).length === 0);
+check('homeowner: can delete their own photo while the project is not in progress (029: "delete my account" clears files first)', ((await a.c.storage.from('project-files').remove([mineKey])).data || []).length === 1);
 const withdrawn = await a.c.from('projects').update({ status: 'withdrawn' }).eq('id', posted.data?.id);
 check('homeowner: can withdraw their own open project', !withdrawn.error && (await a.c.from('projects').select('status').eq('id', posted.data?.id).single()).data?.status === 'withdrawn', withdrawn.error?.message);
 check('homeowner: a withdrawn project cannot be edited or re-opened', (await a.c.from('projects').update({ status: 'open' }).eq('id', posted.data?.id).select('*')).data?.length !== 1);
+// 030: the lifecycle functions answer a homeowner with their own refusals
+const notAdmin = await a.c.rpc('admin_set_project_status', { p_project: posted.data?.id, p_status: 'completed' });
+const notActive = await a.c.rpc('homeowner_confirm_complete', { p_project: posted.data?.id });
+const notContractor = await a.c.rpc('claim_my_application');
+const notTheirs = await a.c.rpc('contractor_confirm_complete', { p_project: posted.data?.id });
+check('homeowner (030): cannot use the console\'s status change, cannot complete a withdrawn project, cannot confirm as its contractor, cannot claim an application',
+  /admins only/.test(notAdmin.error?.message || '') && /not_active|payments_on/.test(notActive.error?.message || '') && /only the project's contractor/.test(notTheirs.error?.message || '')
+  && /only a contractor account/.test(notContractor.error?.message || ''),
+  `${notAdmin.error?.message} | ${notActive.error?.message} | ${notTheirs.error?.message} | ${notContractor.error?.message}`);
 
 console.log(results.join('\n'));
 const failed = results.filter((r) => r.startsWith('FAIL')).length;
