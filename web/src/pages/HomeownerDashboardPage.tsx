@@ -55,11 +55,13 @@ export default function HomeownerDashboardPage({ vm }: { vm: VM }) {
               <tr className="row-h" style={{ cursor: 'pointer' }} data-route="project" data-id={p.id} onClick={vm.go}>
                 <td><div style={{ fontWeight: '600', color: '#1B1464' }}>{p.title}</div><div className="muted num" style={{ fontSize: '12.5px' }}>{p.cityLabel} · {p.budgetLabel}</div></td>
                 <td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td>
-                <td className="num">{p.bidCount}</td>
+                <td className="num" data-l={vm.t.hdash.bidsL}>{p.bidCount}</td>
                 <td style={{ minWidth: '130px' }}><div style={{ height: '5px', background: '#EEEDF5', borderRadius: '3px' }}><div style={{ height: '5px', borderRadius: '3px', background: 'linear-gradient(90deg,#FF8800,#FF4455)', width: `${p.pct}%` }}></div></div><div className="muted num" style={{ fontSize: '11.5px', marginTop: '4px' }}>{p.pct}%</div></td>
                 <td style={{ textAlign: 'end', color: '#FF5A3C' }}>→</td>
               </tr></React.Fragment>
     ))}
+    
+    {vm.noMyProjects ? (<><tr className="empty-row"><td colSpan={5} className="muted" style={{ whiteSpace: 'normal' }}>{vm.t.hdash.noProjects}</td></tr></>) : null}
     </tbody></table>
         </div>
         <aside style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -73,7 +75,7 @@ export default function HomeownerDashboardPage({ vm }: { vm: VM }) {
     {vm.noHActions ? (<><p className="muted" style={{ fontSize: '13.5px' }}>{vm.t.hdash.noActions}</p></>) : null}
     
           </div>
-          <div className="card"><span className="kick">{vm.t.hdash.saved}</span>
+          {vm.launch ? null : (<div className="card hd-saved"><span className="kick">{vm.t.hdash.saved}</span>
             
     {((vm.savedList) || []).map((c: any, _i0: number) => (
       <React.Fragment key={_i0}><div data-route="contractor" data-id={c.id} onClick={vm.go} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #EEEDF5', cursor: 'pointer', fontSize: '14px' }}><span style={{ fontWeight: '500' }}>{c.name}</span><span className="muted num">★ {c.rating}</span></div></React.Fragment>
@@ -82,7 +84,7 @@ export default function HomeownerDashboardPage({ vm }: { vm: VM }) {
             
     {vm.noSaved ? (<><p className="muted" style={{ fontSize: '13.5px' }}>{vm.t.hdash.noSaved}</p></>) : null}
     
-          </div>
+          </div>)}
         </aside>
       </div>
     </section>

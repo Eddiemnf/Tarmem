@@ -14,7 +14,7 @@ export default function TermsPage({ vm }: { vm: VM }) {
         
     {((vm.t.pages.terms) || []).map((c: any, _i0: number) => (
       <React.Fragment key={_i0}>
-          <div><h3 style={{ fontSize: '20px', color: '#1B1464', marginBottom: '8px' }}>{c.h}</h3><p style={{ fontSize: '15px', color: '#5B5A7A', lineHeight: '1.75' }}>{c.p}</p></div>
+          <div><h2 style={{ fontSize: '20px', color: '#1B1464', marginBottom: '8px' }}>{c.h}</h2><p style={{ fontSize: '15px', color: '#5B5A7A', lineHeight: '1.75' }}>{c.p}</p></div>
         </React.Fragment>
     ))}
     

@@ -42,7 +42,7 @@ export default function PricingPage({ vm }: { vm: VM }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: '#F7F6FC', borderRadius: '28px', padding: '34px 32px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '12px', fontWeight: '600', letterSpacing: '.12em', textTransform: 'uppercase', color: '#7A7994' }}>{vm.freeCard.badge}</span>
+            <span style={{ fontSize: '12px', fontWeight: '600', letterSpacing: '.12em', textTransform: 'uppercase', color: '#6B6986' }}>{vm.freeCard.badge}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
             <span className="num" style={{ fontSize: 'clamp(64px,8vw,104px)', fontWeight: '600', lineHeight: '.9', letterSpacing: '-.045em', color: '#1B1464' }}>{vm.freeCard.rate}</span>
@@ -80,7 +80,7 @@ export default function PricingPage({ vm }: { vm: VM }) {
     
         <div className="g2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '16px', marginTop: '8px' }}>
           <div className="calcbox">
-            <span className="kick" style={{ color: '#7A7994' }}>{vm.t.roles.homeowner}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.roles.homeowner}</span>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}><span className="muted">{vm.t.pricing2.calcWork}</span><span className="num" style={{ color: '#1B1464' }}>{vm.curPre}{vm.calc.value}{vm.curPost}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}><span className="muted">{vm.t.pricing2.calcFeeNet}</span><span className="num" style={{ fontWeight: '600', color: '#1B1464' }}>+ {vm.curPre}{vm.calc.fee}{vm.curPost}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px' }}><span className="muted">{vm.t.pricing2.calcBeforeVat}</span><span className="num" style={{ fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.beforeVat}{vm.curPost}</span></div>
@@ -88,7 +88,7 @@ export default function PricingPage({ vm }: { vm: VM }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', paddingTop: '10px', borderTop: '1px solid #EEEDF5' }}><span style={{ fontWeight: '600', color: '#1B1464', fontSize: '14.5px' }}>{vm.t.pricing2.calcHoPays}</span><span className="num" style={{ fontSize: '22px', fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.hoPays}{vm.curPost}</span></div>
           </div>
           <div className="calcbox">
-            <span className="kick" style={{ color: '#7A7994' }}>{vm.t.roles.contractor}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.roles.contractor}</span>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}><span className="muted">{vm.t.pricing2.calcWork}</span><span className="num" style={{ color: '#1B1464' }}>{vm.curPre}{vm.calc.value}{vm.curPost}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}><span className="muted">{vm.t.pricing2.calcCommNet}</span><span className="num" style={{ fontWeight: '600', color: '#8A5A00' }}>− {vm.curPre}{vm.calc.comm}{vm.curPost}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px' }}><span className="muted">{vm.t.pricing2.calcCoBeforeVat}</span><span className="num" style={{ fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.coBeforeVat}{vm.curPost}</span></div>
@@ -98,7 +98,7 @@ export default function PricingPage({ vm }: { vm: VM }) {
         </div>
         <div style={{ marginTop: '12px', paddingTop: '18px', borderTop: '1px solid #EEEDF5' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '10px' }}>
-            <span className="kick" style={{ color: '#7A7994' }}>{vm.t.pricing2.calcBeforeVat}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.pricing2.calcBeforeVat}</span>
             <span className="num" style={{ fontSize: '18px', fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.beforeVat}{vm.curPost}</span>
           </div>
           <div style={{ display: 'flex', height: '10px', borderRadius: '6px', overflow: 'hidden', background: '#EEEDF5', gap: '2px' }}>
@@ -140,6 +140,15 @@ export default function PricingPage({ vm }: { vm: VM }) {
       </div>
     </section>
 
-    <div style={{ height: '56px' }}></div>
+    <section className="wrap" style={{ paddingBlock: '0 88px', maxWidth: '1000px' }}>
+      <div className="page-cta">
+        <h2 className="page-cta-h">{vm.t.home.closeTitle}</h2>
+        <p className="page-cta-p">{vm.t.home.closeSub}</p>
+        <div className="page-cta-row">
+          <button className="btn btn-p" type="button" data-route="post" onClick={vm.go}>{vm.t.how.ctaHo}</button>
+          <button className="btn btn-s" type="button" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.how.ctaCo}</button>
+        </div>
+      </div>
+    </section>
   </>);
 }

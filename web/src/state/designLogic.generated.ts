@@ -58,10 +58,10 @@ const HOW_ICONS = {
 class Component extends DCLogic {
   state = { ready:false, lang:'ar', route:'home', curId:null, tab:'overview', atab:'overview', user:null,
     auth:{mode:'signin', step:1, role:'homeowner', f:{mobile:'',otp:'',name:'',city:'riyadh',company:'',trades:'',licence:'',tc:false}, otpCode:'', error:'', naf:'idle', nafCode:null, manual:false},
-    post:{step:1, f:{title:'',trade:'kitchen',desc:'',city:'riyadh',address:'',min:'',max:'',timing:'month'}, files:[], error:'', pledge:false}, pendingPost:false,
+    post:{step:1, f:{title:'',trade:'',desc:'',city:'riyadh',address:'',min:'',max:'',timing:'month'}, files:[], error:'', pledge:false}, pendingPost:false,
     menuOpen:false, navOpen:false, topped:false, heroIdx:0, heroLock:null, howTab:'ho', agr:null, heroOn:true, aiText:'', aiFiles:[], scrolled:false,
     plan:{msgs:[], brief:{type:'',city:'',space:'',scope:'',budget:'',timing:''}, touched:[], q:'', busy:false, error:'', question:'', done:false, matches:[], matching:false}, revF:{stars:0,text:'',error:''}, reviews:[], setg:{mobile:'0555 000 000', email:'', prefs:{pBids:true,pStages:true,pPay:true,pMsg:true,pNews:false}, notice:''}, bfilt:{city:'',trade:'',min:''}, withdrawAsk:false, notifRead:[], notifOpen:false, edit:null, hedit:null, hoProfile:null, wl:{amount:'', method:'mada', error:'', notice:''}, txns:[], payout:{bank:'', holder:'', iban:'', saved:false, editing:false, error:'', draft:null}, filt:{q:'',city:'',trade:'',verified:false,sort:'rating'}, page:1, openShown:3, prole:'homeowner', contact:{name:'',email:'',phone:'',topic:'',msg:'',sent:false,error:''}, calcRaw:80000, calcDraft:'80000', calcFirst:true, saved:['c4'], openFaq:0,
-    bidF:{price:'',days:'',note:'',incl:'',excl:'',brands:'',start:'',warranty:'',valid:'',ms1:'30',ms2:'40',ms3:'30',vatReg:true,visit:false,step:'edit',error:''}, msgDraft:'', pay:'card', contractors:[], projects:[], cases:[], rejected:[] };
+    bidF:{price:'',days:'',note:'',incl:'',excl:'',brands:'',start:'',warranty:'',valid:'',ms1:'30',ms2:'40',ms3:'30',vatReg:false,visit:false,step:'edit',error:''}, msgDraft:'', pay:'card', contractors:[], projects:[], cases:[], rejected:[] };
 
   async componentDidMount(){
     const m = runtimeData();
@@ -145,7 +145,8 @@ class Component extends DCLogic {
     this._lastRoute = route;
   }
   kickVideo(){
-    const tryPlay = () => { const v = document.querySelector('.ph-vid'); if(!v) return false; v.muted = true; const p = v.play(); if(p && p.catch) p.catch(()=>{}); return !v.paused; };
+    if(!this.motionOk()) return;
+    const tryPlay = () => { if(this.state.heroPaused) return true; const v = document.querySelector('.ph-vid'); if(!v) return false; v.muted = true; const p = v.play(); if(p && p.catch) p.catch(()=>{}); return !v.paused; };
     if(tryPlay()) return;
     let n = 0;
     this._vidT = setInterval(() => { if(tryPlay() || ++n > 25) clearInterval(this._vidT); }, 200);
@@ -218,7 +219,8 @@ class Component extends DCLogic {
       warrantyOpts, validOpts,
       msRows: [1,2,3].map(i => ({name:'ms'+i, value: b['ms'+i], label: (t.ws.ms && t.ws.ms[i-1] ? t.ws.ms[i-1].n : (lang==='ar'?'المرحلة '+i:'Stage '+i))})),
       msNote: total === 100 ? W.fMsNote : (lang==='ar' ? 'المجموع الحالي ' + total + '%. يجب أن يساوي 100%.' : 'Currently ' + total + '%. It must total 100%.'),
-      msColor: total === 100 ? '#7A7994' : '#D9401F' };
+      msColor: total === 100 ? '#7A7994' : '#C2381A',
+      noteCount: String((b.note||'').length) + ' / 2,000', noStart: b.start ? 'false' : 'true' };
   }
   projStrike(s, t, lang, role, pr){
     if(!pr || role !== 'contractor') return {show:false};
@@ -337,7 +339,7 @@ class Component extends DCLogic {
     const kpis = [
       {v:arNumerals(String(month.length), lang), l:A.kStrikes, c:'#1B1464'},
       {v:arNumerals(fmt(month.filter(k=>k.status==='charged').reduce((a,k)=>a+k.fee,0)), lang), l:A.kFees, c:'#1B7A3E'},
-      {v:arNumerals(String(strikes.filter(k=>k.status==='awaiting').length), lang), l:A.kDecisions, c:'#D9401F'},
+      {v:arNumerals(String(strikes.filter(k=>k.status==='awaiting').length), lang), l:A.kDecisions, c:'#C2381A'},
       {v:arNumerals(fmt(refunds.filter(r=>['requested','review','approved'].includes(r.status)).reduce((a,r)=>a+r.amount,0)), lang), l:A.kRefunds, c:'#1B1464'},
       {v:arNumerals(fmt(refunds.filter(r=>r.status==='paid' && r.age <= 30).reduce((a,r)=>a+r.amount,0)), lang), l:A.kRefunded, c:'#1B1464'}];
     return { kpis, strikes: rows, refunds: rrows };
@@ -396,7 +398,7 @@ class Component extends DCLogic {
     return { open: !!d, closed: !d, d: d || {}, err: d && d.err, unit: d && d.type==='fix' ? 'SAR' : '%',
       types: [{id:'pct', l:P.types[0], on: d && d.type==='pct' ? 'true' : 'false'}, {id:'fix', l:P.types[1], on: d && d.type==='fix' ? 'true' : 'false'}],
       appliesOpts: [{id:'ho', l:P.applies[0]}, {id:'co', l:P.applies[1]}, {id:'both', l:P.applies[2]}],
-      kpis: [{v:arNumerals(String(active), lang), l:P.kActive}, {v:arNumerals(fmt(monthUses), lang), l:P.kRedeemed}, {v:arNumerals(fmt(saved), lang), l:P.kDiscounted}, {v:arNumerals(fmt(46800), lang), l:P.kAov}],
+      kpis: [{v:arNumerals(String(active), lang), l:P.kActive}, {v:arNumerals(fmt(monthUses), lang), l:P.kRedeemed}, {v:arNumerals(fmt(saved), lang), l:P.kDiscounted}, {v:list.filter(p=>!p.archived).length ? arNumerals(fmt(46800), lang) : '—', l:P.kAov}],
       rows };
   }
   affView(s, t, lang){
@@ -404,12 +406,12 @@ class Component extends DCLogic {
     const list = s.affiliates || [], d = s.afDraft;
     const typeIds = ['contractor','creator','agency','designer','other'];
     const typeL = id => A.types[Math.max(0, typeIds.indexOf(id))];
-    const rows = list.map(a => ({ id:a.id, name:a.name, typeL:typeL(a.type), rate:a.rate, link:A.linkBase + a.code, clicks:fmt(a.clicks), signups:fmt(a.signups), projects:fmt(a.projects), earned:fmt(a.earned), owed:fmt(a.owed), owedC: a.owed ? '#D9401F' : '#7A7994',
+    const rows = list.map(a => ({ id:a.id, name:a.name, typeL:typeL(a.type), rate:a.rate, link:A.linkBase + a.code, clicks:fmt(a.clicks), signups:fmt(a.signups), projects:fmt(a.projects), earned:fmt(a.earned), owed:fmt(a.owed), owedC: a.owed ? '#C2381A' : '#7A7994',
       stL: a.paused ? A.st.paused : A.st.active, stCls: a.paused ? 'tag-p' : 'tag-g', copyL: s.copied===A.linkBase + a.code ? A.copied : A.copyLink, canPay: a.owed > 0, toggleL: a.paused ? A.resume : A.pause }));
     const sum = k => list.filter(a=>!a.paused).reduce((x,a)=>x+a[k],0);
     return { open: !!d, closed: !d, d: d || {}, err: d && d.err,
       typeOpts: typeIds.map(id=>({id, l:typeL(id)})),
-      kpis: [{v:arNumerals(String(list.filter(a=>!a.paused).length), lang), l:A.kPartners, c:'#1B1464'}, {v:arNumerals(fmt(sum('clicks')), lang), l:A.kClicks, c:'#1B1464'}, {v:arNumerals(fmt(sum('signups')), lang), l:A.kSignups, c:'#1B1464'}, {v:arNumerals(fmt(sum('projects')), lang), l:A.kProjects, c:'#1B7A3E'}, {v:arNumerals(fmt(list.reduce((x,a)=>x+a.owed,0)), lang), l:A.kOwed, c:'#D9401F'}],
+      kpis: [{v:arNumerals(String(list.filter(a=>!a.paused).length), lang), l:A.kPartners, c:'#1B1464'}, {v:arNumerals(fmt(sum('clicks')), lang), l:A.kClicks, c:'#1B1464'}, {v:arNumerals(fmt(sum('signups')), lang), l:A.kSignups, c:'#1B1464'}, {v:arNumerals(fmt(sum('projects')), lang), l:A.kProjects, c:'#1B7A3E'}, {v:arNumerals(fmt(list.reduce((x,a)=>x+a.owed,0)), lang), l:A.kOwed, c:'#C2381A'}],
       rows, terms: A.termsL.map(([k,v])=>({k,v})) };
   }
   // ---- analytics (simulated; swap for GA4 Data API responses later) ----
@@ -455,6 +457,7 @@ class Component extends DCLogic {
       topPages: share(A.pages, [5210, 2840, 2310, 1620, 1180, 760, 540], 'n'),
       sources: share(A.srcs, [38, 27, 14, 9, 7, 5], '%'),
       cities: share(A.citiesL, [41, 22, 13, 9, 8, 7], '%'),
+      noTop: !A.pages.length, noSources: !A.srcs.length, noCities: !A.citiesL.length,
       gaCard: true, gaOn: !!s.gaId, gaOff: !s.gaId, gaId: s.gaId || '', gaDraft: s.gaDraft || '', gaErr: !!s.gaErr,
       srcLabel: s.gaId ? 'GA4 · ' + s.gaId : A.simulated, srcCls: s.gaId ? 'tag-g' : 'tag-n'
     };
@@ -472,7 +475,7 @@ class Component extends DCLogic {
     return { now: arNumerals(String(now), lang),
       devices: A.dev.map((l,k)=>({l, pct: dv[k]})),
       pages: A.pages.slice(0,5).map((l,k)=>({l, v: arNumerals(String(counts[k]), lang), pct: Math.round(counts[k]/cmax*100)})),
-      feed };
+      feed, noPages: !now, noFeed: !feed.length };
   }
   startLive(){ if(this._live) return;
     const seedFeed = [{c:0,e:0,age:4},{c:1,e:4,age:19},{c:0,e:5,age:41},{c:2,e:3,age:76},{c:3,e:1,age:130},{c:0,e:2,age:205}];
@@ -566,6 +569,12 @@ Rules:
       this.setState(p=>({plan:{...p.plan, matching:false, matches:list}}));
     }catch(e){ this.setState(p=>({plan:{...p.plan, matching:false, error:aiErrorText(e, this.state.lang, T.ai.err)}})); }
   }
+  // A link that has an address and is clicked with a modifier key opens in a new tab, as the visitor asked;
+  // any other click on it is handled here, so the page does not load again.
+  newTab(e){ const el = e && e.currentTarget; if(!el || el.tagName !== 'A' || !el.getAttribute('href')) return false;
+    if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || (e.button || 0) !== 0) return true;
+    if(e.preventDefault) e.preventDefault(); return false; }
+  motionOk(){ try { return !window.matchMedia('(prefers-reduced-motion:reduce)').matches; } catch(err){ return true; } }
   nav(route, extra={}){ this.setState(s=>{
       const here = {route:s.route, curId:s.curId, tab:s.tab};
       const hist = (route===s.route && (extra.curId||s.curId)===s.curId) ? (s.hist||[]) : [...(s.hist||[]), here].slice(-20);
@@ -626,7 +635,7 @@ Rules:
     const id = 'P-'+(1060+this.state.projects.filter(p=>p.ownerId==='h1').length);
     const np = {id, title:{en:f.title,ar:f.title}, desc:{en:f.desc,ar:f.desc}, trade:f.trade, city:f.city, min:+f.min, max:+f.max, timing:f.timing, status:'open', ownerId:'h1', contractorId:null, amount:0, funded:false, posted:{en:this.D.T.en.ws.today,ar:this.D.T.ar.ws.today}, bids:[], ms:[], msgs:[], files:post.files.map(n=>({name:n,by:'h',date:{en:this.D.T.en.ws.today,ar:this.D.T.ar.ws.today}})), ledger:[]};
     const first = !this.state.projects.some(p=>p.ownerId==='h1');
-    this.setState(s=>({projects:[np,...s.projects], post:{step:1,f:{title:'',trade:'kitchen',desc:'',city:'riyadh',address:'',min:'',max:'',timing:'month'},files:[],error:'',done:{id, first, files:post.files.length}}, pendingPost:false}));
+    this.setState(s=>({projects:[np,...s.projects], post:{step:1,f:{title:'',trade:'',desc:'',city:'riyadh',address:'',min:'',max:'',timing:'month'},files:[],error:'',done:{id, first, files:post.files.length}}, pendingPost:false}));
     if(this.state.route!=='post') this.nav('post'); else window.scrollTo({top:0});
   }
 
@@ -701,6 +710,7 @@ Rules:
       name: hoMasked ? shortName : hoFullName, city: cityL((hoId==='h1' && s.hoProfile?.city) || hu.city), joined: hu.joined[lang], nafath: hu.nafath, isMine: role==='homeowner',
       rating: arNumerals(hu.rating, lang), reviews: arNumerals(hu.reviews, lang), done: arNumerals(hu.done, lang),
       about: (hoId==='h1' && s.hoProfile?.about?.[lang]) || hu.about[lang], noRevs: !hu.revs.length,
+      hasAbout: !!((hoId==='h1' && s.hoProfile?.about?.[lang]) || hu.about[lang]), noAbout: !((hoId==='h1' && s.hoProfile?.about?.[lang]) || hu.about[lang]),
       backRoute: role==='contractor' ? 'cdash' : (role==='homeowner' ? 'hdash' : 'home'),
       backLabel: role ? t.hprofile.backDash : t.nav.how,
       stats: [
@@ -755,15 +765,19 @@ Rules:
           width:Math.max(2, Math.min(100-left, (Math.log10(hi/1000)-Math.log10(lo/1000))/top*100)).toFixed(1)}; })(),
       budgetLine: (()=>{ const g=v=>(+v||0).toLocaleString('en-US');
         return lang==='ar' ? 'من '+g(p.f.min)+' إلى '+g(p.f.max)+' ريال' : 'SAR '+g(p.f.min)+' – '+g(p.f.max); })(),
+      titleCount: String((p.f.title||'').length) + ' / 140', descCount: String((p.f.desc||'').length) + ' / 4,000',
+      inv: { title: p.error && p.step===1 && (!p.f.title || String(p.f.title).trim().length<3) ? 'true' : 'false', trade: p.error && p.step===1 && !p.f.trade ? 'true' : 'false', desc: p.error && p.step===1 && (!p.f.desc || String(p.f.desc).trim().length<10) ? 'true' : 'false',
+        min: p.error && p.step===2 && (!p.f.min || +p.f.min > +p.f.max) ? 'true' : 'false', max: p.error && p.step===2 && (!p.f.max || +p.f.max < +p.f.min) ? 'true' : (p.error && p.step===4 && (+p.f.max||0) > 1000000 ? 'true' : 'false'),
+        pledge: p.error && p.step===4 && !p.pledge ? 'true' : 'false' },
       overCap: (+p.f.max||0) > 1000000, canBack:p.step>1,nextLabel:p.step===4?t.post.publish:(t.post.next+': '+String(t.post.steps[p.step]||'').split(' · ')[0]),error:p.error,feeReminder:t.post.feeNext};
     const postSteps = t.post.steps.map((label,i)=>{
       const n=i+1, cur=n===p.step, done=n<p.step;
       return {n,label,
-        color: cur?'#1B1464':(done?'#C79A88':'#C4C2D4'),
+        color: cur?'#1B1464':(done?'#9A5B45':'#6B6986'),
         weight: cur?600:500,
         ring: cur?'#FFD9CB':(done?'#EAD9D2':'#E2E0EE'),
         fill: cur?'#FFF1EC':'transparent',
-        ink: cur?'#D9552F':'currentColor',
+        ink: cur?'#B84522':'currentColor',
         glow: 'none'};
     });
 
@@ -780,14 +794,14 @@ Rules:
       return String(r||'').replace('{n}',n); };
     const nBids=mine.filter(x=>x.status==='open').reduce((a,x)=>a+x.bids.length,0);
     const nAppr=mine.reduce((a,x)=>a+x.ms.filter(m=>m==='submitted').length,0);
-    const hStats=[{v:mine.filter(x=>x.status==='active').length,l:t.hdash.sActive},{v:nBids,l:plN(t.hdash.sBidsN,nBids)||t.hdash.sBids},{v:nAppr,l:plN(t.hdash.sApproveN,nAppr)||t.hdash.sApprove},{v:(lang==='ar'?fmt(released)+' ريال':'SAR '+fmt(released)),l:t.hdash.sReleased}];
+    const hStats=[{v:mine.filter(x=>x.status==='active').length,l:t.hdash.sActive},{v:nBids,l:(nBids&&plN(t.hdash.sBidsN,nBids))||t.hdash.sBids},{v:nAppr,l:(nAppr&&plN(t.hdash.sApproveN,nAppr))||t.hdash.sApprove},{v:(lang==='ar'?fmt(released)+' ريال':'SAR '+fmt(released)),l:t.hdash.sReleased}];
     const hActions=[]; mine.forEach(x=>{ if(x.status==='open'&&x.bids.length) hActions.push({pid:x.id,tab:'bids',text:`${(t.hdash.actBidsN?plN(t.hdash.actBidsN,x.bids.length):x.bids.length+' '+t.hdash.actBids)} ${L(x.title)}`}); if(x.status==='active'&&!x.funded) hActions.push({pid:x.id,tab:'payments',text:`${t.hdash.actFund} ${L(x.title)}`}); if(x.ms.includes('submitted')) hActions.push({pid:x.id,tab:'milestones',text:`${t.hdash.actApprove} ${L(x.title)}`}); });
     const savedList = s.saved.map(id=>this.con(id)).filter(Boolean).map(decorateC);
 
     // contractor dash (c1)
     const me='c1';
     const cInvolved = s.projects.filter(x=>x.contractorId===me || x.bids.some(b=>b.cid===me));
-    const cProjects = cInvolved.map(x=>{ const d=decorateP(x); const b=x.bids.find(b=>b.cid===me); const ni=x.ms.findIndex(m=>m!=='released'); return {...d, myBidLabel:b?mny(b.price):t.cdash.none, nextMs: x.contractorId===me && ni>=0 ? t.ws.ms[ni].n : t.cdash.none}; });
+    const cProjects = cInvolved.map(x=>{ const d=decorateP(x); const b=x.bids.find(b=>b.cid===me); const ni=x.ms.findIndex(m=>m!=='released'); return {...d, myBidLabel:b?mny(b.price):t.cdash.none, nextMs: x.contractorId===me && ni>=0 ? t.ws.ms[ni].n : t.cdash.none, noNextMs: !(x.contractorId===me && ni>=0)}; });
     const cPend = s.projects.filter(x=>x.contractorId===me&&x.funded).reduce((a,x)=>{ const am=this.msAmounts(x); return a + x.ms.reduce((b,m,i)=> m!=='released'? b+am[i]:b,0); },0);
     const cEarned = s.projects.filter(x=>x.contractorId===me).reduce((a,x)=>a + x.ledger.filter(l=>l.label==='release').reduce((b,l)=>b+l.amount,0),0);
     const cStats=[{v:s.projects.filter(x=>x.status==='open'&&!x.bids.some(b=>b.cid===me)).length,l:t.cdash.sOpen},{v:s.projects.filter(x=>x.status==='open'&&x.bids.some(b=>b.cid===me)).length,l:t.cdash.sBids},{v:fmt(this.coNet(cPend)),l:t.cdash.sPending},{v:fmt(this.coNet(cEarned)),l:t.cdash.sEarned}];
@@ -808,15 +822,18 @@ Rules:
       const isOwner = role==='homeowner'; const isCo = role==='contractor';
       const relTot = pr.ledger.filter(l=>l.label==='release').reduce((a,l)=>a+l.amount,0);
       const nextStep = st==='open' ? (isCo?t.ws.next.openCo:t.ws.next.open) : st==='funding' ? (isCo?t.ws.next.fundingCo:t.ws.next.funding) : st==='active' ? (isCo?t.ws.next.activeCo:t.ws.next.activeHo) : t.ws.next.completed;
+      const NC = t.ws.nextCta || {};
+      const nextTab = st==='open' ? ((isCo || pr.bids.length) ? 'bids' : '') : st==='funding' ? (isCo ? 'messages' : 'payments') : st==='active' ? 'milestones' : (role==='homeowner' ? 'overview' : '');
+      const nextCta = !nextTab ? '' : st==='open' ? (isCo ? (pr.bids.some(b=>b.cid===me) ? NC.bids : NC.bid) : NC.bids) : st==='funding' ? (isCo ? NC.messages : NC.payments) : st==='active' ? NC.stages : NC.review;
       const feeN = Math.round((pr.amount||0)*0.01), feeVatN = Math.round(feeN*0.15);
       pj = {...d, amount: fmt(pr.amount || pr.max), fee: fmt(feeN), feeVat: fmt(feeVatN), fundTotal: fmt(pr.amount||0), amountLabel: pr.amount?t.ws.amountAgreed:t.ws.amountBudget, showAddFunds: isOwner && !!pr.amount && !pr.funded, showBudgetRow: !pr.amount, msSummary:(()=>{ const d=pr.ms.filter(m=>m==='released').length, n=pr.ms.length;
           if(lang!=='ar') return `${d}/${n} ${t.ws.next.msDone}`;
           const one = d===0?'لا مراحل':d===1?'مرحلة واحدة':d===2?'مرحلتان':`${d} مراحل`;
-          return `${one} من أصل ${n} مراحل مصروفة`; })(), nextStep,
+          return `${one} من أصل ${n} مراحل مصروفة`; })(), nextStep, nextTab, nextCta: nextCta || '', noFiles: !pr.files.length,
         msNote: isCo ? (t.ws.msNoteCo || t.ws.msNote) : t.ws.msNote,
         compareNote: isCo ? (t.ws.compareNoteCo || t.ws.compareNote) : t.ws.compareNote,
         // a contractor sees their own bid only — never a competitor's name, price or scope
-        bidRows: pr.bids.filter(b => !isCo || b.cid === me).map(b=>{ const c=this.con(b.cid); return {cid:b.cid,name:c.name[lang],rating:c.rating,done:c.done,verified:c.verified,price:fmt(b.price),days:b.days,note:L(b.note),accepted:pr.contractorId===b.cid,canAccept:isOwner&&pr.status==='open'}; }),
+        bidRows: pr.bids.filter(b => !isCo || b.cid === me).map(b=>{ const c=this.con(b.cid); return {cid:b.cid,name:c.name[lang],rating:c.rating,done:c.done,hasRecord:!!(c.rating||c.done),isNew:!(c.rating||c.done),verified:c.verified,price:fmt(b.price),days:b.days,note:L(b.note),accepted:pr.contractorId===b.cid,canAccept:isOwner&&pr.status==='open'}; }),
         msRows: pr.ms.map((m,i)=>{ const ev=this.ev(pr,i); const unlocked = pr.ms.slice(0,i).every(x=>x==='released');
           const coStage = isCo && pr.funded && m==='pending' && unlocked;
           const due = this.msDue(pr, i, m, t, lang);
@@ -979,11 +996,11 @@ Rules:
     const hed = s.hedit ? { open:true, f:{name:s.hedit.name, city:s.hedit.city, about:s.hedit.about}, error:s.hedit.error } : { open:false, f:{}, error:'' };
     const ed = s.edit ? (() => {
       const bioLen = String(s.edit.bio||'').length;
-      const allow = ['full','kitchen','bathroom','painting','flooring','electrical','plumbing','ac','carpentry','gypsum','interior','structural'];
       const selIds = s.edit.trades;
+      const allow = [...(this.D.CO_TRADES||[]), ...selIds];
       const pc1 = this.con('c1');
       return { open:true, f:{name:s.edit.name, city:s.edit.city, bio:s.edit.bio}, error:s.edit.error,
-        bioLen, bioColor: (bioLen && bioLen < 50) ? '#D9401F' : '#7A7994',
+        bioLen, bioColor: (bioLen && bioLen < 50) ? '#C2381A' : '#7A7994',
         confirmCancel: !!s.edit.confirmCancel,
         previewBio: s.edit.bio || t.profile.fBioPh,
         previewMeta: cityL(s.edit.city) + ' · ★ ' + pc1.rating + ' · ' + pc1.done + ' ' + (lang==='ar' ? 'مشروعًا مكتملًا عبر ترميم' : 'projects completed through Tarmem'),
@@ -1042,7 +1059,7 @@ Rules:
 
     // settings
     const SG = s.setg, hasActive = s.projects.some(p=>p.ownerId==='h1' && p.funded && p.status==='active');
-    const st = { mobile:SG.mobile, email:SG.email, notice:SG.notice,
+    const st = { mobile:SG.mobile, email:SG.email, notice:SG.notice, emailLocked:false, emailNote:'',
       otherLang: lang==='ar' ? 'English' : 'العربية',
       isAr: lang==='ar', isEn: lang==='en', closeAsk: !!s.closeAsk,
       canClose: !hasActive, closeBlocked: hasActive,
@@ -1114,7 +1131,14 @@ Rules:
       overNav: (s.route==='home' || s.route===undefined) && !s.topped ? 'true' : 'false',
       notHome: s.route!=='home' && s.route!==undefined,
       onlineNow: (s.onlineNow ?? 312).toLocaleString('en-US'),
+      heroMotion: this.motionOk(), heroAuto: this.motionOk() && !s.heroPaused, heroPaused: !!s.heroPaused, heroPlaying: !s.heroPaused,
+      heroVidLabel: s.heroPaused ? t.hero2.play : t.hero2.pause,
+      toggleHeroVid: () => { const v = document.querySelector('.ph-vid'); const pause = !s.heroPaused;
+        if(v){ if(pause) v.pause(); else { v.muted = true; const p = v.play(); if(p && p.catch) p.catch(()=>{}); } }
+        this.setState({heroPaused:pause}); },
       replayVid: () => { const v = document.querySelector('.ph-vid'); if(v){ v.currentTime = 0; v.muted = true; const p = v.play(); if(p && p.catch) p.catch(()=>{}); } },
+      jumpTo: e => { if(this.newTab(e)) return; const el=document.getElementById(e.currentTarget.dataset.to); if(!el) return;
+        el.scrollIntoView({behavior:this.motionOk() ? 'smooth' : 'auto', block:'start'}); el.focus({preventScroll:true}); },
       toAiBar: () => { const el=document.getElementById('v-ai-in');
         if(el){ const y=el.getBoundingClientRect().top + window.scrollY - 140; window.scrollTo({top:Math.max(0,y), behavior:'smooth'}); setTimeout(()=>el.focus(), 420); } },
       aiText:s.aiText||'', aiEmpty: !String(s.aiText||'').trim(),
@@ -1145,7 +1169,7 @@ Rules:
           href: co ? 'assets/tarmem-contractor-guidelines.pdf' : 'assets/tarmem-homeowner-guide.pdf' }; })(),
       agr: (()=>{ const a=s.agr; if(!a||!pr) return {open:false, notRead:true, rows:[], secs:[]};
         const bid=pr.bids.find(b=>b.cid===a.cid); const c=this.con(a.cid);
-        return { open:true, notRead: !a.read,
+        return { open:true, notRead: !a.read, error: a.error || '',
           signLabel: role==='contractor' ? t.agr.signCo : t.agr.signHo,
           rows:[{k:t.agr.pProject, v:L(pr.title)}, {k:t.agr.pCity, v:cityL(pr.city)},
                 {k:t.agr.pOwner, v:uName(pr.ownerId)}, {k:t.agr.pContractor, v:c?c.name[lang]:''},
@@ -1310,20 +1334,23 @@ Rules:
       authTitle:a.mode==='signin'?t.auth.titleIn:t.auth.titleUp, authPrimary:a.mode==='signin'?t.auth.signIn:t.continue,
       authLede: a.mode==='signin' ? t.auth.ledeIn : t.auth.ledeUp,
       authNafLine: a.role==='contractor' ? t.auth.nafCo : t.auth.nafHo, authRoleLabel:a.mode==='signin'?t.auth.signInAs:t.auth.nafathRole,
-      post, postSteps, myProjects, hStats, hActions, noHActions:!hActions.length, savedList, noSaved:!savedList.length,
+      post, postSteps, myProjects, noMyProjects:!myProjects.length, hStats, hActions, noHActions:!hActions.length, savedList, noSaved:!savedList.length, filesError: s.filesError || '', msgCount: String((s.msgDraft||'').length) + ' / 2,000',
+      nextGo: e => { const tab=e.currentTarget.dataset.tab; if(tab) this.setState({tab}); },
       qaProjN: myProjects.length || null, qaSavedN: savedList.length || null, qaToProjects: this.qaToProjects,
       qaOpenN: openProjects.length || null, qaWorkN: cProjects.length || null, qaToWork: this.qaToWork,
       ...Object.fromEntries(HIRE_CATS.map((id,n)=>['hc'+n, {id, label: tradeL(id)}])),
       hireTrade: this.hireTrade,
-      cProjects, cStats, cPayments, openProjects: openProjects.slice(0, s.openShown),
+      cProjects, noCProjects:!cProjects.length, cStats, cPayments, openProjects: openProjects.slice(0, s.openShown),
       openTotal: openProjects.length, openShown: Math.min(s.openShown, openProjects.length),
       openTally: projN(Math.min(s.openShown, openProjects.length), openProjects.length), hasMoreOpen: openProjects.length > s.openShown,
       moreOpenCount: Math.max(0, openProjects.length - s.openShown), openPct: openProjects.length ? Math.round(Math.min(s.openShown, openProjects.length)/openProjects.length*100) : 100,
       pj, pTabs, tab, canBid, alreadyBid, bidNeedsNafath, fundNeedsNafath, noBids: pr && !pr.bids.length, noBidsHo: pr && !pr.bids.length && role!=='contractor', hasBids: pr && pr.bids.length>0, noMs: pr && !pr.ms.length, canMessage: role==='homeowner'||role==='contractor', year:String(new Date().getFullYear()), bidF:this.bidView(s, t, lang, pr), msgDraft:s.msgDraft, needsFunding, showLedger: pr && pr.ledger.length>0, payIsCard:s.pay==='card', payIsApple:s.pay==='apple', payIsMada:s.pay==='mada', backRoute: role==='contractor'?'cdash': role==='admin'?'admin':'hdash',
       feeStops: t.pricing2.jStops.map((x,i)=>({...x, paid: i===3 ? 'true':'false', mark: i===3 ? '★' : '✓'})),
-      ct: { f:s.contact, sent:s.contact.sent, form:!s.contact.sent, error:s.contact.error },
+      ct: { f:s.contact, sent:s.contact.sent, form:!s.contact.sent, error:s.contact.error, msgCount: String((s.contact.msg||'').length) + ' / 4,000',
+        inv: (() => { const c=s.contact, bad = v => (c.error && !v) ? 'true' : 'false';
+          return {name:bad(c.name), reach:bad(c.email || c.phone), topic:bad(c.topic), msg:bad(c.msg)}; })() },
       setContact: e => { const {name,value}=e.target; this.setState({contact:{...s.contact,[name]:value,error:''}}); },
-      sendContact: () => { const c=s.contact; if(!c.name || (!c.email && !c.phone) || !c.msg) return this.setState({contact:{...c,error:t.pages.cErr}}); this.setState({contact:{...c,sent:true,error:''}}); },
+      sendContact: () => { const c=s.contact; if(!c.name || (!c.email && !c.phone) || !c.topic || !c.msg) return this.setState({contact:{...c,error:t.pages.cErr}}); this.setState({contact:{...c,sent:true,error:''}}); },
       trustRules, calc, priceCards, paidCard, freeCard, inclList, prIsHo: s.prole==='homeowner', prIsCo: s.prole==='contractor',
       setPriceRole: e => this.setState({prole:e.target.value}),
       setCalc: e => { const v = Math.max(0, +e.target.value || 0); this.setState({calcRaw:v, calcDraft:String(v)}); },
@@ -1378,12 +1405,12 @@ Rules:
       setGa: e => this.setState({gaDraft:e.target.value, gaErr:false}),
       connectGa: () => { const v = String(s.gaDraft||'').trim().toUpperCase(); if(!/^G-[A-Z0-9]{6,12}$/.test(v)) return this.setState({gaErr:true}); this.setState({gaId:v, gaErr:false, gaDraft:''}); },
       disconnectGa: () => this.setState({gaId:null}),
-      av, caseReply: s.caseReply||'', legalLine: '', fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, userRows, faqs,
+      av, caseReply: s.caseReply||'', legalLine: '', fin, adminQuick, adminTabs, atab, adminStats, allProjects:s.projects.map(decorateP), verifQueue, noVerif:!verifQueue.length, cases, payRows, noPayRows:!payRows.length, userRows, faqs,
 
-      goAuth: e => { const rl=e.currentTarget.dataset.signup;
+      goAuth: e => { if(this.newTab(e)) return; const rl=e.currentTarget.dataset.signup;
         this.setState({route:'auth', menuOpen:false, navOpen:false, auth:{...s.auth, mode:'signup', step:1, role:rl, error:''}});
         window.scrollTo({top:0,behavior:'instant'}); },
-      go: e => { const d=e.currentTarget.dataset; const extra={}; if(s.navOpen) extra.navOpen=false; if(d.id) extra.curId=d.id; if(d.tab) extra.tab=d.tab; else if(d.route==='project') extra.tab='overview'; if(d.route==='auth'&&d.role) extra.auth={...s.auth,mode:'signup',role:d.role,step:1,error:''}; if(d.route==='post' && role && role!=='homeowner') { this.nav('auth',{auth:{...s.auth,mode:'signup',role:'homeowner',step:1}}); return; } this.nav(d.route, extra); },
+      go: e => { if(this.newTab(e)) return; const d=e.currentTarget.dataset; const extra={}; if(s.navOpen) extra.navOpen=false; if(d.id) extra.curId=d.id; if(d.tab) extra.tab=d.tab; else if(d.route==='project') extra.tab='overview'; if(d.route==='auth'&&d.role) extra.auth={...s.auth,mode:'signup',role:d.role,step:1,error:''}; if(d.route==='post' && role && role!=='homeowner') { this.nav('auth',{auth:{...s.auth,mode:'signup',role:'homeowner',step:1}}); return; } this.nav(d.route, extra); },
       toggleLang: () => this.setState({lang: lang==='en'?'ar':'en'}),
       setLang: e => this.setState({lang: e.target.value}),
       askClose: () => this.setState(st=>({closeAsk:!st.closeAsk})),
@@ -1422,7 +1449,7 @@ Rules:
       postAnother: () => { this.setState({post:{...s.post,done:null,step:1,error:''}}); window.scrollTo({top:0}); },
       postGoStep: e => this.setState({post:{...s.post,step:+e.currentTarget.dataset.step,error:''}}),
       togglePledge: e => this.setState({post:{...s.post,pledge:e.target.checked,error:''}}),
-      postNext: () => { const f=s.post.f; if(s.post.step===1 && (!f.title||!f.desc)) return this.setState({post:{...s.post,error:t.post.errTitle}}); if(s.post.step===2 && (!f.min||!f.max)) return this.setState({post:{...s.post,error:t.post.errBudget}}); if(s.post.step<4) return this.setState({post:{...s.post,step:s.post.step+1,error:''}}); if((+f.max||0) > 1000000) return this.setState({post:{...s.post,error:t.post.capNote}}); if(!s.post.pledge) return this.setState({post:{...s.post,error:t.post.pledgeErr}}); if(role!=='homeowner'){ this.setState({pendingPost:true, auth:{...s.auth,mode:'signup',role:'homeowner',step:1}}); this.nav('auth'); return; } this.publishPost(); },
+      postNext: () => { const f=s.post.f; if(s.post.step===1 && (!f.title||!f.desc)) return this.setState({post:{...s.post,error:t.post.errTitle}}); if(s.post.step===1 && (String(f.title).trim().length<3 || String(f.title).trim().length>140)) return this.setState({post:{...s.post,error:t.post.errTitleLen}}); if(s.post.step===1 && String(f.desc).trim().length<10) return this.setState({post:{...s.post,error:t.post.errDescLen}}); if(s.post.step===1 && !f.trade) return this.setState({post:{...s.post,error:t.post.errTrade}}); if(s.post.step===2 && (!f.min||!f.max)) return this.setState({post:{...s.post,error:t.post.errBudget}}); if(s.post.step===2 && (+f.min<0 || +f.max<+f.min)) return this.setState({post:{...s.post,error:t.post.errBudgetOrder}}); if(s.post.step<4) return this.setState({post:{...s.post,step:s.post.step+1,error:''}}); if((+f.max||0) > 1000000) return this.setState({post:{...s.post,error:t.post.capNote}}); if(!s.post.pledge) return this.setState({post:{...s.post,error:t.post.pledgeErr}}); if(role!=='homeowner'){ this.setState({pendingPost:true, auth:{...s.auth,mode:'signup',role:'homeowner',step:1}}); this.nav('auth'); return; } this.publishPost(); },
       setTab: e => this.setState({tab:e.currentTarget.dataset.tab}),
       setAdminTab: e => this.setState({atab:e.currentTarget.dataset.tab}),
       openAdminProject: e => { this.setState({adminView:null}); this.nav('project',{curId:e.currentTarget.dataset.id, tab:'overview'}); },
@@ -1439,12 +1466,14 @@ Rules:
       setBidToggle: e => { const {name,checked}=e.target; this.setState({bidF:{...s.bidF,[name]:checked,error:''}}); },
       reviewBid: () => { const b=s.bidF;
         if(!b.price||!b.days) return this.setState({bidF:{...s.bidF,error:t.ws.errBid}});
+        if(!(+b.price>=100 && +b.price<=1000000)) return this.setState({bidF:{...s.bidF,error:t.ws.errPrice}});
+        if(!(+b.days>=1 && +b.days<=1000 && Math.round(+b.days)===+b.days)) return this.setState({bidF:{...s.bidF,error:t.ws.errDays}});
         if(!b.warranty||!b.valid||!b.start) return this.setState({bidF:{...s.bidF,error:t.ws.errTerms}});
         const tot=(+b.ms1||0)+(+b.ms2||0)+(+b.ms3||0);
         if(tot!==100) return this.setState({bidF:{...s.bidF,error:t.ws.fMsNote}});
         this.setState({bidF:{...s.bidF, step:'review', error:''}}); },
       editBid: () => this.setState({bidF:{...s.bidF, step:'edit'}}),
-      submitBid: () => { const b=s.bidF; if(!b.price||!b.days) return this.setState({bidF:{...s.bidF,error:t.ws.errBid}}); this.updProj(pr.id, p=>({...p,bids:[...p.bids,{cid:me,price:+b.price,days:+b.days,note:{en:b.note,ar:b.note},incl:b.incl,excl:b.excl,brands:b.brands,start:b.start,warranty:b.warranty,valid:b.valid,visit:!!b.visit,vatReg:!!b.vatReg,ms:[+b.ms1,+b.ms2,+b.ms3]}]})); this.setState({bidF:{price:'',days:'',note:'',incl:'',excl:'',brands:'',start:'',warranty:'',valid:'',ms1:'30',ms2:'40',ms3:'30',vatReg:true,visit:false,step:'edit',error:''}}); },
+      submitBid: () => { const b=s.bidF; if(!b.price||!b.days) return this.setState({bidF:{...s.bidF,error:t.ws.errBid}}); this.updProj(pr.id, p=>({...p,bids:[...p.bids,{cid:me,price:+b.price,days:+b.days,note:{en:b.note,ar:b.note},incl:b.incl,excl:b.excl,brands:b.brands,start:b.start,warranty:b.warranty,valid:b.valid,visit:!!b.visit,vatReg:!!b.vatReg,ms:[+b.ms1,+b.ms2,+b.ms3]}]})); this.setState({bidF:{price:'',days:'',note:'',incl:'',excl:'',brands:'',start:'',warranty:'',valid:'',ms1:'30',ms2:'40',ms3:'30',vatReg:!!b.vatReg,visit:false,step:'edit',error:''}}); },
       acceptBid: e => this.setState({agr:{cid:e.currentTarget.dataset.cid, read:false}}),
       openAgreementCo: () => this.setState({agr:{cid: pr && pr.pending ? pr.pending.cid : null, read:false}}),
       closeAgreement: () => this.setState({agr:null}),

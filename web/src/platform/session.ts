@@ -7,11 +7,13 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './client';
 import type { PlatformError } from './copy';
-import { runtimeData, type Application, type Profile, type ProjectRow } from './data';
+import { runtimeData, setPaymentsOff, type Application, type Profile, type ProjectRow } from './data';
 import { setTrackContext, track } from './track';
 
 export interface BidRow { id: string; project_id: string; contractor_id: string; price: number; days: number; note: string | null; details: Record<string, unknown>; status: 'submitted' | 'withdrawn' | 'chosen'; created_at: string }
-export interface AgreementRow { project_id: string; bid_id: string; homeowner_id: string; contractor_id: string; amount: number; days: number; homeowner_name: string; homeowner_signed_at: string; contractor_name: string | null; contractor_signed_at: string | null }
+export interface AgreementRow { project_id: string; bid_id: string; homeowner_id: string; contractor_id: string; amount: number; days: number; homeowner_name: string; homeowner_signed_at: string; contractor_name: string | null; contractor_signed_at: string | null;
+  /** Each side's "the work is complete" while payment on the site is off (supabase/030 B): the project completes when both are set. */
+  homeowner_done_at?: string | null; contractor_done_at?: string | null }
 /** A change request on a signed project (supabase/027): proposed by one side, applied once the other approves. */
 export interface ChangeRow { id: number; project_id: string; code: string; by_side: 'ho' | 'co'; description: string; amount: number; days: number; ho_ok_at: string | null; co_ok_at: string | null; applied_at: string | null; created_at: string }
 export interface StageRow { project_id: string; idx: number; status: 'pending' | 'submitted' | 'released' | 'disputed' }
@@ -59,6 +61,45 @@ let account: Account | null = null;
    The address is read before the sign-in library consumes it. */
 let recovering = typeof window !== 'undefined' && /type=recovery/.test(window.location.hash + window.location.search);
 export const isRecovering = (): boolean => recovering;
+
+/* The links in Tarmem's emails (supabase/030 F). An activation link lands on /signin?link=signup with a session in
+   its fragment, which the sign-in library stores; a used or expired one (activation or password reset) lands with
+   #error_code=otp_expired, which the library reports but leaves. Both are read here, before it runs. */
+export type LinkKind = 'signup' | 'reset' | null;
+const landing = (() => {
+  if (typeof window === 'undefined') return { problem: null as { code: string; kind: LinkKind } | null, confirmed: false };
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const kind = new URLSearchParams(window.location.search).get('link');
+  const known: LinkKind = kind === 'signup' || kind === 'reset' ? kind : null;
+  const code = hash.get('error_code') || hash.get('error');
+  // a link that went to the site's home page instead (its address was not on the allowed list) still shows its sign-in page
+  if (code && !/^\/(signin|reset-password)\/?$/.test(window.location.pathname)) window.history.replaceState(null, '', '/signin' + window.location.search + window.location.hash);
+  return { problem: code ? { code, kind: known } : null, confirmed: hash.get('type') === 'signup' && hash.has('access_token') };
+})();
+let linkProblem = landing.problem;
+/** A link from an email that no longer works: what it was for, when the address says so. */
+export const linkIssue = (): { code: string; kind: LinkKind } | null => linkProblem;
+export function clearLinkIssue(): void {
+  linkProblem = null;
+  if (/error_code=|error=/.test(window.location.hash)) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+/** The page opened from a working activation link: the account is active, and this is its first sign-in. */
+let justConfirmed = landing.confirmed;
+export function takeJustConfirmed(): boolean { const was = justConfirmed; justConfirmed = false; return was; }
+/** Where an email link points back to: the sign-in page, which knows which link it was. */
+const linkTo = (kind: 'signup' | 'reset') => `${window.location.origin}/signin?link=${kind}`;
+
+/* A session the database no longer accepts (expired, or ended elsewhere): the person is signed out here too and asked to
+   sign in again; the page they were on opens again afterwards (src/launch/guard.ts keeps it). */
+let sessionEndedNote = false;
+export const sessionEnded = (): boolean => sessionEndedNote;
+export function clearSessionEnded(): void { sessionEndedNote = false; }
+function endSession(): void {
+  if (!account) return;
+  sessionEndedNote = true;
+  setAccount(null);
+  void supabase?.auth.signOut({ scope: 'local' }).catch(() => undefined);
+}
 const listeners = new Set<() => void>();
 
 export const currentAccount = (): Account | null => account;
@@ -69,42 +110,88 @@ export function onAccountChange(listener: () => void): () => void {
 
 function setAccount(next: Account | null): void {
   account = next;
+  setPaymentsOff(Boolean(next && !next.paymentsLive));
   runtimeData(next?.profile ?? null);
   setTrackContext({ admin: next?.profile.role === 'admin', city: next?.profile.city ?? null });
   for (const listener of listeners) listener();
 }
 
-const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩', PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const latinDigits = (raw: string) => String(raw || '').replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d))).replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)));
 /** "٠٥٥ ١٢٣-٤٥٦٧" → "055 1234567": Latin digits, spaces and a leading + only, as the database requires. */
 export function normalizeMobile(raw: string): string {
-  const latin = String(raw || '').replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)));
-  const kept = latin.replace(/[^\d+ ]/g, '').replace(/(?!^)\+/g, '').replace(/\s+/g, ' ').trim();
-  return kept;
+  return latinDigits(raw).replace(/[^\d+ ]/g, '').replace(/(?!^)\+/g, '').replace(/\s+/g, ' ').trim();
+}
+/** A Saudi mobile number however it is written — 05XXXXXXXX, 5XXXXXXXX, +966 5…, 00966 5…, 9665…, in Arabic digits or with
+    spaces and dashes — as "05XXXXXXXX"; '' when it is not one. Accounts, applications and settings keep it in this form. */
+export function saudiMobile(raw: string): string {
+  const d = latinDigits(raw).replace(/\D/g, '');
+  const local = d.startsWith('00966') ? d.slice(5) : d.startsWith('966') ? d.slice(3) : d.startsWith('0') ? d.slice(1) : d;
+  return /^5\d{8}$/.test(local) ? '0' + local : '';
 }
 export const validMobile = (mobile: string) => /^\+?[0-9][0-9 ]{7,17}$/.test(mobile);
 export const validEmail = (email: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && email.length <= 160;
 
-function failure(error: { message?: string; status?: number; code?: string } | null | undefined): PlatformError {
-  const text = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
+/** The database's own limits (supabase/001, 005, 019), checked before anything is sent so the form can say which field. */
+export const LIMITS = { title: 140, desc: 4000, district: 120, bidNote: 2000, message: 2000, appNote: 2000, contact: 4000, company: 160, person: 120, name: 120, review: 1200 } as const;
+const trimmed = (v: unknown) => String(v ?? '').trim();
+/** The contact form against contact_messages' rules: the first field that would be refused, or null. */
+export function contactProblem(f: { name: string; email: string; mobile: string; message: string }): PlatformError | null {
+  const name = trimmed(f.name), email = trimmed(f.email), mobile = normalizeMobile(f.mobile), message = trimmed(f.message);
+  if (name.length < 2 || name.length > LIMITS.name) return 'contactName';
+  if (!email && !mobile) return 'contactReach';
+  if (email && !validEmail(email)) return 'email';
+  if (mobile && !validMobile(mobile)) return 'contactPhone';
+  if (message.length < 3 || message.length > LIMITS.contact) return 'contactMsg';
+  return null;
+}
+
+/* A refused row names the rule it broke (Postgres calls a column's rule <table>_<column>_check): that rule's field sentence. */
+const CHECKS: [RegExp, PlatformError][] = [
+  [/bids_price_check/, 'bidPrice'], [/bids_days_check/, 'bidDays'], [/bids_note_check/, 'noteLong'], [/bids_details_check/, 'bidDetails'],
+  [/projects_title_check/, 'title'], [/projects_description_check/, 'desc'], [/projects_budget/, 'budget'], [/projects_district_check/, 'district'],
+  [/contact_messages_name_check/, 'contactName'], [/contact_messages_message_check/, 'contactMsg'], [/contact_messages_check/, 'contactReach'], [/contact_messages_mobile_check/, 'contactPhone'],
+  [/profiles_full_name_check/, 'name'], [/_mobile_check/, 'mobile'], [/_email_check/, 'email'],
+  [/_company_check/, 'company'], [/_person_check/, 'person'], [/cr_number_check/, 'cr'], [/_note_check/, 'noteLong'], [/_trades_check/, 'trades'],
+  [/project_messages_body_check/, 'msgLong'], [/reviews_body_check/, 'reviewText'], [/reviews_stars_check/, 'reviewStars'],
+];
+
+type Failure = { message?: string; status?: number; code?: string; details?: string | null } | null | undefined;
+function failure(error: Failure): PlatformError {
+  const code = String(error?.code || '');
+  const text = `${code} ${error?.message || ''} ${error?.details || ''}`.toLowerCase();
   if (/invalid login|invalid_credentials/.test(text)) return 'wrong';
+  if (/not confirmed|email_not_confirmed|confirm your email first/.test(text)) return 'unconfirmed';
+  // the database no longer accepts this sign-in (it expired, or ended on another device)
+  if (/jwt|pgrst30[0-9]|refresh_token_not_found|session_not_found|invalid refresh token/.test(text) || (error?.status === 401 && !/password|credentials/.test(text))) { endSession(); return 'session'; }
+  if (code === '23514' || /violates check constraint/.test(text)) return CHECKS.find(([rule]) => rule.test(text))?.[1] || 'generic';
   if (/mobile_taken/.test(text)) return 'mobileTaken';
   if (/active_project/.test(text)) return 'activeProject';
   if (/otp_off/.test(text)) return 'otpOff';
-  if (/too many/.test(text)) return 'rate';
+  // the database's own limits (supabase/022, 027, 029), each in its own words; the sign-in service's own (429) after them
+  if (/too many change requests/.test(text)) return 'crTooMany';
+  if (/too many right now/.test(text)) return 'rateNow';
+  if (/too many: |in an hour|too many codes/.test(text)) return 'rateHour';
   if (/already registered|user_already_exists/.test(text)) return 'exists';
-  if (/not confirmed|email_not_confirmed/.test(text)) return 'unconfirmed';
   if (/rate limit|too many|over_request|over_email/.test(text) || error?.status === 429) return 'rate';
   if (/pwned|known to be weak|easy to guess/.test(text)) return 'pwned'; // Supabase's leaked-password check (Pro)
   if (/weak_password|password should/.test(text)) return 'password';
   if (/leave its limits/.test(text)) return 'crLimits';
-  if (/too many change requests/.test(text)) return 'crTooMany';
   if (/once both parties have signed|no longer takes changes/.test(text)) return 'crNotYet';
   if (/invalid.*email|email_address_invalid|validation_failed/.test(text)) return 'email';
-  if (/only homeowners/.test(text)) return 'notHomeowner';
+  if (/only homeowners|only a homeowner account can post/.test(text)) return 'notHomeowner';
   if (/open projects/.test(text)) return 'tooMany';
-  if (/failed to fetch|network|load failed/.test(text)) return 'network';
+  if (/no longer open|not open for bids/.test(text)) return 'notOpen';
+  if (/bid is not available|no agreement here for you|bid cannot be chosen|bid cannot be moved|chosen bid cannot be changed/.test(text)) return 'bidGone';
+  if (/already signed by both/.test(text)) return 'signedAlready';
+  if (/status_not_allowed/.test(text)) return 'statusNotAllowed';
+  if (/admins only/.test(text)) return 'adminsOnly';
+  if (/not_active|not_signed|payments_on/.test(text)) return 'cannotComplete';
+  if (/only the project's|only a verified contractor|only a contractor account|only its owner|not your project/.test(text)) return 'notYours';
+  if (/failed to fetch|network|load failed|fetch failed/.test(text)) return 'network';
   if (/not switched on/.test(text)) return 'waOff';
   if (/test messages a day|three test messages/.test(text)) return 'waLimit';
+  if (/mobile_not_verified/.test(text)) return 'waVerify';
   if (/not a saudi mobile/.test(text)) return 'waNumber';
   return 'generic';
 }
@@ -118,12 +205,37 @@ async function ensureProfile(user: User): Promise<Profile | null> {
   if (found.error) return null;
   const meta = user.user_metadata || {};
   const contractor = meta.role === 'contractor';
+  // the name the database requires (2 to 120 characters): what they typed, else their company, else the start of their email
+  const name = [meta.full_name, meta.company, String(user.email || '').split('@')[0]].map((v) => trimmed(v).slice(0, 120)).find((v) => v.length >= 2) || 'عميل ترميم';
   const created = await supabase.from('profiles').insert({
-    id: user.id, role: contractor ? 'contractor' : 'homeowner', ...(contractor ? { company: String(meta.company || '').slice(0, 160) || null } : {}),
-    full_name: String(meta.full_name || '').trim(), mobile: normalizeMobile(meta.mobile),
+    id: user.id, role: contractor ? 'contractor' : 'homeowner', ...(contractor ? { company: trimmed(meta.company).slice(0, 160) || null } : {}),
+    full_name: name, mobile: saudiMobile(meta.mobile) || normalizeMobile(meta.mobile),
     city: String(meta.city || 'riyadh'), lang: meta.lang === 'en' ? 'en' : 'ar',
   }).select('*').single();
   return (created.data as Profile) || null;
+}
+
+/** A contractor's application, found by their account. One sent before the email was activated is linked now
+    (claim_my_application, supabase/030 C) — and so is one the team verified before the account existed, which then
+    replaces a still-'new' one; if there is none at all, the one they filled in at sign-up is sent again from what the
+    account remembers of it — once, so a second sign-in never makes a second application. */
+async function myApplication(user: User): Promise<Application | null> {
+  if (!supabase) return null;
+  const found = await supabase.from('contractor_applications').select('*').eq('user_id', user.id).maybeSingle();
+  if (found.data && (found.data as Application).status !== 'new') return found.data as Application;
+  const claimed = await supabase.rpc('claim_my_application').then((r) => (Array.isArray(r.data) ? (r.data[0] as Application | undefined) : undefined), () => undefined);
+  if (claimed) return claimed;
+  if (found.data) return found.data as Application;
+  const meta = user.user_metadata || {};
+  const company = trimmed(meta.company), person = trimmed(meta.full_name), mobile = saudiMobile(meta.mobile);
+  const trades = Array.isArray(meta.trades) ? (meta.trades as unknown[]).map(String).slice(0, 12) : [];
+  if (company.length < 2 || person.length < 2 || !mobile || !trades.length) return null;
+  await supabase.from('contractor_applications').insert({
+    company: company.slice(0, 160), person: person.slice(0, 120), mobile, email: user.email || null, city: String(meta.city || 'riyadh'), trades,
+    cr_number: /^[0-9]{5,15}$/.test(trimmed(meta.cr)) ? trimmed(meta.cr) : null, note: trimmed(meta.note).slice(0, LIMITS.appNote) || null, lang: meta.lang === 'en' ? 'en' : 'ar',
+  }).then(() => undefined, () => undefined);
+  const again = await supabase.from('contractor_applications').select('*').eq('user_id', user.id).maybeSingle();
+  return (again.data as Application | null) || null;
 }
 
 async function loadAccount(user: User): Promise<Account | null> {
@@ -131,8 +243,7 @@ async function loadAccount(user: User): Promise<Account | null> {
   const profile = await ensureProfile(user);
   if (!profile) return null;
   if (profile.role === 'contractor') {
-    const applied = await supabase.from('contractor_applications').select('*').eq('user_id', user.id).maybeSingle();
-    const application = (applied.data as Application | null) || null;
+    const application = await myApplication(user);
     const verified = application?.status === 'verified';
     // Open projects reach a contractor only once an admin has verified them; the database returns none before that.
     // (the database returns a contractor the open projects, plus any they have bid on)
@@ -185,7 +296,9 @@ export async function mobileTaken(mobile: string): Promise<boolean> {
   } catch { return false; }
 }
 
-/** Resolves to 'confirm' when the project still requires the email to be confirmed before signing in. */
+/** With "Confirm email" on (supabase/030 F) a new account has no session until its email link is opened: that resolves
+    to 'confirm', and the page asks the person to open the link. An address that already has an account comes back from
+    Supabase as a user with no identities (it says nothing more, so nobody can probe for accounts). */
 export async function signUp(f: SignUpFields): Promise<Result<true | 'confirm'>> {
   if (!supabase) return { error: 'generic' };
   try {
@@ -193,15 +306,25 @@ export async function signUp(f: SignUpFields): Promise<Result<true | 'confirm'>>
     codeSkipped = false;
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
-      options: { data: { full_name: f.name, mobile: f.mobile, city: f.city, lang: f.lang } },
+      options: { emailRedirectTo: linkTo('signup'), data: { full_name: f.name, mobile: f.mobile, city: f.city, lang: f.lang } },
     });
     if (error) return { error: failure(error) };
+    if (data.user && Array.isArray(data.user.identities) && !data.user.identities.length) return { error: 'exists' };
     if (!data.session || !data.user) return { ok: 'confirm' };
     const loaded = await loadAccount(data.user);
     if (!loaded) return { error: 'generic' };
     setAccount(loaded);
     track('signup', 'auth');
     return { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** The activation email again, for an account that has not opened its link yet (or whose link expired). */
+export async function resendConfirmation(email: string): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: linkTo('signup') } });
+    return error ? { error: failure(error) } : { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }
 
@@ -247,22 +370,33 @@ export async function refreshAccount(): Promise<void> {
 
 export interface ContractorSignUp extends ApplicationFields { password: string }
 
-/** A contractor applies and gets their account in one step; it opens fully once an admin verifies the application. */
+/** A contractor applies and gets their account in one step; it opens fully once an admin verifies the application.
+    With "Confirm email" on there is no session yet: the application goes in as the public form's does (no account on it,
+    never read back), and is linked to the account at its first sign-in (myApplication above). */
 export async function signUpContractor(f: ContractorSignUp): Promise<Result<true | 'confirm'>> {
   if (!supabase) return { error: 'generic' };
   try {
-    if (await mobileTaken(normalizeMobile(f.mobile))) return { error: 'mobileTaken' };
+    const mobile = saudiMobile(f.mobile);
+    if (await mobileTaken(mobile)) return { error: 'mobileTaken' };
     codeSkipped = false;
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
-      options: { data: { role: 'contractor', full_name: f.person.trim(), company: f.company.trim(), mobile: normalizeMobile(f.mobile), city: f.city, lang: f.lang } },
+      // what the application needs, kept with the account, so a lost application can be sent again at sign-in
+      options: { emailRedirectTo: linkTo('signup'), data: { role: 'contractor', full_name: f.person.trim(), company: f.company.trim(), mobile, city: f.city, lang: f.lang,
+        trades: f.trades.slice(0, 12), cr: f.crNumber.trim(), note: f.note.trim().slice(0, LIMITS.appNote) } },
     });
     if (error) return { error: failure(error) };
-    if (!data.session || !data.user) return { ok: 'confirm' };
-    if (!(await loadAccount(data.user))) return { error: 'generic' }; // creates the contractor profile
-    const applied = await sendApplication(f);
+    if (data.user && Array.isArray(data.user.identities) && !data.user.identities.length) return { error: 'exists' };
+    if (!data.session || !data.user) {
+      const sent = await sendApplication({ ...f, mobile });
+      return sent.ok ? { ok: 'confirm' } : sent;
+    }
+    if (!(await ensureProfile(data.user))) return { error: 'generic' }; // the contractor profile first, then the application tied to it
+    const applied = await sendApplication({ ...f, mobile });
     if (!applied.ok) return applied;
-    setAccount(await loadAccount(data.user));
+    const loaded = await loadAccount(data.user);
+    if (!loaded) return { error: 'generic' };
+    setAccount(loaded);
     return { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }
@@ -313,21 +447,24 @@ export async function otpCheck(code: string): Promise<boolean> {
   } catch { return false; }
 }
 
-/** Email a link for choosing a new password. Says nothing about whether the address has an account. */
+/** Email a link for choosing a new password. Says nothing about whether the address has an account (Supabase answers the
+    same for both); it only says "sent" when the request really went through. */
 export async function requestPasswordReset(email: string): Promise<Result> {
   if (!supabase) return { error: 'generic' };
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/signin` });
-    return error && failure(error) === 'rate' ? { error: 'rate' } : { ok: true };
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: linkTo('reset') });
+    return error ? { error: failure(error) } : { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }
 }
 
-/** The new password, for someone who arrived through a reset link. */
+/** A new password: for someone who arrived through a reset link, or who changes it from the settings page. Every other
+    device signed in to the account is signed out; this one stays. */
 export async function setNewPassword(password: string): Promise<Result> {
   if (!supabase) return { error: 'generic' };
   try {
     const { data, error } = await supabase.auth.updateUser({ password });
     if (error || !data.user) return { error: failure(error) };
+    await supabase.auth.signOut({ scope: 'others' }).catch(() => undefined);
     recovering = false;
     setAccount(await loadAccount(data.user));
     return { ok: true };
@@ -358,10 +495,55 @@ export async function createProject(f: ProjectFields): Promise<Result<ProjectRow
 
 export async function withdrawProject(dbId: string): Promise<Result> {
   if (!supabase || !account) return { error: 'generic' };
-  const { error } = await supabase.from('projects').update({ status: 'withdrawn' }).eq('id', dbId);
-  if (error) return { error: failure(error) };
-  account = { ...account, projects: account.projects.filter((p) => p.id !== dbId) };
-  return { ok: true };
+  try {
+    const { data, error } = await supabase.from('projects').update({ status: 'withdrawn' }).eq('id', dbId).select('id');
+    if (error) return { error: failure(error) };
+    // a refused update changes no row and says nothing: the row that came back is the proof
+    if (Array.isArray(data) && !data.length) return { error: 'notOpen' };
+    account = { ...account, projects: account.projects.filter((p) => p.id !== dbId) };
+    return { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** While payment on the site is off, each party confirms the work is complete (supabase/030 B). Completion is never
+    one-sided: the project completes, and the homeowner's review opens, on the second confirmation. Resolves to
+    'completed', or 'waiting' when the other party has not confirmed yet (they are emailed). */
+export async function confirmComplete(projectId: string, side: 'homeowner' | 'contractor'): Promise<Result<'completed' | 'waiting'>> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { data, error } = await supabase.rpc(side === 'homeowner' ? 'homeowner_confirm_complete' : 'contractor_confirm_complete', { p_project: projectId });
+    if (error) return { error: failure(error) };
+    await refreshAccount();
+    const row = (Array.isArray(data) ? data[0] : data) as { status?: string } | null;
+    return { ok: row?.status === 'completed' ? 'completed' : 'waiting' };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/** The team completes, cancels or removes a project from the console (supabase/030 A): active → completed or withdrawn,
+    open → withdrawn. The database emails the parties in fixed words; the note stays in the team's own record. */
+export async function adminSetProjectStatus(projectId: string, status: 'completed' | 'withdrawn', note = ''): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { error } = await supabase.rpc('admin_set_project_status', { p_project: projectId, p_status: status, p_note: note.trim().slice(0, 500) || null });
+    return error ? { error: failure(error) } : { ok: true };
+  } catch (e) { return { error: failure(e as Error) }; }
+}
+
+/* A guest's project, kept on this device while their new account waits for its activation link (the form's text only:
+   the photos themselves cannot be kept), and posted at the first sign-in to that same account. */
+const DRAFT_KEY = 'tarmem-post-draft';
+export interface PostDraft { email: string; f: Record<string, unknown>; files: number; at: number }
+export function saveDraft(email: string, f: Record<string, unknown>, files: number): void {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ email: email.toLowerCase(), f, files, at: Date.now() })); } catch { /* private window: the form stays filled in this tab */ }
+}
+/** The draft for this account, once: it is removed as it is handed over. Older than a week, it is dropped. */
+export function takeDraft(email: string | null | undefined): PostDraft | null {
+  try {
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') as PostDraft | null;
+    if (!draft || !email || draft.email !== email.toLowerCase()) return null;
+    localStorage.removeItem(DRAFT_KEY);
+    return Date.now() - draft.at < 7 * 86400000 && draft.f ? draft : null;
+  } catch { return null; }
 }
 
 /** The database returns only agreements this person is a party to (or all of them, to an admin); none until 006 has been run. */
@@ -493,7 +675,7 @@ export async function saveBid(projectId: string, bid: Record<string, unknown>): 
     void _cid;
     const { data, error } = await supabase.from('bids').insert({
       project_id: projectId, price: Math.round(Number(price)), days: Math.round(Number(days)),
-      note: String((note as { ar?: string } | null)?.ar || '').slice(0, 2000) || null, details,
+      note: String((note as { ar?: string } | null)?.ar || '').trim() || null, details,
     }).select('*').single();
     if (error || !data) return { error: failure(error) };
     track('project', 'bid');
@@ -517,6 +699,8 @@ export interface ContactFields { name: string; email: string; mobile: string; to
    never ask for the row back (`.select()` would need read permission they do not have). */
 export async function sendContact(f: ContactFields): Promise<Result> {
   if (!supabase) return { error: 'generic' };
+  const problem = contactProblem({ name: f.name, email: f.email, mobile: f.mobile, message: f.message });
+  if (problem) return { error: problem };
   try {
     const { error } = await supabase.from('contact_messages').insert({
       name: f.name.trim(), email: f.email.trim() || null, mobile: normalizeMobile(f.mobile) || null,
@@ -533,7 +717,7 @@ export async function sendApplication(f: ApplicationFields): Promise<Result> {
   if (!supabase) return { error: 'generic' };
   try {
     const { error } = await supabase.from('contractor_applications').insert({
-      company: f.company.trim(), person: f.person.trim(), mobile: normalizeMobile(f.mobile), email: f.email.trim() || null,
+      company: f.company.trim(), person: f.person.trim(), mobile: saudiMobile(f.mobile) || normalizeMobile(f.mobile), email: f.email.trim() || null,
       city: f.city, trades: f.trades.slice(0, 12), cr_number: f.crNumber.trim() || null, note: f.note.trim().slice(0, 2000) || null, lang: f.lang,
     });
     if (!error) track('application', 'join');
@@ -556,7 +740,8 @@ export async function loadMessages(projectId: string): Promise<MessageRow[]> {
 export async function sendMessage(projectId: string, contractorId: string, body: string): Promise<Result> {
   if (!supabase || !account) return { error: 'generic' };
   try {
-    const { error } = await supabase.from('project_messages').insert({ project_id: projectId, contractor_id: contractorId, body: body.slice(0, 2000) });
+    if (body.length > LIMITS.message) return { error: 'msgLong' };
+    const { error } = await supabase.from('project_messages').insert({ project_id: projectId, contractor_id: contractorId, body });
     if (error) return { error: failure(error) };
     return { ok: true };
   } catch (e) { return { error: failure(e as Error) }; }

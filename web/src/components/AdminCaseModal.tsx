@@ -33,7 +33,7 @@ export default function AdminCaseModal({ vm }: { vm: VM }) {
       
         <textarea className="input" id="dv-reply" rows={3} value={vm.caseReply} onChange={vm.setCaseReply} placeholder={vm.t.admin.dv.replyPh} />
         
-      {vm.av.case.replyError ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.av.case.replyError}</p></>) : null}
+      {vm.av.case.replyError ? (<><p style={{ fontSize: '13px', color: '#C2381A' }}>{vm.av.case.replyError}</p></>) : null}
       
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <button className="btn btn-s" onClick={vm.closeAdminView}>{vm.t.admin.dv.close}</button>

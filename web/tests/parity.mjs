@@ -13,7 +13,8 @@
 
    Normalised away, because they are not differences in what a visitor sees:
    the runtime's <span class="sc-interp"> text wrappers, <image-slot> vs the
-   ImageSlot component, the JPEG copies of the trade photographs, the one
+   ImageSlot component, the JPEG copies of the trade photographs and the small
+   copies of the logo, the addresses given to the design's links, the one
    STYLE_FIXUPS departure, and figures that animate or tick (the live visitor
    counter, the count-up statistics). */
 
@@ -109,11 +110,13 @@ const snapshot = () => {
       if (!node.hasAttribute(key)) continue;
       // spoken names the converter gives the design's nameless selects and sliders (a11y_pass) are not in the prototype
       if (key === 'aria-label' && (tag === 'select' || tag === 'input')) continue;
+      // the address the converter gives every <a data-route> (route_href): the prototype's links have none
+      if (key === 'href' && node.hasAttribute('data-route')) continue;
       let value = clean(node.getAttribute(key));
       if (key === 'style') {
         value = value.split(';').map((d) => d.trim().replace(/\s*:\s*/, ':')).filter(Boolean).sort().join(';');
       }
-      if (key === 'src') value = value.replace(/^\.?\//, '').replace(/(assets\/trades\/\d\d)\.(png|jpg)/, '$1.IMG');
+      if (key === 'src') value = value.replace(/^\.?\//, '').replace(/(assets\/trades\/\d\d)\.(png|jpg)/, '$1.IMG').replace(/(assets\/tarmem-logo(?:-white)?)-sm\.png/, '$1.png');
       attrs.push(`${key}=${value}`);
     }
     for (const attr of node.attributes) {

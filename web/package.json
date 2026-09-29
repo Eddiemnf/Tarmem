@@ -14,7 +14,8 @@
     "test:parity": "node tests/parity.mjs",
     "test:launch": "node tests/launch.mjs",
     "test:platform": "node tests/platform.mjs",
-    "test:sweep": "node tests/sweep.mjs"
+    "test:sweep": "node tests/sweep.mjs",
+    "test:csp": "node tests/csp.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

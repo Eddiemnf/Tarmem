@@ -3,8 +3,11 @@
    The design only remembers file NAMES (it is a prototype). Here the files themselves are held
    from the moment they are chosen — a guest can pick photos before they even have an account —
    and uploaded once the project exists, into a private bucket under
-   <owner's account id>/<project id>/. Only the owner and Tarmem's admins can read them back
-   (supabase/003_project_files.sql); links are signed and expire. */
+   <owner's account id>/<project id>/. Who can read them back (supabase/003, 007): the owner and
+   Tarmem's admins; every verified contractor while the project is open for bids, so they can price
+   it; and a contractor who bid on the project or holds it — a bid keeps that access after the
+   project closes. Only the owner adds files, and the awarded contractor a stage's evidence under
+   stage-N/ (007), at most 40 files each per project (029). Links are signed and expire. */
 
 import { supabase } from './client';
 

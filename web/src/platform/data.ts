@@ -8,6 +8,7 @@
 import * as D from '../data/tarmem-data';
 import { isLaunch } from '../launch/mode';
 import type { LogicState } from '../state/designRuntime';
+import { PLATFORM_COPY } from './copy';
 
 export interface Profile {
   id: string;
@@ -51,11 +52,13 @@ const both = (text: string) => ({ en: text, ar: text });
 /** A homeowner record as the logic looks people up (`USERS.h1` for the signed-in one; by id in the admin console). */
 export function homeownerRecord(profile: Profile | null) {
   const name = profile?.full_name || '';
-  const year = (profile?.created_at || new Date().toISOString()).slice(0, 4);
+  // the profile line reads "Member since <month year>": the month and year only, as the design's own data has them
+  const since = new Date(profile?.created_at || Date.now());
+  const monthYear = (lang: 'ar' | 'en') => since.toLocaleDateString(lang === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { month: 'long', year: 'numeric' });
   return {
     ...both(name), city: profile?.city || 'riyadh', nafath: false,
     mobile: profile?.mobile || '', email: profile?.email || '', lang: profile?.lang || 'ar', createdAt: profile?.created_at || '', mobileVerified: Boolean(profile?.mobile_verified_at),
-    joined: { en: `Joined ${year}`, ar: `انضم في ${year}` },
+    joined: { en: monthYear('en'), ar: monthYear('ar') },
     rating: 0, reviews: 0, done: 0, onTimeApproval: '—', avgApproval: both('—'), disputes: 0,
     about: both(profile?.about || ''), revs: [],
   };
@@ -73,6 +76,22 @@ export function contractorRecord(application: Application | null, profile: Profi
 }
 
 let activeProfile: Profile | null = null;
+
+/* While payment on the site is off, a project both parties have signed is not "awaiting funding": nobody is asked to pay
+   on the site, and the Tarmem team arranges the start. The design's wording for that status (and the team console's word
+   for an active project) is replaced at the source, so the dashboards, the project page and the console all say the same. */
+let paymentsOff = false;
+export function setPaymentsOff(off: boolean): void { paymentsOff = off; }
+const patchedT = (() => {
+  const T = D.T as unknown as Record<'ar' | 'en', LogicState>;
+  const one = (lang: 'ar' | 'en') => {
+    const t = T[lang], copy = PLATFORM_COPY[lang];
+    return { ...t,
+      ws: { ...t.ws, st: { ...t.ws.st, funding: copy.signedArrange }, next: { ...t.ws.next, funding: copy.nextSignedHo, fundingCo: copy.nextSignedCo } },
+      admin: { ...t.admin, dv: { ...t.admin?.dv, statuses: { ...t.admin?.dv?.statuses, active: copy.signedArrange } } } };
+  };
+  return { ...T, ar: one('ar'), en: one('en') };
+})();
 let everyone: Record<string, ReturnType<typeof homeownerRecord>> | null = null;
 /** For the admin console: every homeowner, keyed by account id. `null` goes back to "just the signed-in one". */
 export function setEveryone(users: Record<string, ReturnType<typeof homeownerRecord>> | null): void { everyone = users; }
@@ -86,12 +105,13 @@ export function runtimeData(profile: Profile | null = activeProfile): typeof D {
   // The logic always looks up "h1" (the signed-in homeowner), even on pages that do not show it. In the admin
   // console it stays reachable but uncounted, so the list of people holds real accounts only.
   // A contractor sees projects, never who posted them: every owner is the same nameless homeowner.
+  const T = paymentsOff ? patchedT : D.T;
   if (profile?.role === 'contractor') {
     const owner = { ...homeownerRecord(null), ar: 'صاحب منزل', en: 'Homeowner' };
-    return { ...D, PROJECTS: [], CONTRACTORS: [], CASES: [], USERS: { h1: owner } } as unknown as typeof D;
+    return { ...D, T, PROJECTS: [], CONTRACTORS: [], CASES: [], USERS: { h1: owner } } as unknown as typeof D;
   }
   const users = everyone ? Object.defineProperty({ ...everyone }, 'h1', { value: homeownerRecord(profile), enumerable: false }) : { h1: homeownerRecord(profile) };
-  return { ...D, PROJECTS: [], CONTRACTORS: [], CASES: [], USERS: users } as unknown as typeof D;
+  return { ...D, T, PROJECTS: [], CONTRACTORS: [], CASES: [], USERS: users } as unknown as typeof D;
 }
 
 /** A project row as the logic's `projects` entry. Dates are ISO; the logic prints them in words. */

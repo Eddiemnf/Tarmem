@@ -18,7 +18,7 @@ export default function ContractorsPage({ vm }: { vm: VM }) {
       <div className="gside" style={{ display: 'grid', gridTemplateColumns: '210px minmax(0,1fr)', gap: '28px', alignItems: 'start' }}>
         <aside className="fpanel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.search.filters}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.search.filters}</span>
             
     {vm.hasFilters ? (<><button className="clearall" onClick={vm.clearFilters}>{vm.t.search.clearAll}</button></>) : null}
     

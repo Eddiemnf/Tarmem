@@ -6,7 +6,9 @@
     <!-- Asset paths in the generated markup are relative ("assets/…"); this keeps them
          pointing at the site root on any path, including the private demo at /demo. -->
     <base href="%BASE_URL%" />
-    <link rel="icon" href="%BASE_URL%assets/tarmem-logo.png" />
+    <link rel="icon" href="%BASE_URL%favicon.ico" sizes="32x32 48x48" />
+    <link rel="icon" type="image/png" href="%BASE_URL%assets/icon-512.png" sizes="512x512" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
@@ -19,12 +21,17 @@
       property="og:description"
       content="منصة سعودية تربط أصحاب المنازل بمقاولين موثّقين، من وصف المشروع إلى استلامه."
     />
-    <meta property="og:image" content="https://www.tarmem.sa/assets/hero-poster.webp" />
+    <meta property="og:image" content="https://www.tarmem.sa/assets/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ترميم · Tarmem" />
     <meta property="og:url" content="https://www.tarmem.sa/" />
     <meta property="og:locale" content="ar_SA" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="canonical" href="https://www.tarmem.sa/" />
-    <title>ترميم · Tarmem</title>
+    <title>ترميم | ترميم المنازل مع مقاولين موثّقين في السعودية</title>
+    <!-- The home page's hero poster, on a phone (src/state/viewModel.ts picks the same file): it is the first thing painted. -->
+    <link rel="preload" as="image" type="image/webp" href="%BASE_URL%assets/hero-poster-800.webp" media="(max-width: 768px)" fetchpriority="high" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

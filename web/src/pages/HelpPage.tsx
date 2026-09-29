@@ -27,7 +27,7 @@ export default function HelpPage({ vm }: { vm: VM }) {
       </div>
     </section>
     <section className="wrap" style={{ paddingBlock: '24px 40px', maxWidth: '960px' }}>
-      <span className="kick" style={{ color: '#9B9AB4' }}>{vm.hc.listTitle}</span>
+      <span className="kick" style={{ color: '#6B6986' }}>{vm.hc.listTitle}</span>
       <div style={{ marginTop: '8px', maxWidth: '760px' }}>
         
     {((vm.hc.articles) || []).map((a: any, _i0: number) => (
@@ -40,9 +40,9 @@ export default function HelpPage({ vm }: { vm: VM }) {
       </div>
     </section>
     <section className="wrap" style={{ paddingBlock: '8px 72px', maxWidth: '960px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '24px 40px', alignItems: 'center', padding: '28px 32px', borderRadius: '24px', background: '#fff', border: '1.5px solid transparent', backgroundImage: 'linear-gradient(#fff,#fff),linear-gradient(135deg,#FFE4CF 0%,#FFC9A8 55%,#FFC4BC 100%)', backgroundOrigin: 'border-box', backgroundClip: 'padding-box,border-box' }}>
+      <div className="help-cta" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '24px 40px', alignItems: 'center', padding: '28px 32px', borderRadius: '24px', background: '#fff', border: '1.5px solid transparent', backgroundImage: 'linear-gradient(#fff,#fff),linear-gradient(135deg,#FFE4CF 0%,#FFC9A8 55%,#FFC4BC 100%)', backgroundOrigin: 'border-box', backgroundClip: 'padding-box,border-box' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '0' }}>
-          <h3 style={{ fontSize: '20px', color: '#1B1464' }}>{vm.t.help.contact}</h3>
+          <h2 style={{ fontSize: '20px', color: '#1B1464' }}>{vm.t.help.contact}</h2>
           <p style={{ fontSize: '13.5px', color: '#5B4A3F', lineHeight: '1.7' }}>{vm.t.help.contactSub} · <a style={{ color: '#1B1464', textDecoration: 'underline', textUnderlineOffset: '3px' }} href="mailto:support@tarmem.sa">support@tarmem.sa</a></p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>

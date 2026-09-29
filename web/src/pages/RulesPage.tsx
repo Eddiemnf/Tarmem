@@ -11,6 +11,7 @@ export default function RulesPage({ vm }: { vm: VM }) {
         <span className="kick">{vm.t.rules.kicker}</span>
         <h1 style={{ fontSize: 'clamp(30px,3.4vw,44px)', color: '#1B1464', margin: '12px 0 16px', textWrap: 'balance' }}>{vm.t.rules.title}</h1>
         <p style={{ fontSize: '16.5px', color: '#5B5A7A', lineHeight: '1.8', maxWidth: '62ch' }}>{vm.t.rules.intro}</p>
+        <a className="rjump" href="rules#refunds" data-to="refunds" onClick={vm.jumpTo}>{vm.t.rules.jump}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14" /><path d="M6 13l6 6 6-6" /></svg></a>
       </div>
     </section>
     <section className="wrap" style={{ paddingBlock: '8px 24px', maxWidth: '900px' }}>
@@ -66,7 +67,7 @@ export default function RulesPage({ vm }: { vm: VM }) {
     
         </div>
       </div>
-      <div style={{ marginTop: '40px' }}>
+      <div id="refunds" tabIndex={-1} style={{ marginTop: '40px' }}>
         <h3 style={{ fontSize: '19px', color: '#1B1464' }}>{vm.t.pen.refundTitle}</h3>
         <p className="muted" style={{ fontSize: '13px', margin: '6px 0 16px', lineHeight: '1.7' }}>{vm.t.pen.refundSub}</p>
         <div className="rgrid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>

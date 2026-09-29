@@ -21,17 +21,24 @@ export default function PortfolioManager({ vm }: { vm: VM }) {
   const refresh = () => reloadPortfolio(host, 'c1', account.profile.id);
 
   const pick = async (e: { target: HTMLInputElement }) => {
-    const files = [...(e.target.files || [])].filter((f) => PORTFOLIO_RULES.types.includes(f.type) && f.size <= PORTFOLIO_RULES.maxBytes);
+    const chosen = [...(e.target.files || [])];
     e.target.value = '';
-    if (!files.length) return;
+    // a photo that is not taken says why (its type, its size, or the twelve), instead of simply not appearing
+    const wrongType = chosen.filter((f) => !PORTFOLIO_RULES.types.includes(f.type));
+    const tooBig = chosen.filter((f) => PORTFOLIO_RULES.types.includes(f.type) && f.size > PORTFOLIO_RULES.maxBytes);
+    const files = chosen.filter((f) => !wrongType.includes(f) && !tooBig.includes(f));
+    const refused = [...wrongType.map((f) => `${f.name} — ${copy.pfType}`), ...tooBig.map((f) => `${f.name} — ${copy.pfSize}`)];
     if (photos.length + files.length > PORTFOLIO_RULES.maxPhotos) return setError(copy.pfFull);
-    setBusy(true); setError('');
+    setError(refused.length ? `${copy.filesRefused}: ${refused.join(' · ')}` : '');
+    if (!files.length) return undefined;
+    setBusy(true);
     const results = await Promise.all(files.map((f, n) => addPortfolioPhoto(account.profile.id, f, caption, photos.length + n)));
     setBusy(false);
-    if (results.some((ok) => !ok)) setError(copy.pfFailed);
+    if (results.some((ok) => !ok)) setError([refused.length ? `${copy.filesRefused}: ${refused.join(' · ')}` : '', copy.pfFailed].filter(Boolean).join(' '));
     refresh();
+    return undefined;
   };
-  const remove = async (path: string) => { if (await removePortfolioPhoto(path)) refresh(); };
+  const remove = async (path: string) => { if (await removePortfolioPhoto(path)) refresh(); else setError(copy.pfFailed); };
 
   return (
     <div className="card" style={{ marginTop: '16px', padding: '18px 20px', gap: '12px' }}>
@@ -49,7 +56,7 @@ export default function PortfolioManager({ vm }: { vm: VM }) {
           {photos.map((p) => (
             <span key={p.path} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', background: '#F4F3FA', borderRadius: '8px', padding: '4px 8px' }}>
               <img src={p.url} alt="" style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '6px' }} />{p.caption || '—'}
-              <button type="button" className="lnkbtn" style={{ fontSize: '12px', color: '#D9401F' }} onClick={() => remove(p.path)} aria-label={copy.pfRemove}>✕</button>
+              <button type="button" className="lnkbtn" style={{ fontSize: '12px', color: '#C2381A' }} onClick={() => remove(p.path)} aria-label={copy.pfRemove}>✕</button>
             </span>
           ))}
         </div>

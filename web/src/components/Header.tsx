@@ -3,52 +3,54 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import { routeHref } from '../launch/urls';
 
 export default function Header({ vm }: { vm: VM }) {
   return (<><header className="hdr" data-over={vm.overNav}>
     <div className="wrap" style={{ display: 'flex', alignItems: 'center', gap: '20px', minHeight: '72px', paddingBlock: '10px' }}>
-      <div className="brand" data-route="home" onClick={vm.go} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', marginInlineEnd: '14px' }}><img className="lg-dark" src="assets/tarmem-logo.png" alt="Tarmem" style={{ height: '40px', width: 'auto' }} /><img className="lg-light" src="assets/tarmem-logo-white.png" alt="Tarmem" style={{ height: '40px', width: 'auto' }} /></div>
+      <a className="brand" data-route="home" onClick={vm.go} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', marginInlineEnd: '14px' }} href={routeHref("home")}><img className="lg-dark" src="assets/tarmem-logo-sm.png" alt="Tarmem" style={{ height: '40px', width: 'auto' }} /><img className="lg-light" src="assets/tarmem-logo-white-sm.png" alt="Tarmem" style={{ height: '40px', width: 'auto' }} /></a>
       <button className="burger" aria-expanded={vm.navOpenAttr} onClick={vm.toggleNav} aria-label="Menu"><span></span><span></span><span></span></button>
       
     {vm.isGuest ? (<>
         <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: 'clamp(20px,2.4vw,40px)', alignItems: 'center', marginInline: 'auto' }}>
-          <a className="lnk" data-route="how" aria-current={vm.cur.how} onClick={vm.go}>{vm.t.nav.how}</a>
-          <a className="lnk" data-route="pricing" aria-current={vm.cur.pricing} onClick={vm.go}>{vm.t.nav.pricing}</a>
-          <a className="lnk" data-route="faq" aria-current={vm.cur.faq} onClick={vm.go}>{vm.t.nav.faq}</a>
-          <a className="lnk" data-route="about" aria-current={vm.cur.about} onClick={vm.go}>{vm.t.nav.about}</a>
-          <a className="lnk hide-over" data-route="help" aria-current={vm.cur.help} onClick={vm.go}>{vm.t.footer.help}</a>
+          <a className="lnk" data-route="how" aria-current={vm.cur.how} onClick={vm.go} href={routeHref("how")}>{vm.t.nav.how}</a>
+          <a className="lnk" data-route="pricing" aria-current={vm.cur.pricing} onClick={vm.go} href={routeHref("pricing")}>{vm.t.nav.pricing}</a>
+          <a className="lnk" data-route="faq" aria-current={vm.cur.faq} onClick={vm.go} href={routeHref("faq")}>{vm.t.nav.faq}</a>
+          <a className="lnk" data-route="about" aria-current={vm.cur.about} onClick={vm.go} href={routeHref("about")}>{vm.t.nav.about}</a>
+          <a className="lnk hide-over" data-route="help" aria-current={vm.cur.help} onClick={vm.go} href={routeHref("help")}>{vm.t.footer.help}</a>
           <span className="mobonly" style={{ width: '100%', height: '1px', background: '#EEEDF5' }}></span>
-          <a className="lnk mobonly" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}</a>
-          {vm.launch && !vm.accounts ? null : (<a className="lnk mobonly" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>)}
+          <a className="lnk mobonly" data-route="auth" data-signup="contractor" onClick={vm.goAuth} href={routeHref("auth", undefined, "contractor")}>{vm.t.footer.join}</a>
+          {vm.launch && !vm.accounts ? null : (<a className="lnk mobonly" data-route="auth" onClick={vm.go} href={routeHref("auth")}>{vm.t.nav.signIn}</a>)}
         </nav>
       </>) : null}
     
       
     {vm.isHomeowner ? (<>
         <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: '26px', alignItems: 'center', marginInlineEnd: 'auto' }}>
-          <a className="lnk" data-route="hdash" aria-current={vm.cur.hdash} onClick={vm.go}>{vm.t.nav.dashboard}</a>
-          {vm.launch ? null : (<a className="lnk" data-route="contractors" aria-current={vm.cur.contractors} onClick={vm.go}>{vm.t.nav.contractors}</a>)}
+          <a className="lnk" data-route="hdash" aria-current={vm.cur.hdash} onClick={vm.go} href={routeHref("hdash")}>{vm.t.nav.dashboard}</a>
+          <a className="lnk mobonly" data-route="post" onClick={vm.go} href={routeHref("post")}>{vm.t.nav.post}</a>
+          {vm.launch ? null : (<a className="lnk" data-route="contractors" aria-current={vm.cur.contractors} onClick={vm.go} href={routeHref("contractors")}>{vm.t.nav.contractors}</a>)}
         </nav>
-        <button className="btn btn-p btn-sm" data-route="post" onClick={vm.go} style={{ flex: 'none' }}>{vm.t.nav.post}</button>
+        <button className="btn btn-p btn-sm hdr-post" data-route="post" onClick={vm.go} style={{ flex: 'none' }}>{vm.t.nav.post}</button>
       </>) : null}
     
       
     {vm.isContractor ? (<>
         <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: '26px', alignItems: 'center', marginInlineEnd: 'auto' }}>
-          <a className="lnk" data-route="cdash" aria-current={vm.cur.cdash} onClick={vm.go}>{vm.t.nav.dashboard}</a>
-          {vm.launch && !vm.accounts ? null : (<a className="lnk" data-route="browse" aria-current={vm.cur.browse} onClick={vm.go}>{vm.t.nav.browse}</a>)}
+          <a className="lnk" data-route="cdash" aria-current={vm.cur.cdash} onClick={vm.go} href={routeHref("cdash")}>{vm.t.nav.dashboard}</a>
+          {vm.launch && !vm.accounts ? null : (<a className="lnk" data-route="browse" aria-current={vm.cur.browse} onClick={vm.go} href={routeHref("browse")}>{vm.t.nav.browse}</a>)}
         </nav>
       </>) : null}
     
       
     {vm.isAdmin ? (<>
-        <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: '26px', alignItems: 'center', marginInlineEnd: 'auto' }}><a className="lnk" data-route="admin" aria-current={vm.cur.admin} onClick={vm.go}>{vm.t.nav.admin}</a></nav>
+        <nav className="mainnav" data-open={vm.navOpenAttr} style={{ display: 'flex', gap: '26px', alignItems: 'center', marginInlineEnd: 'auto' }}><a className="lnk" data-route="admin" aria-current={vm.cur.admin} onClick={vm.go} href={routeHref("admin")}>{vm.t.nav.admin}</a></nav>
       </>) : null}
     
       <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
         
     {vm.isGuest ? (<>
-          {vm.launch && !vm.accounts ? null : (<a className="ulnk deskonly hide-over" data-route="auth" onClick={vm.go}>{vm.t.nav.signIn}</a>)}
+          {vm.launch && !vm.accounts ? null : (<a className="ulnk deskonly hide-over" data-route="auth" onClick={vm.go} href={routeHref("auth")}>{vm.t.nav.signIn}</a>)}
           <button className="langbtn hide-over" onClick={vm.toggleLang}>{vm.t.langSwitch}</button>
           <button className="btn btn-s btn-sm deskonly join-over" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.footer.join}<svg className="ph-ar join-ar" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17 17 7 7" /><path d="M7 15V7h8" /></svg></button>
           <button className="btn btn-p btn-sm hide-over" data-route="post" onClick={vm.go}>{vm.t.nav.post}</button>
@@ -99,7 +101,7 @@ export default function Header({ vm }: { vm: VM }) {
         
     {vm.isUser ? (<>
           <div style={{ position: 'relative' }}>
-            <button className="acct" aria-expanded={vm.menuOpenAttr} onClick={vm.toggleMenu}><span className="acctav">{vm.userInitial}</span><span>{vm.user.name}</span><span className="acctcar">▾</span></button>
+            <button className="acct" aria-expanded={vm.menuOpenAttr} onClick={vm.toggleMenu}><span className="acctav">{vm.userInitial}</span><span className="acctname">{vm.user.name}</span><span className="acctcar">▾</span></button>
             
       {vm.menuOpen ? (<>
               <span className="acctveil" onClick={vm.closeMenu}></span>

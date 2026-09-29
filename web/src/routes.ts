@@ -2,31 +2,32 @@
    Edit the design file and re-run the converter, or edit here and keep both in
    step — the markup is a mechanical port of the prototype's template. */
 
-import type { ComponentType } from 'react';
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import type { VM } from './state/viewModel';
 import HomePage from './pages/HomePage';
-import PlanPage from './pages/PlanPage';
 import HowPage from './pages/HowPage';
 import PricingPage from './pages/PricingPage';
 import AboutPage from './pages/AboutPage';
 import HelpPage from './pages/HelpPage';
 import FaqPage from './pages/FaqPage';
-import AuthPage from './pages/AuthPage';
-import ContractorsPage from './pages/ContractorsPage';
-import SettingsPage from './pages/SettingsPage';
-import WalletPage from './pages/WalletPage';
-import HomeownerProfilePage from './pages/HomeownerProfilePage';
-import ContractorProfilePage from './pages/ContractorProfilePage';
 import PostProjectPage from './pages/PostProjectPage';
-import HomeownerDashboardPage from './pages/HomeownerDashboardPage';
-import ContractorDashboardPage from './pages/ContractorDashboardPage';
-import BrowseProjectsPage from './pages/BrowseProjectsPage';
-import ProjectPage from './pages/ProjectPage';
-import AdminPage from './pages/AdminPage';
 import RulesPage from './pages/RulesPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ContactPage from './pages/ContactPage';
+
+const PlanPage = lazy(() => import('./pages/PlanPage'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
+const ContractorsPage = lazy(() => import('./pages/ContractorsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const WalletPage = lazy(() => import('./pages/WalletPage'));
+const HomeownerProfilePage = lazy(() => import('./pages/HomeownerProfilePage'));
+const ContractorProfilePage = lazy(() => import('./pages/ContractorProfilePage'));
+const HomeownerDashboardPage = lazy(() => import('./pages/HomeownerDashboardPage'));
+const ContractorDashboardPage = lazy(() => import('./pages/ContractorDashboardPage'));
+const BrowseProjectsPage = lazy(() => import('./pages/BrowseProjectsPage'));
+const ProjectPage = lazy(() => import('./pages/ProjectPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 export type Route =
   'home'
@@ -53,7 +54,9 @@ export type Route =
   | 'privacy'
   | 'contact';
 
-export const PAGES: Record<Route, ComponentType<{ vm: VM }>> = {
+type Page = ComponentType<{ vm: VM }> | LazyExoticComponent<ComponentType<{ vm: VM }>>;
+
+export const PAGES: Record<Route, Page> = {
   home: HomePage,
   plan: PlanPage,
   how: HowPage,

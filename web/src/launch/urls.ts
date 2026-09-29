@@ -12,6 +12,7 @@
    address of its own: reloading it returns to the form. */
 
 import type { LogicHost, LogicVals } from '../state/designRuntime';
+import { siteMode } from './mode';
 
 const PATHS: Record<string, string> = {
   home: '', how: 'how', pricing: 'pricing', about: 'about', help: 'help', faq: 'faq',
@@ -21,6 +22,8 @@ const PATHS: Record<string, string> = {
   reset: 'reset-password',
 };
 const BASE = import.meta.env.BASE_URL;
+/** Where the public site lives: canonical addresses and the social preview point here. */
+export const SITE_ORIGIN = 'https://www.tarmem.sa';
 
 function routeFromLocation(): { route: string; known: boolean; curId?: string } {
   const rest = window.location.pathname.slice(BASE.length).replace(/\/+$/, '');
@@ -38,6 +41,16 @@ function pathFor(state: { route: string; curId?: string | null }): string | unde
   if (state.route === 'project' && state.curId) return 'project/' + encodeURIComponent(state.curId);
   if (state.route === 'contractor' && state.curId) return 'firm/' + encodeURIComponent(state.curId);
   return PATHS[state.route];
+}
+
+/** The href a link to a page carries (tools/convert-template.py gives one to every `<a data-route>`), so it can be
+    reached by keyboard, opened in a new tab, copied or crawled; the click itself is still handled in the page.
+    The private demo's links stay inside /demo, whose pages have no addresses of their own. */
+export function routeHref(route: string, curId?: string | null, role?: string): string | undefined {
+  // "join as a contractor" names the contractor's sign-up; on the public site that is the application form (guard.ts)
+  const path = pathFor({ route: siteMode === 'launch' && route === 'auth' && role === 'contractor' ? 'join' : route, curId: curId ?? null });
+  if (siteMode === 'demo') return `${BASE}demo${path === '' ? '' : '/' + (path ?? route)}`;
+  return path === undefined ? undefined : BASE + path;
 }
 
 /** Call once the logic has mounted. Returns the function that disconnects it. */

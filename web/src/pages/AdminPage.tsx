@@ -92,7 +92,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
           </div>
 
           <div className="card" style={{ marginTop: '20px', padding: '22px 26px', gap: '10px', background: '#FAFAFD' }}>
-            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.lr.policy}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.lr.policy}</span>
             <ul style={{ margin: '0', paddingInlineStart: '18px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13.5px', color: '#3A385C', lineHeight: '1.6' }}>
       {((vm.t.admin.lr.policyL) || []).map((pl: any, _i0: number) => (
         <React.Fragment key={_i0}><li>{pl}</li></React.Fragment>
@@ -156,7 +156,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
       
 
           <div className="card" style={{ padding: '8px 18px 4px', gap: '0' }}>
-            <div className="tbl-wrap"><table className="table">
+            <div className="tbl-wrap"><table className="table adm-t">
               <thead><tr><th>{vm.t.admin.pm.hCode}</th><th>{vm.t.admin.pm.hDiscount}</th><th>{vm.t.admin.pm.hUses}</th><th>{vm.t.admin.pm.hStatus}</th><th></th></tr></thead>
               <tbody>
       {((vm.pm.rows) || []).map((p: any, _i0: number) => (
@@ -168,7 +168,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
                   <td className="nw"><div style={{ fontWeight: '600', color: '#1B1464' }} className="num">{p.disc}</div>
         {p.minL ? (<><div className="muted num" style={{ fontSize: '12px' }}>{p.minL}</div></>) : null}
         <div className="muted" style={{ fontSize: '12px', marginTop: '3px' }}>{p.appliesL}</div></td>
-                  <td><div className="num" style={{ fontWeight: '600' }}>{p.usesL}</div><div className="an-bar" style={{ width: '84px', marginTop: '6px' }}><span style={{ width: `${p.usePct}%` }}></span></div></td>
+                  <td data-l={vm.t.admin.pm.hUses}><div className="num" style={{ fontWeight: '600' }}>{p.usesL}</div><div className="an-bar" style={{ width: '84px', marginTop: '6px' }}><span style={{ width: `${p.usePct}%` }}></span></div></td>
                   <td className="nw"><span className={`tag ${p.stCls}`}>{p.stL}</span><div className="num muted" style={{ fontSize: '12px', marginTop: '6px' }}>{p.window}</div></td>
                   <td><div className="rowact">
                     <button className="btn btn-g btn-sm" data-code={p.code} onClick={vm.pmCopy}>{p.copyL}</button>
@@ -187,7 +187,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
           </div>
 
           <div className="card" style={{ marginTop: '20px', padding: '22px 26px', gap: '10px', background: '#FAFAFD' }}>
-            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.pm.rules}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.pm.rules}</span>
             <ul style={{ margin: '0', paddingInlineStart: '18px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13.5px', color: '#3A385C', lineHeight: '1.6' }}>
       {((vm.t.admin.pm.rulesL) || []).map((ru: any, _i0: number) => (
         <React.Fragment key={_i0}><li>{ru}</li></React.Fragment>
@@ -240,15 +240,15 @@ export default function AdminPage({ vm }: { vm: VM }) {
       
 
           <div className="card" style={{ padding: '8px 18px 4px', gap: '0' }}>
-            <div className="tbl-wrap"><table className="table">
+            <div className="tbl-wrap"><table className="table adm-t">
               <thead><tr><th>{vm.t.admin.af.hPartner}</th><th>{vm.t.admin.af.hFunnel}</th><th>{vm.t.admin.af.hEarned}</th><th>{vm.t.admin.af.hStatus}</th><th></th></tr></thead>
               <tbody>
       {((vm.af.rows) || []).map((a: any, _i0: number) => (
         <React.Fragment key={_i0}>
                 <tr>
                   <td><div style={{ fontWeight: '600', color: '#1B1464' }}>{a.name}</div><div className="muted" style={{ fontSize: '12px', margin: '3px 0 6px' }}>{a.typeL} · {a.rate}%</div><span className="code" style={{ fontWeight: '500', fontSize: '12px' }}>{a.link}</span></td>
-                  <td className="nw num" style={{ fontSize: '13px' }}><div>{a.clicks} <span className="muted" style={{ fontSize: '11.5px' }}>{vm.t.admin.af.hClicks}</span></div><div>{a.signups} <span className="muted" style={{ fontSize: '11.5px' }}>{vm.t.admin.af.hSignups}</span></div><div style={{ fontWeight: '600', color: '#1B7A3E' }}>{a.projects} <span className="muted" style={{ fontSize: '11.5px', fontWeight: '400' }}>{vm.t.admin.af.hProjects}</span></div></td>
-                  <td className="nw num"><div style={{ fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{a.earned}{vm.curPost}</div><div style={{ fontSize: '12.5px', fontWeight: '600', color: a.owedC, marginTop: '4px' }}>{vm.t.admin.af.hOwed} {vm.curPre}{a.owed}{vm.curPost}</div></td>
+                  <td className="nw num" style={{ fontSize: '13px' }} data-l={vm.t.admin.af.hFunnel}><div>{a.clicks} <span className="muted" style={{ fontSize: '11.5px' }}>{vm.t.admin.af.hClicks}</span></div><div>{a.signups} <span className="muted" style={{ fontSize: '11.5px' }}>{vm.t.admin.af.hSignups}</span></div><div style={{ fontWeight: '600', color: '#1B7A3E' }}>{a.projects} <span className="muted" style={{ fontSize: '11.5px', fontWeight: '400' }}>{vm.t.admin.af.hProjects}</span></div></td>
+                  <td className="nw num" data-l={vm.t.admin.af.hEarned}><div style={{ fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{a.earned}{vm.curPost}</div><div style={{ fontSize: '12.5px', fontWeight: '600', color: a.owedC, marginTop: '4px' }}>{vm.t.admin.af.hOwed} {vm.curPre}{a.owed}{vm.curPost}</div></td>
                   <td className="nw"><span className={`tag ${a.stCls}`}>{a.stL}</span></td>
                   <td><div className="rowact">
                     <button className="btn btn-g btn-sm" data-link={a.link} onClick={vm.afCopy}>{a.copyL}</button>
@@ -265,7 +265,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
           </div>
 
           <div className="card" style={{ marginTop: '20px', padding: '22px 26px', gap: '12px', background: '#FAFAFD' }}>
-            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.af.terms}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.af.terms}</span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '14px 24px' }}>
               
       {((vm.af.terms) || []).map((tm: any, _i0: number) => (
@@ -305,7 +305,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
             </div>
             <div className="g2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '20px' }}>
               <div className="card" style={{ gap: '14px' }}>
-                <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.an.byPage}</span>
+                <span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.an.byPage}</span>
                 <div className="an-list">
                   
       {((vm.live.pages) || []).map((p: any, _i0: number) => (
@@ -314,10 +314,13 @@ export default function AdminPage({ vm }: { vm: VM }) {
                   </React.Fragment>
       ))}
       
+                  
+      {vm.live.noPages ? (<><p className="muted an-empty">{vm.t.admin.an.emptyNow}</p></>) : null}
+      
                 </div>
               </div>
               <div className="card" style={{ gap: '10px' }}>
-                <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.an.feed}</span>
+                <span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.an.feed}</span>
                 <div className="an-feed">
                   
       {((vm.live.feed) || []).map((f: any, _i0: number) => (
@@ -325,6 +328,9 @@ export default function AdminPage({ vm }: { vm: VM }) {
                     <div><i></i><span style={{ minWidth: '0' }}><span style={{ color: '#1B1464', fontWeight: '500' }}>{f.city}</span> <span className="muted">{f.what}</span></span><span className="muted num" style={{ fontSize: '11.5px', whiteSpace: 'nowrap' }}>{f.when}</span></div>
                   </React.Fragment>
       ))}
+      
+                  
+      {vm.live.noFeed ? (<><p className="muted an-empty">{vm.t.admin.an.emptyFeed}</p></>) : null}
       
                 </div>
               </div>
@@ -348,7 +354,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
           <div className="card" style={{ gap: '18px', padding: '26px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
               <div>
-                <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.an.traffic} · {vm.t.admin.an.total}</span>
+                <span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.an.traffic} · {vm.t.admin.an.total}</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginTop: '6px' }}>
                   <span className="num" style={{ fontSize: '34px', fontWeight: '600', color: '#1B1464', lineHeight: '1.1' }}>{vm.an.total}</span>
                   <span className={`an-delta ${vm.an.totalCls}`}>{vm.an.totalDelta}</span>
@@ -386,25 +392,31 @@ export default function AdminPage({ vm }: { vm: VM }) {
           </div>
 
           <div className="g3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: '20px', marginTop: '20px' }}>
-            <div className="card" style={{ gap: '14px' }}><span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.an.topPages}</span>
+            <div className="card" style={{ gap: '14px' }}><span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.an.topPages}</span>
               <div className="an-list">
       {((vm.an.topPages) || []).map((p: any, _i0: number) => (
         <React.Fragment key={_i0}><div className="an-row"><span>{p.l}</span><span className="num" style={{ fontWeight: '600', color: '#1B1464' }}>{p.v}</span><div className="an-bar"><span style={{ width: `${p.pct}%` }}></span></div></div></React.Fragment>
       ))}
+      
+      {vm.an.noTop ? (<><p className="muted an-empty">{vm.t.admin.an.emptyPeriod}</p></>) : null}
       </div>
             </div>
-            <div className="card" style={{ gap: '14px' }}><span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.an.sources}</span>
+            <div className="card" style={{ gap: '14px' }}><span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.an.sources}</span>
               <div className="an-list">
       {((vm.an.sources) || []).map((p: any, _i0: number) => (
         <React.Fragment key={_i0}><div className="an-row"><span>{p.l}</span><span className="num" style={{ fontWeight: '600', color: '#1B1464' }}>{p.v}</span><div className="an-bar"><span style={{ width: `${p.pct}%`, background: '#1B1464' }}></span></div></div></React.Fragment>
       ))}
+      
+      {vm.an.noSources ? (<><p className="muted an-empty">{vm.t.admin.an.emptyPeriod}</p></>) : null}
       </div>
             </div>
-            <div className="card" style={{ gap: '14px' }}><span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.an.cities}</span>
+            <div className="card" style={{ gap: '14px' }}><span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.an.cities}</span>
               <div className="an-list">
       {((vm.an.cities) || []).map((p: any, _i0: number) => (
         <React.Fragment key={_i0}><div className="an-row"><span>{p.l}</span><span className="num" style={{ fontWeight: '600', color: '#1B1464' }}>{p.v}</span><div className="an-bar"><span style={{ width: `${p.pct}%`, background: '#1B7A3E' }}></span></div></div></React.Fragment>
       ))}
+      
+      {vm.an.noCities ? (<><p className="muted an-empty">{vm.t.admin.an.emptyPeriod}</p></>) : null}
       </div>
             </div>
           </div>
@@ -459,7 +471,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
           <div className="card" style={{ gap: '22px', marginBottom: '20px', padding: '26px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
               <div>
-                <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.finFlow}</span>
+                <span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.finFlow}</span>
                 <p className="muted" style={{ fontSize: '12.5px', marginTop: '6px', maxWidth: '44ch' }}>{vm.t.admin.finFlowSub}</p>
               </div>
               <div style={{ textAlign: 'end' }}>
@@ -511,7 +523,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
               </div>
             </div>
             <div className="card" style={{ gap: '14px', padding: '26px' }}>
-              <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.admin.finRevDetail}</span>
+              <span className="kick" style={{ color: '#6B6986' }}>{vm.t.admin.finRevDetail}</span>
               <div className="finrow"><span>{vm.t.admin.finComm}</span><span className="num">{vm.curPre}{vm.fin.comm}{vm.curPost}</span></div>
               <div className="finrow"><span>{vm.t.admin.finFees}</span><span className="num">{vm.curPre}{vm.fin.fees}{vm.curPost}</span></div>
               <div className="finrow" style={{ border: '0' }}><span>{vm.t.admin.finAvg}</span><span className="num">{vm.curPre}{vm.fin.avg}{vm.curPost}</span></div>
@@ -520,10 +532,10 @@ export default function AdminPage({ vm }: { vm: VM }) {
           </div>
 
           <div className="card" style={{ padding: '8px' }}><h3 style={{ fontSize: '18px', color: '#1B1464', padding: '12px 12px 4px' }}>{vm.t.admin.allProjects}</h3>
-          <table className="table"><thead><tr><th>ID</th><th>{vm.t.project}</th><th>{vm.t.roles.homeowner}</th><th>{vm.t.roles.contractor}</th><th>{vm.t.status}</th><th>{vm.t.ws.amount}</th></tr></thead>
+          <table className="table adm-t"><thead><tr><th>{vm.t.admin.hId}</th><th>{vm.t.project}</th><th>{vm.t.roles.homeowner}</th><th>{vm.t.roles.contractor}</th><th>{vm.t.status}</th><th>{vm.t.ws.amount}</th></tr></thead>
             <tbody>
       {((vm.allProjects) || []).map((p: any, _i0: number) => (
-        <React.Fragment key={_i0}><tr className="row-h" style={{ cursor: 'pointer' }} data-id={p.id} onClick={vm.openAdminProject}><td className="muted num">{p.id}</td><td style={{ fontWeight: '500' }}>{p.title}</td><td>{p.ownerName}</td><td>{p.contractorName}</td><td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td><td className="num">{vm.curPre}{p.amount}{vm.curPost}</td></tr></React.Fragment>
+        <React.Fragment key={_i0}><tr className="row-h" style={{ cursor: 'pointer' }} data-id={p.id} onClick={vm.openAdminProject}><td className="muted num">{p.id}</td><td style={{ fontWeight: '500' }}>{p.title}</td><td data-l={vm.t.roles.homeowner}>{p.ownerName}</td><td data-l={vm.t.roles.contractor}>{p.contractorName}</td><td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td><td className="num" data-l={vm.t.ws.amount}>{vm.curPre}{p.amount}{vm.curPost}</td></tr></React.Fragment>
       ))}
       </tbody></table></div>
         </>) : null}
@@ -532,7 +544,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
     {vm.atab.verification ? (<>
           <h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464' }}>{vm.t.admin.verification}</h1>
           <p style={{ color: '#5B5A7A', maxWidth: '60ch', margin: '8px 0 24px' }}>{vm.t.admin.verifSub}</p>
-          <div className="card" style={{ padding: '8px' }}><table className="table"><thead><tr><th>{vm.t.roles.contractor}</th><th>{vm.t.admin.checks}</th><th>{vm.t.admin.submitted}</th><th></th></tr></thead>
+          <div className="card" style={{ padding: '8px' }}><table className="table adm-t"><thead><tr><th>{vm.t.roles.contractor}</th><th>{vm.t.admin.checks}</th><th>{vm.t.admin.submitted}</th><th></th></tr></thead>
             <tbody>
       {((vm.verifQueue) || []).map((v: any, _i0: number) => (
         <React.Fragment key={_i0}>
@@ -542,7 +554,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
           <React.Fragment key={_i1}><span className={`tag ${ch.cls}`}>{ch.label}</span></React.Fragment>
         ))}
         </div></td>
-                <td className="muted">{v.date}</td>
+                <td className="muted" data-l={vm.t.admin.submitted}>{v.date}</td>
                 <td style={{ textAlign: 'end', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button className="btn btn-s btn-sm" data-id={v.id} onClick={vm.openVerif}>{vm.t.admin.dv.view}</button><button className="btn btn-p btn-sm" data-id={v.id} onClick={vm.approveVerif}>{vm.t.admin.approve}</button><button className="btn btn-s btn-sm" data-id={v.id} onClick={vm.rejectVerif}>{vm.t.admin.reject}</button></div></td></tr>
             </React.Fragment>
       ))}
@@ -555,7 +567,7 @@ export default function AdminPage({ vm }: { vm: VM }) {
         
     {vm.atab.support ? (<>
           <h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464', marginBottom: '24px' }}>{vm.t.admin.support}</h1>
-          <div className="card" style={{ padding: '8px' }}><table className="table"><thead><tr><th>ID</th><th>{vm.t.project}</th><th>{vm.t.admin.issue}</th><th>{vm.t.status}</th><th></th></tr></thead>
+          <div className="card" style={{ padding: '8px' }}><table className="table adm-t"><thead><tr><th>{vm.t.admin.hId}</th><th>{vm.t.admin.hCaseFrom}</th><th>{vm.t.admin.issue}</th><th>{vm.t.status}</th><th></th></tr></thead>
             <tbody>
       {((vm.cases) || []).map((c: any, _i0: number) => (
         <React.Fragment key={_i0}><tr><td className="muted num">{c.id}</td><td style={{ fontWeight: '500' }}>{c.project}</td><td style={{ fontSize: '13.5px', color: '#5B5A7A' }}>{c.issue}</td><td><span className={`tag ${c.cls}`}>{c.status}</span></td><td style={{ textAlign: 'end', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button className="btn btn-s btn-sm" data-id={c.id} onClick={vm.openCase}>{vm.t.admin.dv.view}</button>
@@ -569,18 +581,20 @@ export default function AdminPage({ vm }: { vm: VM }) {
     {vm.atab.payments ? (<>
           <h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464' }}>{vm.t.admin.payments}</h1>
           <p style={{ color: '#5B5A7A', maxWidth: '60ch', margin: '8px 0 24px' }}>{vm.t.admin.paySub}</p>
-          <div className="card pay-table" style={{ padding: '8px' }}><table className="table"><thead><tr><th>{vm.t.project}</th><th>{vm.t.ws.milestone}</th><th>{vm.t.ws.amount}</th><th>{vm.t.status}</th></tr></thead>
+          <div className="card pay-table" style={{ padding: '8px' }}><table className="table adm-t"><thead><tr><th>{vm.t.project}</th><th>{vm.t.ws.milestone}</th><th>{vm.t.ws.amount}</th><th>{vm.t.status}</th></tr></thead>
             <tbody>
       {((vm.payRows) || []).map((p: any, _i0: number) => (
-        <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}>{p.project}</td><td>{p.ms}</td><td className="num">{vm.curPre}{p.amount}{vm.curPost}</td><td><span className={`tag ${p.cls}`}>{p.status}</span></td></tr></React.Fragment>
+        <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}>{p.project}</td><td data-l={vm.t.ws.milestone}>{p.ms}</td><td className="num" data-l={vm.t.ws.amount}>{vm.curPre}{p.amount}{vm.curPost}</td><td><span className={`tag ${p.cls}`}>{p.status}</span></td></tr></React.Fragment>
       ))}
+      
+      {vm.noPayRows ? (<><tr className="empty-row"><td colSpan={4} className="muted" style={{ whiteSpace: 'normal' }}>{vm.t.admin.noPayRows}</td></tr></>) : null}
       </tbody></table></div><WalletRequests vm={vm} />
         </>) : null}
     
         
     {vm.atab.users ? (<>
           <h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464', marginBottom: '24px' }}>{vm.t.admin.users}</h1>
-          <div className="card" style={{ padding: '8px' }}><table className="table"><thead><tr><th>{vm.t.auth.fullName}</th><th>{vm.t.admin.role}</th><th>{vm.t.auth.city}</th><th>{vm.t.status}</th><th></th></tr></thead>
+          <div className="card" style={{ padding: '8px' }}><table className="table adm-t"><thead><tr><th>{vm.t.auth.fullName}</th><th>{vm.t.admin.role}</th><th>{vm.t.auth.city}</th><th>{vm.t.status}</th><th></th></tr></thead>
             <tbody>
       {((vm.userRows) || []).map((u: any, _i0: number) => (
         <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}>{u.name}</td><td>{u.role}</td><td>{u.city}</td><td><span className={`tag ${u.cls}`}>{u.status}</span></td><td style={{ textAlign: 'end' }}><button className="btn btn-s btn-sm" data-id={u.id} data-kind={u.kind} onClick={vm.openUser}>{vm.t.admin.dv.view}</button></td></tr></React.Fragment>

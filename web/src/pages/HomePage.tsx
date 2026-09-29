@@ -4,12 +4,13 @@
 import React from 'react';
 import type { VM } from '../state/viewModel';
 import LaunchNotice from '../launch/LaunchNotice';
+import { routeHref } from '../launch/urls';
 
 export default function HomePage({ vm }: { vm: VM }) {
   return (<>
     <section className="fade" style={{ background: '#fff' }}>
       <div className="ph">
-        <video className="ph-vid" poster="assets/hero-poster.webp" autoPlay={true} muted={true} loop={true} playsInline={true} preload="auto" aria-hidden="true" tabIndex={-1} src={vm.heroVideo === undefined ? 'assets/hero.mp4' : (vm.heroVideo || undefined)}></video>
+        <video className="ph-vid" autoPlay={vm.heroAuto} muted={true} loop={true} playsInline={true} preload="auto" aria-hidden="true" tabIndex={-1} src={vm.heroVideo === undefined ? 'assets/hero.mp4' : (vm.heroVideo || undefined)} poster={vm.heroPoster || 'assets/hero-poster.webp'}></video>
         
         <div className="ph-in">
           <div>
@@ -44,10 +45,22 @@ export default function HomePage({ vm }: { vm: VM }) {
             <b className="ph-live-n">{vm.onlineNow}</b>
             {vm.t.hero2.liveNow}
           </span>)}
-          <button className="ph-down" type="button" onClick={vm.toAiBar}>
-            {vm.t.hero2.discover}
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v16" /><path d="M6 14l6 6 6-6" /></svg>
-          </button>
+          <div className="ph-bar-end">
+            
+    {vm.heroMotion ? (<><button className="ph-pause" type="button" onClick={vm.toggleHeroVid} aria-label={vm.heroVidLabel} title={vm.heroVidLabel}>
+              
+      {vm.heroPaused ? (<><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" /></svg></>) : null}
+      
+              
+      {vm.heroPlaying ? (<><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6.5" y="5.5" width="3.8" height="13" rx="1" /><rect x="13.7" y="5.5" width="3.8" height="13" rx="1" /></svg></>) : null}
+      
+            </button></>) : null}
+    
+            <button className="ph-down" type="button" onClick={vm.toAiBar}>
+              {vm.t.hero2.discover}
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v16" /><path d="M6 14l6 6 6-6" /></svg>
+            </button>
+          </div>
         </div>
       </div>
     </section><LaunchNotice vm={vm} home />
@@ -125,13 +138,13 @@ export default function HomePage({ vm }: { vm: VM }) {
         <span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.hoKicker}</span>
         <h3 style={{ position: 'relative', fontSize: 'clamp(22px,2.2vw,28px)', lineHeight: '1.3', color: '#1B1464', margin: '2px 0 0', fontWeight: '600' }}>{vm.t.home.hoHead}</h3>
         <p style={{ position: 'relative', fontSize: '15px', color: '#5B5A7A', flex: '1' }}>{vm.t.home.hoDesc}</p>
-        <div style={{ position: 'relative', paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-p" data-route="post" onClick={vm.go}>{vm.t.home.hoCta}</button>{vm.launch ? null : (<a className="hlnk" data-route="contractors" onClick={vm.go}>{vm.t.nav.contractors}</a>)}</div>
+        <div style={{ position: 'relative', paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-p" data-route="post" onClick={vm.go}>{vm.t.home.hoCta}</button>{vm.launch ? null : (<a className="hlnk" data-route="contractors" onClick={vm.go} href={routeHref("contractors")}>{vm.t.nav.contractors}</a>)}</div>
       </div>
       <div style={{ background: '#F8F7FC', borderRadius: '24px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <span className="skick"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18" /></svg> {vm.t.home.coKicker}</span>
         <h3 style={{ fontSize: 'clamp(22px,2.2vw,28px)', lineHeight: '1.3', color: '#1B1464', margin: '2px 0 0', fontWeight: '600' }}>{vm.t.home.coHead}</h3>
         <p style={{ fontSize: '15px', color: '#5B5A7A', flex: '1' }}>{vm.t.home.coDesc}</p>
-        <div style={{ paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-s" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.home.coCta}</button>{vm.launch && !vm.accounts ? null : (<a className="hlnk" data-route="browse" onClick={vm.go}>{vm.t.nav.browseProjects}</a>)}</div>
+        <div style={{ paddingTop: '14px', display: 'flex', gap: '18px', alignItems: 'center', flexWrap: 'wrap' }}><button className="btn btn-s" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.home.coCta}</button>{vm.launch && !vm.accounts ? null : (<a className="hlnk" data-route="browse" onClick={vm.go} href={routeHref("browse")}>{vm.t.nav.browseProjects}</a>)}</div>
       </div>
     </section>
 
@@ -139,43 +152,43 @@ export default function HomePage({ vm }: { vm: VM }) {
       <h2 style={{ fontSize: 'clamp(24px,2.8vw,34px)', color: '#1B1464' }}>{vm.t.home.hireTitle}</h2>
       <div className="hire-grid">
           <button type="button" className="hire-c" data-trade={vm.hc0.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/01.jpg" alt={vm.hc0.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/01.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc0.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc1.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/03.jpg" alt={vm.hc1.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/03.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc1.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc2.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/02.jpg" alt={vm.hc2.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/02.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc2.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc3.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/04.jpg" alt={vm.hc3.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/04.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc3.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc4.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/05.jpg" alt={vm.hc4.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/05.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc4.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc5.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/06.jpg" alt={vm.hc5.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/06.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc5.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc6.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/07.jpg" alt={vm.hc6.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/07.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc6.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc7.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/08.jpg" alt={vm.hc7.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/08.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc7.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc8.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/09.jpg" alt={vm.hc8.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/09.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc8.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
           <button type="button" className="hire-c" data-trade={vm.hc9.id} onClick={vm.hireTrade}>
-            <img className="hire-img" draggable="false" src="assets/trades/10.jpg" alt={vm.hc9.label} loading="lazy" decoding="async" />
+            <img className="hire-img" draggable="false" src="assets/trades/10.jpg" alt="" loading="lazy" decoding="async" />
             <span className="hire-p"><span>{vm.hc9.label}</span><svg className="hire-ar" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </button>
       </div>
@@ -190,7 +203,7 @@ export default function HomePage({ vm }: { vm: VM }) {
         <p style={{ fontSize: '15px', color: '#6E685E', margin: '0', maxWidth: '380px', lineHeight: '1.8' }}>{vm.t.home.testiSub}</p>
       </div>
       <div className="tsti-wrap">
-        <div className="tsti-track">
+        <div className="tsti-track" tabIndex={0} role="region" aria-label={vm.t.home.testiTitle}>
           
     {((vm.testimonials) || []).map((tm: any, _i0: number) => (
       <React.Fragment key={_i0}>
@@ -252,7 +265,7 @@ export default function HomePage({ vm }: { vm: VM }) {
     {((vm.partners) || []).map((p: any, _i0: number) => (
       <React.Fragment key={_i0}>
           <div className="prtnr" data-p={p.id}>
-            <img draggable="false" src={p.logoSrc} alt={p.n} />
+            <img draggable="false" src={p.logoSrc} alt={p.n} loading="lazy" decoding="async" />
           </div>
         </React.Fragment>
     ))}

@@ -3,6 +3,7 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import { routeHref } from '../launch/urls';
 
 export default function ContractorDashboardPage({ vm }: { vm: VM }) {
   return (<>
@@ -51,7 +52,7 @@ export default function ContractorDashboardPage({ vm }: { vm: VM }) {
           <span><span className="qa-n" style={{ display: 'block' }}>{vm.t.cdash.qaWallet}</span><span className="qa-s" style={{ display: 'block' }}>{vm.t.cdash.qaWalletSub}</span></span>
         </button>)}
       </div>
-      <div className="strikebar" data-n={vm.sk.n} role="status" aria-live="polite">
+      {vm.launch && !vm.stagesLive ? null : (<div className="strikebar" data-n={vm.sk.n} role="status" aria-live="polite">
         <div className="strikebar-head">
           <div className="strikebar-t">{vm.sk.title}</div>
           
@@ -67,9 +68,9 @@ export default function ContractorDashboardPage({ vm }: { vm: VM }) {
             <button className="btn btn-g btn-sm" data-route="project" data-id={vm.sk.pid} onClick={vm.go}>{vm.t.strikes.aBlock}</button>
           </>) : null}
     
-          <a className="lnkbtn" style={{ fontSize: '12px' }} data-route="rules" onClick={vm.go}>{vm.t.strikes.how}</a>
+          <a className="lnkbtn" style={{ fontSize: '12px' }} data-route="rules" onClick={vm.go} href={routeHref("rules")}>{vm.t.strikes.how}</a>
         </div>
-      </div>
+      </div>)}
       <div className="statstrip num">
         
     {((vm.cStats) || []).map((s: any, _i0: number) => (
@@ -87,30 +88,32 @@ export default function ContractorDashboardPage({ vm }: { vm: VM }) {
               <tr className="row-h" style={{ cursor: 'pointer' }} data-route="project" data-id={p.id} onClick={vm.go}>
                 <td><div style={{ fontWeight: '600', color: '#1B1464' }}>{p.title}</div><div className="muted" style={{ fontSize: '12.5px' }}>{p.cityLabel}</div></td>
                 <td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td>
-                <td className="num">{p.myBidLabel}</td>
-                <td style={{ fontSize: '13.5px' }}>{p.nextMs}</td>
+                <td className="num" data-l={vm.t.cdash.myBid}>{p.myBidLabel}</td>
+                <td style={{ fontSize: '13.5px' }} data-l={vm.t.cdash.nextMilestone} data-none={p.noNextMs}>{p.nextMs}</td>
               </tr></React.Fragment>
     ))}
+    
+    {vm.noCProjects ? (<><tr className="empty-row"><td colSpan={4} className="muted" style={{ whiteSpace: 'normal' }}>{vm.t.cdash.noWork}</td></tr></>) : null}
     </tbody></table>
         </div>
         <aside style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="card"><span className="kick">{vm.t.cdash.payments}</span>
+          {vm.launch && !vm.wallet ? null : (<div className="card cd-pay"><span className="kick">{vm.t.cdash.payments}</span>
             
     {((vm.cPayments) || []).map((p: any, _i0: number) => (
       <React.Fragment key={_i0}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px 0', borderBottom: '1px solid #EEEDF5' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '13.5px' }}><span>{p.label}</span><span className="num" style={{ fontWeight: '600', color: p.color }}>{vm.curPre}{p.amount}{vm.curPost}</span></div>
-                <a className="lnkbtn" style={{ fontSize: '11.5px', alignSelf: 'flex-start' }} data-route="project" data-id={p.pid} onClick={vm.go}>{vm.t.cdash.brk}</a>
+                <a className="lnkbtn" style={{ fontSize: '11.5px', alignSelf: 'flex-start' }} data-route="project" data-id={p.pid} onClick={vm.go} href={routeHref("project", p.pid)}>{vm.t.cdash.brk}</a>
               </div>
             </React.Fragment>
     ))}
     
             <p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.7' }}>{vm.t.cdash.payNote}</p>
-          </div>
+          </div>)}
           <div className="card perf-card"><span className="kick">{vm.t.cdash.performance}</span>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', padding: '8px 0', borderBottom: '1px solid #EEEDF5' }}><span>{vm.t.cdash.profileViews}</span><span className="num" style={{ fontWeight: '600' }}>{vm.launch ? String(vm.perfViews ?? '—') : '128'}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', padding: '8px 0', borderBottom: '1px solid #EEEDF5' }}><span>{vm.t.cdash.winRate}</span><span className="num" style={{ fontWeight: '600' }}>{vm.launch ? String(vm.perfWin ?? '—') : '31%'}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', padding: '8px 0' }}><span>{vm.t.profile.response}</span><span className="num" style={{ fontWeight: '600' }}>{vm.launch ? String(vm.perfResponse ?? '—') : '4h'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '13.5px', padding: '8px 0', borderBottom: '1px solid #EEEDF5' }}><span>{vm.t.cdash.profileViews}</span><span className="num" style={{ fontWeight: '600' }}>{vm.launch ? String(vm.perfViews ?? '—') : '128'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '13.5px', padding: '8px 0', borderBottom: '1px solid #EEEDF5' }}><span>{vm.t.cdash.winRate}</span><span className="num" style={{ fontWeight: '600' }}>{vm.launch ? String(vm.perfWin ?? '—') : '31%'}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '13.5px', padding: '8px 0' }}><span>{vm.t.cdash.avgResponse}</span><span className="num" style={{ fontWeight: '600' }}>{vm.launch ? String(vm.perfResponse ?? '—') : '4h'}</span></div>
           </div>
         </aside>
       </div>

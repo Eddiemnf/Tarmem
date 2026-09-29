@@ -13,13 +13,46 @@ const subOf = (header) => { try { return JSON.parse(Buffer.from(String(header ||
 
 /** A signed-in session for `userId`, as the fragment a "reset your password" email link carries. */
 export const recoveryFragment = (userId) => `#access_token=${jwt(userId)}&refresh_token=refresh-${userId}&expires_in=3600&token_type=bearer&type=recovery`;
+/** What opening the activation link does (supabase/030 F): the address is confirmed, and the page opens with a session. */
+export function confirmLink(db, email) {
+  const user = db.users.find((u) => u.email === email);
+  user.confirmed = true; user.confirmed_at = new Date().toISOString();
+  return `#access_token=${jwt(user.id)}&refresh_token=refresh-${user.id}&expires_in=3600&expires_at=${Math.floor(Date.now() / 1000) + 3600}&token_type=bearer&type=signup`;
+}
+/** A used or expired email link, as Supabase redirects it. */
+export const expiredFragment = '#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired';
+
+/* The database's own rules for what a row may hold (supabase/001, 005, 019): a refused row is answered the way Postgres
+   answers it, naming the rule it broke (<table>_<column>_check). */
+const between = (v, lo, hi) => { const n = String(v ?? '').trim().length; return n >= lo && n <= hi; };
+const MOBILE = /^\+?[0-9][0-9 ]{7,17}$/, EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const RULES = {
+  projects: (r) => [[!between(r.title, 3, 140), 'projects_title_check'], [!between(r.description, 3, 4000), 'projects_description_check'], [r.district != null && String(r.district).length > 120, 'projects_district_check'],
+    [!(r.budget_min >= 0), 'projects_budget_min_check'], [!(r.budget_max >= r.budget_min && r.budget_max <= 1000000), 'projects_budget_max_check']],
+  bids: (r) => [[!(r.price >= 100 && r.price <= 1000000), 'bids_price_check'], [!(r.days >= 1 && r.days <= 1000), 'bids_days_check'], [r.note != null && String(r.note).length > 2000, 'bids_note_check']],
+  contact_messages: (r) => [[!between(r.name, 2, 120), 'contact_messages_name_check'], [r.email != null && !(String(r.email).length <= 160 && EMAIL.test(r.email)), 'contact_messages_email_check'],
+    [r.mobile != null && !MOBILE.test(r.mobile), 'contact_messages_mobile_check'], [!between(r.message, 3, 4000), 'contact_messages_message_check'], [r.email == null && r.mobile == null, 'contact_messages_check']],
+  contractor_applications: (r) => [[!between(r.company, 2, 160), 'contractor_applications_company_check'], [!between(r.person, 2, 120), 'contractor_applications_person_check'], [!MOBILE.test(r.mobile || ''), 'contractor_applications_mobile_check'],
+    [r.cr_number != null && !/^[0-9]{5,15}$/.test(r.cr_number), 'contractor_applications_cr_number_check'], [r.note != null && String(r.note).length > 2000, 'contractor_applications_note_check'], [!(Array.isArray(r.trades) && r.trades.length >= 1 && r.trades.length <= 12), 'contractor_applications_trades_check']],
+  project_messages: (r) => [[!between(r.body, 1, 2000), 'project_messages_body_check']],
+  profiles: (r) => [['full_name' in r && !between(r.full_name, 2, 120), 'profiles_full_name_check'], ['mobile' in r && !MOBILE.test(r.mobile || ''), 'profiles_mobile_check']],
+};
+const broken = (table, row) => (RULES[table]?.(row) || []).find(([bad]) => bad)?.[1] || null;
 
 export async function installSupabaseMock(context, supabaseUrl) {
-  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], agreements: [], portfolio: [], captions: [], caseReplies: [], refused: [], unknown: [] };
+  const db = { users: [], profiles: [], projects: [], contact: [], applications: [], visits: [], adminState: {}, files: [], bids: [], agreements: [], portfolio: [], captions: [], caseReplies: [], refused: [], unknown: [],
+    /** "Confirm email" (supabase/030 F): a new account has no session until its link is opened. */
+    confirmEmail: false, resent: [], logouts: [], signupRedirects: [],
+    /** Requests that fail once, as `METHOD /path` → { status, body }: for the tests of what the site says when something is refused. */
+    failNext: {},
+    /** An account whose session the database no longer accepts (its sign-in expired): its requests answer 401 until it signs in again. */
+    expired: null };
   let nextCode = 2001;
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
   const send = (route, status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
-  const publicUser = (u) => ({ id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, user_metadata: u.data, app_metadata: { provider: 'email' }, created_at: u.created_at });
+  const publicUser = (u) => ({ id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, user_metadata: u.data, app_metadata: { provider: 'email' }, created_at: u.created_at,
+    email_confirmed_at: u.confirmed === false ? null : (u.confirmed_at || u.created_at), identities: [{ id: u.id, provider: 'email', identity_data: { email: u.email, sub: u.id } }] });
+  const checkError = (route, rule, table) => send(route, 400, { code: '23514', details: 'Failing row contains (…).', hint: null, message: `new row for relation "${table}" violates check constraint "${rule}"` });
   const session = (u) => ({ access_token: jwt(u.id), token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'refresh-' + u.id, user: publicUser(u) });
   const refuse = (route, why) => { db.refused.push(why); return send(route, 403, { code: '42501', message: why }); };
 
@@ -36,22 +69,33 @@ export async function installSupabaseMock(context, supabaseUrl) {
     const rows = (list) => (wantsObject ? (list.length === 1 ? send(route, 200, list[0]) : send(route, 406, { code: 'PGRST116', message: 'not exactly one row' })) : send(route, 200, list));
     const eq = (name) => (url.searchParams.get(name) || '').replace(/^eq\./, '');
     const path = url.pathname;
+    const forced = db.failNext[`${method} ${path}`];
+    if (forced) { delete db.failNext[`${method} ${path}`]; return send(route, forced.status || 400, forced.body || { code: 'P0001', message: 'refused for the test' }); }
+    // a session the database no longer accepts: every data request with it answers as PostgREST does for an expired token
+    if (db.expired && me === db.expired && !path.startsWith('/auth/')) return send(route, 401, { code: 'PGRST301', details: null, hint: null, message: 'JWT expired' });
 
     const leaked = { code: 422, error_code: 'weak_password', msg: 'Password is known to be weak and easy to guess, please choose a different one.', weak_password: { reasons: ['pwned'] } };
     if ((path === '/auth/v1/signup' || path === '/auth/v1/user') && ['POST', 'PUT'].includes(method) && body?.password === 'password1234') return send(route, 422, leaked);
     if (path === '/auth/v1/signup' && method === 'POST') {
-      if (db.users.some((u) => u.email === body.email)) return send(route, 422, { code: 422, error_code: 'user_already_exists', msg: 'User already registered' });
-      const user = { id: `00000000-0000-4000-8000-${String(db.users.length + 1).padStart(12, '0')}`, email: body.email, password: body.password, data: body.data || {}, created_at: new Date().toISOString() };
+      const taken = db.users.find((u) => u.email === body.email);
+      // with "Confirm email" on, Supabase answers an address that has an account with a user that has no identities, and sends nothing
+      if (taken && db.confirmEmail) return send(route, 200, { ...publicUser(taken), id: '00000000-0000-4000-8000-ffffffffffff', identities: [] });
+      if (taken) return send(route, 422, { code: 422, error_code: 'user_already_exists', msg: 'User already registered' });
+      const user = { id: `00000000-0000-4000-8000-${String(db.users.length + 1).padStart(12, '0')}`, email: body.email, password: body.password, data: body.data || {}, created_at: new Date().toISOString(), ...(db.confirmEmail ? { confirmed: false } : {}) };
       db.users.push(user);
-      return send(route, 200, session(user));
+      db.signupRedirects.push(url.searchParams.get('redirect_to'));
+      return send(route, 200, db.confirmEmail ? { ...publicUser(user), confirmation_sent_at: new Date().toISOString() } : session(user));
     }
+    if (path === '/auth/v1/resend' && method === 'POST') { db.resent.push({ email: body.email, type: body.type, redirect: url.searchParams.get('redirect_to') }); return send(route, 200, {}); }
     if (path === '/auth/v1/token' && method === 'POST') {
       const user = url.searchParams.get('grant_type') === 'refresh_token'
         ? db.users.find((u) => 'refresh-' + u.id === body.refresh_token)
         : db.users.find((u) => u.email === body.email && u.password === body.password);
+      if (user && user.confirmed === false) return send(route, 400, { code: 400, error_code: 'email_not_confirmed', msg: 'Email not confirmed' });
+      if (user && db.expired === user.id && url.searchParams.get('grant_type') === 'password') db.expired = null; // a new sign-in is a new session
       return user ? send(route, 200, session(user)) : send(route, 400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
     }
-    if (path === '/auth/v1/logout') return route.fulfill({ status: 204, headers: cors });
+    if (path === '/auth/v1/logout') { db.logouts.push(url.searchParams.get('scope') || 'global'); return route.fulfill({ status: 204, headers: cors }); }
     if (path === '/auth/v1/recover' && method === 'POST') { (db.recoveries ||= []).push({ email: body.email, redirect: url.searchParams.get('redirect_to') }); return send(route, 200, {}); }
     if (path === '/auth/v1/user' && method === 'PUT') { const user = db.users.find((u) => u.id === me); if (!user) return send(route, 401, { msg: 'no session' }); if (body.password) user.password = body.password; return send(route, 200, publicUser(user)); }
     if (path === '/auth/v1/user') { const user = db.users.find((u) => u.id === me); return user ? send(route, 200, publicUser(user)) : send(route, 401, { msg: 'no session' }); }
@@ -108,11 +152,13 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (method === 'PATCH') {
         const forbidden = Object.keys(body).filter((k) => !['full_name', 'mobile', 'city', 'company', 'lang', 'prefs', 'about', 'trades'].includes(k));
         if (forbidden.length || eq('id') !== me) return refuse(route, 'profiles: may not change ' + (forbidden.join(', ') || "somebody else's row"));
+        const rule = broken('profiles', body); if (rule) return checkError(route, rule, 'profiles');
         Object.assign(db.profiles.find((p) => p.id === me), body);
         return route.fulfill({ status: 204, headers: cors });
       }
       if (method === 'POST') {
         if (!me || body.id !== me || !['homeowner', 'contractor'].includes(body.role)) return refuse(route, 'profiles: not your own row, or not an allowed role');
+        const rule = broken('profiles', body); if (rule) return checkError(route, rule, 'profiles');
         const row = { company: null, ...body, email: db.users.find((u) => u.id === me).email, created_at: new Date().toISOString() };
         db.profiles.push(row);
         return wantsRows ? rows([row]) : send(route, 201);
@@ -125,15 +171,17 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (method === 'POST') {
         const assigned = ['id', 'code', 'owner_id', 'status', 'created_at'].filter((k) => k in body);
         if (assigned.length) return refuse(route, 'projects: the database assigns ' + assigned.join(', '));
-        if (!db.profiles.some((p) => p.id === me && p.role === 'homeowner')) return send(route, 400, { code: 'P0001', message: 'Only homeowners can post projects' });
+        if (!db.profiles.some((p) => p.id === me && p.role === 'homeowner')) return send(route, 400, { code: 'P0001', message: 'Only a homeowner account can post a project.' });
+        const rule = broken('projects', body); if (rule) return checkError(route, rule, 'projects');
         const row = { id: `10000000-0000-4000-8000-${String(nextCode).padStart(12, '0')}`, code: 'P-' + nextCode++, owner_id: me, status: 'open', created_at: new Date().toISOString(), ...body };
         db.projects.push(row);
         return wantsRows ? rows([row]) : send(route, 201);
       }
       if (method === 'PATCH') {
-        const row = db.projects.find((p) => p.id === eq('id') && p.owner_id === me);
+        // the owner may withdraw a project that is still open (supabase/001); anything else changes no row
+        const row = db.projects.find((p) => p.id === eq('id') && p.owner_id === me && p.status === 'open');
         if (row) Object.assign(row, body);
-        return route.fulfill({ status: 204, headers: cors });
+        return wantsRows ? rows(row ? [row] : []) : route.fulfill({ status: 204, headers: cors });
       }
     }
     if (path === '/rest/v1/reviews') {
@@ -145,13 +193,15 @@ export async function installSupabaseMock(context, supabaseUrl) {
     }
     if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }, { key: 'whatsapp_live', enabled: Boolean(db.whatsappLive) }, { key: 'otp_live', enabled: Boolean(db.otpLive) }] : []);
     if (path === '/rest/v1/project_messages') {
-      const mine = (r) => me && (db.projects.some((p) => p.id === r.project_id && p.owner_id === me) || r.contractor_id === me);
+      // the two parties read their thread; the team reads every message (supabase/030: "admins read project messages")
+      const mine = (r) => me && (admin || db.projects.some((p) => p.id === r.project_id && p.owner_id === me) || r.contractor_id === me);
       if (method === 'GET') return rows((db.messages || []).filter((r) => mine(r) && (!eq('project_id') || r.project_id === eq('project_id'))));
       if (method === 'POST') {
         const p = db.projects.find((x) => x.id === body.project_id);
         const canMsg = p && (p.contractor_id === body.contractor_id || (db.bids || []).some((b) => b.project_id === p.id && b.contractor_id === body.contractor_id && b.status !== 'withdrawn'));
         const owner = Boolean(p && p.owner_id === me);
-        if (!me || !canMsg || 'from_id' in body || !(owner || (body.contractor_id === me && isVerified(me))) || !String(body.body || '').trim()) return refuse(route, 'project_messages: refused');
+        const rule = broken('project_messages', body); if (rule) return checkError(route, rule, 'project_messages');
+        if (!me || !canMsg || 'from_id' in body || !(owner || (body.contractor_id === me && isVerified(me)))) return refuse(route, 'project_messages: refused');
         (db.messages ||= []).push({ id: (db.messages || []).length + 1, ...body, from_id: me, created_at: new Date().toISOString(), read_at: null });
         return send(route, 201);
       }
@@ -238,8 +288,10 @@ export async function installSupabaseMock(context, supabaseUrl) {
     if (path === '/rest/v1/agreements') return rows(db.agreements.filter((a) => admin || a.homeowner_id === me || a.contractor_id === me));
     if (path === '/rest/v1/rpc/sign_agreement_homeowner' && method === 'POST') {
       const bid = db.bids.find((b) => b.id === body.p_bid && b.status !== 'withdrawn');
-      const project = bid && db.projects.find((p) => p.id === bid.project_id && p.owner_id === me && p.status === 'open');
-      if (!project || db.agreements.some((a) => a.project_id === project.id && a.contractor_signed_at)) return refuse(route, 'agreement: not yours to sign');
+      if (!bid) return send(route, 400, { code: 'P0001', message: 'this bid is not available' });
+      const project = db.projects.find((p) => p.id === bid.project_id && p.owner_id === me);
+      if (!project) return refuse(route, 'only the project\'s owner accepts a bid');
+      if (project.status !== 'open' || db.agreements.some((a) => a.project_id === project.id && a.contractor_signed_at)) return send(route, 400, { code: 'P0001', message: 'the project is no longer open' });
       for (const b of db.bids) if (b.project_id === project.id) b.status = b.id === bid.id ? 'chosen' : b.status === 'chosen' ? 'submitted' : b.status;
       db.agreements = db.agreements.filter((a) => a.project_id !== project.id);
       const row = { project_id: project.id, bid_id: bid.id, homeowner_id: me, contractor_id: bid.contractor_id, amount: bid.price, days: bid.days, homeowner_name: db.profiles.find((p) => p.id === me).full_name, homeowner_signed_at: new Date().toISOString(), contractor_name: null, contractor_signed_at: null };
@@ -248,7 +300,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
     }
     if (path === '/rest/v1/rpc/sign_agreement_contractor' && method === 'POST') {
       const row = db.agreements.find((a) => a.project_id === body.p_project && a.contractor_id === me);
-      if (!row) return refuse(route, 'agreement: nothing here for you to sign');
+      if (!row) return send(route, 400, { code: 'P0001', message: 'there is no agreement here for you to sign' });
+      if (row.contractor_signed_at) return send(route, 400, { code: 'P0001', message: 'the agreement is already signed by both sides' });
       Object.assign(row, { contractor_name: db.applications.find((a) => a.user_id === me)?.company || '', contractor_signed_at: new Date().toISOString() });
       Object.assign(db.projects.find((p) => p.id === row.project_id), { status: 'active', contractor_id: me, amount: row.amount });
       db.stages = [...(db.stages || []), ...[0, 1, 2].map((idx) => ({ project_id: row.project_id, idx, status: 'pending' }))];
@@ -275,6 +328,60 @@ export async function installSupabaseMock(context, supabaseUrl) {
       Object.assign(c, { ho_ok_at: c.ho_ok_at || new Date().toISOString(), co_ok_at: c.co_ok_at || new Date().toISOString(), applied_at: new Date().toISOString() });
       project.amount = total;
       return send(route, 200, c);
+    }
+    // each party confirms the work is complete; the project completes on the second confirmation (supabase/030 B)
+    if ((path === '/rest/v1/rpc/homeowner_confirm_complete' || path === '/rest/v1/rpc/contractor_confirm_complete') && method === 'POST') {
+      if (!me) return refuse(route, 'sign in first');
+      const ho = path.endsWith('homeowner_confirm_complete');
+      const p = db.projects.find((x) => x.id === body.p_project);
+      if (ho && (!p || p.owner_id !== me)) return refuse(route, 'only the project\'s owner confirms completion');
+      if (!ho && (!p || p.contractor_id !== me)) return refuse(route, 'only the project\'s contractor confirms completion');
+      if (p.status === 'completed') return send(route, 200, p);
+      if (db.paymentsLive) return refuse(route, 'payments_on: with payment on the site, a project completes when its last stage is approved');
+      if (p.status !== 'active') return refuse(route, 'not_active: only a project in progress can be confirmed complete');
+      const a = db.agreements.find((x) => x.project_id === p.id && x.contractor_signed_at);
+      if (!a) return refuse(route, 'not_signed: the agreement is not signed by both parties');
+      const field = ho ? 'homeowner_done_at' : 'contractor_done_at';
+      if (a[field]) return send(route, 200, p);
+      a[field] = new Date().toISOString();
+      (db.confirmations ||= []).push({ id: p.id, by: ho ? 'homeowner' : 'contractor' });
+      if (a.homeowner_done_at && a.contractor_done_at) { p.status = 'completed'; (db.completed ||= []).push(p.id); }
+      return send(route, 200, p);
+    }
+    // the team completes, cancels or removes a project (supabase/030 A)
+    if (path === '/rest/v1/rpc/admin_set_project_status' && method === 'POST') {
+      if (!admin) return refuse(route, 'admins only');
+      if (!['completed', 'withdrawn'].includes(body.p_status)) return send(route, 400, { code: '22023', message: 'unknown status: use completed or withdrawn' });
+      const p = db.projects.find((x) => x.id === body.p_project);
+      if (!p) return send(route, 400, { code: '22023', message: 'no such project' });
+      const move = `${p.status}>${body.p_status}`;
+      if (!['active>completed', 'active>withdrawn', 'open>withdrawn'].includes(move)) return refuse(route, 'status_not_allowed: a project goes from active to completed or withdrawn, or from open to withdrawn');
+      (db.statusChanges ||= []).push({ id: p.id, from: p.status, to: body.p_status, note: body.p_note ?? null, action: move === 'active>completed' ? 'completed' : move === 'active>withdrawn' ? 'cancelled' : 'removed' });
+      p.status = body.p_status;
+      return send(route, 200, p);
+    }
+    if (path === '/rest/v1/rpc/claim_my_application' && method === 'POST') {
+      if (!me) return refuse(route, 'sign in first');
+      const u = db.users.find((x) => x.id === me);
+      if (!u || u.confirmed === false) return refuse(route, 'confirm your email first');
+      const prof = db.profiles.find((x) => x.id === me && x.role === 'contractor');
+      if (!prof) return refuse(route, 'only a contractor account can claim an application');
+      const own = db.applications.find((a) => a.user_id === me);
+      const key = (m) => String(m || '').replace(/\D/g, '').replace(/^(00966|966|0)/, '');
+      if (!own || own.status === 'new') {
+        const same = (a) => !a.user_id && a.email && a.email.toLowerCase() === u.email.toLowerCase();
+        // (b) checked by the team, of any age, with the same mobile — preferred, and it replaces a 'new' one
+        const checked = db.applications.filter((a) => same(a) && ['verified', 'contacted'].includes(a.status) && key(a.mobile) === key(prof.mobile))
+          .sort((x, y) => (y.status === 'verified') - (x.status === 'verified')).slice(0, 1)[0];
+        // (a) sent after the account existed, when it has none yet
+        const after = !own && db.applications.filter((a) => same(a) && Date.parse(a.created_at || 0) >= Date.parse(u.created_at) - 60000).slice(-1)[0];
+        const pick = checked || after;
+        if (pick) {
+          if (own && checked) db.applications = db.applications.filter((a) => a !== own);
+          pick.user_id = me; (db.claimed ||= []).push(me);
+        }
+      }
+      return send(route, 200, db.applications.map((a, i) => ({ id: i + 1, ...a })).filter((a) => a.user_id === me));
     }
     if (path === '/rest/v1/portfolio') {
       if (method === 'GET') return rows(db.captions.filter((c) => !eq('user_id') || c.user_id === eq('user_id')));
@@ -314,7 +421,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (method === 'POST') {
         const assigned = ['id', 'contractor_id', 'status', 'created_at'].filter((k) => k in body);
         if (assigned.length) return refuse(route, 'bids: the database assigns ' + assigned.join(', '));
-        if (!isVerified(me) || !db.projects.some((p) => p.id === body.project_id && p.status === 'open') || db.bids.some((b) => b.project_id === body.project_id && b.contractor_id === me)) return refuse(route, 'bids: not allowed to bid here');
+        const rule = broken('bids', body); if (rule) return checkError(route, rule, 'bids');
+        if (!isVerified(me) || !db.projects.some((p) => p.id === body.project_id && p.status === 'open') || db.bids.some((b) => b.project_id === body.project_id && b.contractor_id === me)) return refuse(route, 'new row violates row-level security policy for table "bids"');
         const row = { id: `20000000-0000-4000-8000-${String(db.bids.length + 1).padStart(12, '0')}`, contractor_id: me, status: 'submitted', created_at: new Date().toISOString(), ...body };
         db.bids.push(row);
         return wantsRows ? rows([row]) : send(route, 201);
@@ -348,7 +456,11 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (path !== '/rest/v1/' + table) continue;
       if (method === 'POST') {
         if (wantsRows) return refuse(route, table + ': visitors cannot read a row back');
-        store.push(table === 'contractor_applications' ? { ...body, user_id: me, status: 'new' } : body);
+        const rule = broken(table, body); if (rule) return checkError(route, rule, table);
+        // the forms' limits (supabase/029): five in an hour from the same address or number
+        if (table !== 'visits' && store.filter((r) => (body.email && r.email === body.email) || (body.mobile && r.mobile === body.mobile)).length >= 5) return send(route, 400, { code: 'P0001', message: 'too many: five in an hour from the same address or number' });
+        if (table === 'contractor_applications' && me && store.some((r) => r.user_id === me)) return send(route, 409, { code: '23505', message: 'duplicate key value violates unique constraint "contractor_applications_user_idx"' });
+        store.push(table === 'contractor_applications' ? { ...body, user_id: me, status: 'new', created_at: new Date().toISOString() } : body);
         return send(route, 201);
       }
       if (method === 'GET') return rows(store.map((r, i) => ({ id: i + 1, created_at: new Date().toISOString(), status: 'new', handled: false, ...r })).filter((r) => admin || (table === 'contractor_applications' && me && r.user_id === me)));

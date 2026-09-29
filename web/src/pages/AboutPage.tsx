@@ -16,7 +16,7 @@ export default function AboutPage({ vm }: { vm: VM }) {
           <p>{vm.t.about.p2b}</p>
           <p>{vm.t.about.p3}</p>
         </div>
-        <div style={{ minHeight: '100%', borderRadius: '24px', overflow: 'hidden', marginTop: '-108px' }}><img draggable="false" src="assets/locked/about.webp" alt={vm.t.about.title} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+        <div className="about-img" style={{ minHeight: '100%', borderRadius: '24px', overflow: 'hidden', marginTop: '-108px' }}><img draggable="false" src="assets/locked/about.webp" alt={vm.t.about.title} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} /></div>
       </div>
       <div className="g2" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(0,1fr)', gap: '14px', marginTop: '56px', alignItems: 'stretch' }}>
         <div style={{ position: 'relative', overflow: 'hidden', isolation: 'isolate', display: 'flex', flexDirection: 'column', gap: '22px', padding: '40px 40px 36px', borderRadius: '28px', background: 'linear-gradient(135deg,#FFFAF5 0%,#FFF1E6 55%,#FFECE6 100%)', color: '#1B1464' }}>
@@ -36,7 +36,7 @@ export default function AboutPage({ vm }: { vm: VM }) {
     {((vm.t.about.roadmap) || []).map((r: any, _i0: number) => (
       <React.Fragment key={_i0}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px 0', borderTop: '1px solid #F1F0F8' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '9px', fontSize: '14.5px', fontWeight: '600', color: '#1B1464' }}><span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'linear-gradient(135deg,#FF8800,#FF4455)', flex: 'none' }}></span>{r.k}</span>
+                <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 9px', fontSize: '14.5px', fontWeight: '600', color: '#1B1464' }}><span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'linear-gradient(135deg,#FF8800,#FF4455)', flex: 'none' }}></span>{r.k}<span style={{ fontWeight: '500', color: '#3A385C' }}>— {r.t}</span></span>
                 <span style={{ fontSize: '12.5px', color: '#5B5A7A', lineHeight: '1.65' }}>{r.d}</span>
               </div>
             </React.Fragment>

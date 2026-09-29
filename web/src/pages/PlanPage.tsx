@@ -37,7 +37,7 @@ export default function PlanPage({ vm }: { vm: VM }) {
     {vm.pl.busy ? (<><span className="v-dot" aria-label={vm.t.ai.thinking}><i></i><i></i><i></i></span></>) : null}
     
             
-    {vm.pl.hasError ? (<><p className="v-sm" style={{ color: '#D9401F', margin: '0' }}>{vm.pl.error}</p></>) : null}
+    {vm.pl.hasError ? (<><p className="v-sm" style={{ color: '#C2381A', margin: '0' }}>{vm.pl.error}</p></>) : null}
     
             
     {vm.pl.canAnswer ? (<>

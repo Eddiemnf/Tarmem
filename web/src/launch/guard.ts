@@ -13,6 +13,7 @@
 
 import * as D from '../data/tarmem-data';
 import { platformOn } from '../platform/client';
+import { PLATFORM_COPY } from '../platform/copy';
 import { currentAccount, isRecovering, needsMobileCode, signOut } from '../platform/session';
 import type { LogicState } from '../state/designRuntime';
 import { LAUNCH_COPY } from './copy';
@@ -91,6 +92,48 @@ function contactMessage(state: LogicState): SentRequest {
   return { kind: 'contact', text, files: 0 };
 }
 
+type User = { role: string; nafath?: boolean; admin?: boolean } | null;
+
+/** Whether a signed-in (or signed-out) person may be on the page `state` names. */
+function isAllowed(state: LogicState, user: User): boolean {
+  const wantsContractorSignup = state.route === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor';
+  return PUBLIC_ROUTES.has(state.route) || (platformOn && !wantsContractorSignup && (
+    (state.route === 'auth' && !user)
+    // right after sign-up, the mobile-code step holds the sign-in page until the code is in or skipped
+    || (state.route === 'auth' && state.auth?.mode === 'signup' && needsMobileCode())
+    // the reset-password page itself says when its link has expired
+    || state.route === 'reset'
+    || (state.route === 'hdash' && user?.role === 'homeowner')
+    // a contractor has their dashboard from the moment they apply; the open projects once an admin has verified them
+    || (state.route === 'settings' && Boolean(user))
+    // "my profile": a homeowner's own. Other people's profiles wait for reviews to exist.
+    || (state.route === 'homeowner' && user?.role === 'homeowner' && (!state.curId || state.curId === 'h1'))
+    // a verified contractor's profile: their own, or a bidder on the homeowner's projects — never an id the page does not already hold
+    || (state.route === 'contractor' && Boolean(user) && state.contractors?.some((c: LogicState) => c.id === state.curId && c.verified))
+    // the wallet opens with payments
+    || (state.route === 'wallet' && (user?.role === 'homeowner' || user?.role === 'contractor') && Boolean(currentAccount()?.paymentsLive))
+    || (state.route === 'cdash' && user?.role === 'contractor')
+    || (state.route === 'browse' && user?.role === 'contractor' && Boolean(user.nafath))
+    || (state.route === 'project' && Boolean(user) && state.projects?.some((p: LogicState) => p.id === state.curId))
+    // the designed admin console, and the plain contact list beside it: only for an account marked admin in the database
+    || ((state.route === 'admin' || state.route === 'inbox') && user?.role === 'admin')));
+}
+
+/* The page a signed-out visitor was trying to open (a project from an email or WhatsApp link, their settings, a page whose
+   session had just ended): it opens once they have signed in, instead of their dashboard. Kept for this visit only. */
+let authReturn: { route: string; curId?: string | null; tab?: string } | null = null;
+const ownHomeOf = (user: User) => (user?.role === 'admin' ? 'admin' : user?.role === 'contractor' ? 'cdash' : 'hdash');
+/** Where a person who has just signed in goes: the page they asked for, if it is theirs to open, or their own home. */
+export function landingAfterSignIn(state: LogicState, user: User = currentAccount()?.logicUser ?? null): LogicState {
+  const back = authReturn;
+  authReturn = null;
+  if (back) {
+    const wanted = { ...state, route: back.route, ...(back.curId ? { curId: back.curId } : {}), ...(back.tab ? { tab: back.tab } : {}) };
+    if (isAllowed(wanted, user)) return { route: wanted.route, curId: wanted.curId, tab: wanted.tab };
+  }
+  return { route: ownHomeOf(user) };
+}
+
 /** Correct a state the logic is about to adopt. Runs synchronously inside the click that caused it. */
 export function guardLaunchState(prev: LogicState, next: LogicState, initialPost: unknown, effects?: GuardEffects): LogicState {
   let state = next;
@@ -102,6 +145,8 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
   const user = platformOn ? currentAccount()?.logicUser ?? null : null;
   if (state.user !== user) patch({ user });
   if (platformOn && !user && state.projects?.length) patch({ projects: [] });
+  // a visitor who went on to another public page no longer wants the one they were asked to sign in for
+  if (!user && state.route !== prev.route && PUBLIC_ROUTES.has(state.route)) authReturn = null;
 
   // "Withdraw project" removes it from the list. For a real project that is a change of status in the database.
   if (effects && user && prev.user && prev.withdrawAsk && !state.withdrawAsk && prev.projects?.length === (state.projects?.length ?? 0) + 1) {
@@ -128,34 +173,24 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
   if (platformOn && isRecovering() && user) return state.route === 'reset' ? state : { ...state, route: 'reset' };
 
   const wantsContractorSignup = state.route === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor';
-  const allowed = PUBLIC_ROUTES.has(state.route) || (platformOn && !wantsContractorSignup && (
-    (state.route === 'auth' && !user)
-    // right after sign-up, the mobile-code step holds the sign-in page until the code is in or skipped
-    || (state.route === 'auth' && state.auth?.mode === 'signup' && needsMobileCode())
-    // the reset-password page itself says when its link has expired
-    || state.route === 'reset'
-    || (state.route === 'hdash' && user?.role === 'homeowner')
-    // a contractor has their dashboard from the moment they apply; the open projects once an admin has verified them
-    || (state.route === 'settings' && Boolean(user))
-    // "my profile": a homeowner's own. Other people's profiles wait for reviews to exist.
-    || (state.route === 'homeowner' && user?.role === 'homeowner' && (!state.curId || state.curId === 'h1'))
-    // a verified contractor's profile: their own, or a bidder on the homeowner's projects — never an id the page does not already hold
-    || (state.route === 'contractor' && Boolean(user) && state.contractors?.some((c: LogicState) => c.id === state.curId && c.verified))
-    // the wallet opens with payments
-    || (state.route === 'wallet' && (user?.role === 'homeowner' || user?.role === 'contractor') && Boolean(currentAccount()?.paymentsLive))
-    || (state.route === 'cdash' && user?.role === 'contractor')
-    || (state.route === 'browse' && user?.role === 'contractor' && Boolean(user.nafath))
-    || (state.route === 'project' && Boolean(user) && state.projects?.some((p: LogicState) => p.id === state.curId))
-    // the designed admin console, and the plain contact list beside it: only for an account marked admin in the database
-    || ((state.route === 'admin' || state.route === 'inbox') && user?.role === 'admin')));
-  const ownHome = user?.role === 'admin' ? 'admin' : user?.role === 'contractor' ? 'cdash' : 'hdash';
+  const allowed = isAllowed(state, user);
+  const ownHome = ownHomeOf(user);
 
   if (!allowed) {
     const target = state.route;
     if (platformOn && target === 'auth' && user) {
-      patch({ route: ownHome });
+      // "post a project" from a contractor's or the team's account: the design sends them to a homeowner's sign-up, which a
+      // signed-in person cannot reach; they are told why instead of landing back on their dashboard without a word
+      const toPost = state.pendingPost || (state.auth !== prev.auth && state.auth?.mode === 'signup' && state.auth?.role === 'homeowner');
+      if (toPost && user.role !== 'homeowner') {
+        const copy = PLATFORM_COPY[langOf(state)];
+        patch({ pendingPost: false, siteNotice: user.role === 'contractor' ? copy.notHomeownerPost : copy.err.notHomeowner, siteNoticeTone: 'warn', auth: { ...state.auth, mode: 'signin', role: 'homeowner' } });
+      }
+      patch(landingAfterSignIn(state, user));
     } else if (platformOn && ACCOUNT_ROUTES.has(target)) {
-      // signed out: sign in first. Signed in, but not their page (somebody else's project, the team's console): their own home.
+      // signed out: sign in first, and come back here afterwards. Signed in, but not their page (somebody else's project,
+      // the team's console): their own home.
+      if (!user) authReturn = { route: target, curId: state.curId ?? null, tab: state.tab };
       patch(user ? { route: ownHome } : { route: 'auth', auth: { ...state.auth, mode: 'signin', role: 'homeowner', error: '' } });
     } else if (target === 'auth' && state.pendingPost) {
       // A guest pressed "publish" on the last step of the project form.

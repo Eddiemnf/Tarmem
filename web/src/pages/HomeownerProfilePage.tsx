@@ -3,11 +3,12 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import { routeHref } from '../launch/urls';
 
 export default function HomeownerProfilePage({ vm }: { vm: VM }) {
   return (<>
     <section className="wrap fade" style={{ paddingBlock: '40px 80px' }}>
-      <a className="lnk" data-route={vm.hp.backRoute} onClick={vm.go} style={{ fontSize: '13px', color: '#FF5A3C' }}>{vm.backArrow} {vm.hp.backLabel}</a>
+      <a className="lnk" data-route={vm.hp.backRoute} onClick={vm.go} style={{ fontSize: '13px', color: '#FF5A3C' }} href={routeHref(vm.hp.backRoute)}>{vm.backArrow} {vm.hp.backLabel}</a>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '28px', flexWrap: 'wrap', marginTop: '22px' }}>
         <div style={{ minWidth: '0' }}>
@@ -43,7 +44,14 @@ export default function HomeownerProfilePage({ vm }: { vm: VM }) {
 
       <div style={{ marginTop: '40px', maxWidth: '66ch' }}>
         <h3 style={{ fontSize: '20px', color: '#1B1464' }}>{vm.t.hprofile.about}</h3>
-        <p style={{ color: '#5B5A7A', fontSize: '15.5px', lineHeight: '1.85', marginTop: '10px' }}>{vm.hp.about}</p>
+        
+    {vm.hp.hasAbout ? (<><p style={{ color: '#5B5A7A', fontSize: '15.5px', lineHeight: '1.85', marginTop: '10px' }}>{vm.hp.about}</p></>) : null}
+    
+        
+    {vm.hp.noAbout ? (<><p className="muted hp-noabout" style={{ fontSize: '14.5px', lineHeight: '1.85', marginTop: '10px' }}>{vm.t.hprofile.noAbout}</p>
+      {vm.hp.isMine ? (<><button className="lnkbtn" style={{ marginTop: '4px', fontSize: '13.5px' }} onClick={vm.openHoEdit}>{vm.t.hprofile.edit}</button></>) : null}
+      </>) : null}
+    
       </div>
 
       <div className="g2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: '20px', marginTop: '32px' }}>
@@ -55,7 +63,7 @@ export default function HomeownerProfilePage({ vm }: { vm: VM }) {
         
     {vm.hp.isMine ? (<>
           <div className="card" style={{ gap: '10px', background: '#F7F6FC', border: '0' }}>
-            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.hprofile.whatSee}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.hprofile.whatSee}</span>
             <p className="muted" style={{ fontSize: '12.5px', lineHeight: '1.75' }}>{vm.t.hprofile.whatSeeNote}</p>
           </div>
         </>) : null}

@@ -4,11 +4,12 @@
 import React from 'react';
 import type { VM } from '../state/viewModel';
 import PortfolioManager from '../platform/PortfolioManager';
+import { routeHref } from '../launch/urls';
 
 export default function ContractorProfilePage({ vm }: { vm: VM }) {
   return (<>
     <section className="wrap fade" style={{ paddingBlock: '40px 80px' }}>
-      {vm.launch ? null : (<a className="lnk" data-route="contractors" onClick={vm.go} style={{ fontSize: '13px', color: '#FF5A3C' }}>{vm.backArrow} {vm.t.search.title}</a>)}
+      {vm.launch ? null : (<a className="lnk" data-route="contractors" onClick={vm.go} style={{ fontSize: '13px', color: '#FF5A3C' }} href={routeHref("contractors")}>{vm.backArrow} {vm.t.search.title}</a>)}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '28px', flexWrap: 'wrap', marginTop: '22px' }}>
         <div style={{ minWidth: '0' }}>
@@ -65,7 +66,7 @@ export default function ContractorProfilePage({ vm }: { vm: VM }) {
           <p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.75' }}>{vm.t.profile.credNote}</p>
         </div>
         <div className="card" style={{ gap: '12px', background: '#F7F6FC', border: '0' }}>
-          <span className="kick" style={{ color: '#9B9AB4' }}>{vm.t.profile.protectTitle}</span>
+          <span className="kick" style={{ color: '#6B6986' }}>{vm.t.profile.protectTitle}</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             
     {((vm.t.profile.protect) || []).map((pt: any, _i0: number) => (

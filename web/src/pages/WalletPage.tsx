@@ -74,7 +74,7 @@ export default function WalletPage({ vm }: { vm: VM }) {
             </>) : null}
       
             
-      {vm.wl.error ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.wl.error}</p></>) : null}
+      {vm.wl.error ? (<><p style={{ fontSize: '13px', color: '#C2381A' }}>{vm.wl.error}</p></>) : null}
       
             
       {vm.wl.notice ? (<><div className="nafbox" style={{ background: '#F1FBF5', borderColor: '#BFE4CC' }}><div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><span className="fcheck" style={{ width: '26px', height: '26px', fontSize: '13px' }}>✓</span><span style={{ fontSize: '13.5px', fontWeight: '600', color: '#15703A' }}>{vm.wl.notice}</span></div></div></>) : null}
@@ -125,7 +125,7 @@ export default function WalletPage({ vm }: { vm: VM }) {
                 <div><label className="lbl" htmlFor="a11y-holder">{vm.t.wallet.accountName}</label><input className="input" name="holder" value={vm.pa.f.holder} onChange={vm.setAccount} placeholder={vm.t.wallet.holderPh} id="a11y-holder" /></div>
                 <div><label className="lbl" htmlFor="a11y-iban">{vm.t.wallet.iban}</label><input className="input num" name="iban" value={vm.pa.f.iban} onChange={vm.setAccount} placeholder={vm.t.wallet.ibanPh} style={{ direction: 'ltr', textAlign: 'start' }} id="a11y-iban" /><span className="muted" style={{ fontSize: '11px' }}>{vm.t.wallet.ibanHint}</span></div>
                 
-        {vm.pa.error ? (<><p style={{ fontSize: '12.5px', color: '#D9401F' }}>{vm.pa.error}</p></>) : null}
+        {vm.pa.error ? (<><p style={{ fontSize: '12.5px', color: '#C2381A' }}>{vm.pa.error}</p></>) : null}
         
                 <div style={{ display: 'flex', gap: '10px' }}><button className="btn btn-p btn-sm" onClick={vm.saveAccount}>{vm.t.wallet.saveAccount}</button>
         {vm.pa.canCancel ? (<><button className="btn btn-s btn-sm" onClick={vm.cancelAccount}>{vm.t.wallet.cancel}</button></>) : null}
@@ -135,7 +135,7 @@ export default function WalletPage({ vm }: { vm: VM }) {
               <p className="muted" style={{ fontSize: '11.5px', lineHeight: '1.7' }}>{vm.t.wallet.accountNote}</p>
             </div>
             
-      {vm.wl.error ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.wl.error}</p></>) : null}
+      {vm.wl.error ? (<><p style={{ fontSize: '13px', color: '#C2381A' }}>{vm.wl.error}</p></>) : null}
       
             
       {vm.wl.notice ? (<><div className="nafbox" style={{ background: '#F1FBF5', borderColor: '#BFE4CC' }}><div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><span className="fcheck" style={{ width: '26px', height: '26px', fontSize: '13px' }}>✓</span><span style={{ fontSize: '13.5px', fontWeight: '600', color: '#15703A' }}>{vm.wl.notice}</span></div></div></>) : null}

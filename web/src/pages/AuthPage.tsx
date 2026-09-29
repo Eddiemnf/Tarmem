@@ -3,6 +3,7 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import { routeHref } from '../launch/urls';
 
 export default function AuthPage({ vm }: { vm: VM }) {
   return (<>
@@ -115,7 +116,7 @@ export default function AuthPage({ vm }: { vm: VM }) {
 
         
     {vm.auth.isSignup ? (<>
-          <p className="authterms">{vm.t.auth.agree} <a className="lnk" data-route="terms" onClick={vm.go}>{vm.t.footer.terms}</a> {vm.t.auth.agreeAnd} <a className="lnk" data-route="privacy" onClick={vm.go}>{vm.t.footer.privacy}</a>.</p>
+          <p className="authterms">{vm.t.auth.agree} <a className="lnk" data-route="terms" onClick={vm.go} href={routeHref("terms")}>{vm.t.footer.terms}</a> {vm.t.auth.agreeAnd} <a className="lnk" data-route="privacy" onClick={vm.go} href={routeHref("privacy")}>{vm.t.footer.privacy}</a>.</p>
         </>) : null}
     
 

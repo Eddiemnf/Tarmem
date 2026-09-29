@@ -8,13 +8,15 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useLaunchActions, type VM } from '../state/viewModel';
 import { PLATFORM_COPY } from './copy';
-import { isRecovering, setNewPassword } from './session';
+import { Notice } from './ConfirmEmail';
+import { isRecovering, requestPasswordReset, setNewPassword, validEmail } from './session';
 
 export default function ResetPage({ vm }: { vm: VM }) {
   const lang = vm.dir === 'ltr' ? 'en' : 'ar';
   const copy = PLATFORM_COPY[lang];
   const { host } = useLaunchActions();
-  const [form, setForm] = useState({ password: '', again: '' });
+  const [form, setForm] = useState({ password: '', again: '', email: '' });
+  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -49,8 +51,26 @@ export default function ResetPage({ vm }: { vm: VM }) {
 
   if (done) return frame(copy.resetDoneTitle, copy.resetDoneLede,
     <div className="authcard" role="status"><button className="btn btn-p" type="button" onClick={() => go('hdash')} style={{ width: '100%', padding: '14px' }}>{copy.resetDoneGo}</button></div>);
-  if (!recovering) return frame(copy.resetExpiredTitle, copy.resetExpiredLede,
-    <div className="authcard"><button className="btn btn-p" type="button" onClick={() => go('auth')} style={{ width: '100%', padding: '14px' }}>{copy.resetExpiredGo}</button></div>);
+  // an old or used link, or the address typed by hand: a new link is one step away, here
+  const resend = async (e: FormEvent) => {
+    e.preventDefault();
+    const address = form.email.trim().toLowerCase();
+    if (busy) return;
+    if (!validEmail(address)) return setError(copy.err.email);
+    setBusy(true); setError(''); setNotice('');
+    const sent = await requestPasswordReset(address);
+    setBusy(false);
+    return sent.ok ? setNotice(copy.forgotSent) : setError(copy.err[sent.error]);
+  };
+  if (!recovering) return frame(copy.linkExpiredTitle, copy.linkExpiredLede,
+    <form className="authcard" onSubmit={resend} noValidate>
+      <div className="authfield"><label className="authlbl" htmlFor="rp-email">{copy.email}</label>
+        <input id="rp-email" className="authinput" name="email" type="email" dir="ltr" autoComplete="email" value={form.email} onChange={set} /></div>
+      {error ? <p className="autherr" role="alert">{error}</p> : null}
+      {notice ? <Notice>{notice}</Notice> : null}
+      <button className="btn btn-p" type="submit" disabled={busy} style={{ width: '100%', padding: '14px' }}>{busy ? copy.working : copy.linkSendReset}</button>
+      <button className="lnkbtn" type="button" onClick={() => go('auth')} style={{ fontSize: '13px', alignSelf: 'center' }}>{copy.resetExpiredGo}</button>
+    </form>);
   return frame(copy.newPassTitle, copy.newPassLede,
     <form className="authcard" onSubmit={submit} noValidate>
       <div className="authfield"><label className="authlbl" htmlFor="rp-password">{copy.password}</label>

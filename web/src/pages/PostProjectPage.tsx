@@ -45,8 +45,8 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
       <div className="card" style={{ padding: '32px', gap: '18px' }}>
         
       {vm.post.step1 ? (<>
-          <div><label className="lbl" htmlFor="a11y-title">{vm.t.post.ptitle}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" name="title" value={vm.post.f.title} onChange={vm.setPostField} placeholder={vm.t.post.ptitlePh} id="a11y-title" /></div>
-          <div><label className="lbl" htmlFor="a11y-trade">{vm.t.post.category}</label><select className="input" name="trade" value={vm.post.f.trade} onChange={vm.setPostField} id="a11y-trade">
+          <div><label className="lbl" htmlFor="a11y-title">{vm.t.post.ptitle}<span style={{ color: '#C2381A', marginInlineStart: '3px' }}>*</span></label><input className="input" name="title" maxLength={140} value={vm.post.f.title} onChange={vm.setPostField} aria-invalid={vm.post.inv.title} aria-describedby="post-err" placeholder={vm.t.post.ptitlePh} id="a11y-title" /><span className="muted num charcount">{vm.post.titleCount}</span></div>
+          <div><label className="lbl" htmlFor="a11y-trade">{vm.t.post.category}<span style={{ color: '#C2381A', marginInlineStart: '3px' }}>*</span></label><select className="input" name="trade" value={vm.post.f.trade} onChange={vm.setPostField} aria-invalid={vm.post.inv.trade} aria-describedby="post-err" id="a11y-trade"><option value="">{vm.t.post.chooseService}</option>
         {((vm.tradeGroups) || []).map((g: any, _i0: number) => (
           <React.Fragment key={_i0}><optgroup label={g.label}>
           {((g.items) || []).map((c: any, _i1: number) => (
@@ -55,7 +55,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
           </optgroup></React.Fragment>
         ))}
         </select></div>
-          <div><label className="lbl" htmlFor="a11y-desc">{vm.t.post.desc}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" value={vm.post.f.desc} onChange={vm.setPostField} placeholder={vm.t.post.descPh} id="a11y-desc" /></div>
+          <div><label className="lbl" htmlFor="a11y-desc">{vm.t.post.desc}<span style={{ color: '#C2381A', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" maxLength={4000} value={vm.post.f.desc} onChange={vm.setPostField} aria-invalid={vm.post.inv.desc} aria-describedby="post-err" placeholder={vm.t.post.descPh} id="a11y-desc" /><span className="muted num charcount">{vm.post.descCount}</span></div>
         </>) : null}
       
         
@@ -65,10 +65,10 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
           <React.Fragment key={_i0}><option value={c.id}>{c.label}</option></React.Fragment>
         ))}
         </select></div>
-          <div><label className="lbl" htmlFor="a11y-address">{vm.t.post.address}</label><input className="input" name="address" value={vm.post.f.address} onChange={vm.setPostField} id="a11y-address" /></div>
+          <div><label className="lbl" htmlFor="a11y-address">{vm.t.post.address}</label><input className="input" name="address" maxLength={120} value={vm.post.f.address} onChange={vm.setPostField} id="a11y-address" /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div><label className="lbl" htmlFor="a11y-min">{vm.t.post.budgetMin}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="min" value={vm.post.f.min} onChange={vm.setPostField} placeholder="20000" id="a11y-min" /></div>
-            <div><label className="lbl" htmlFor="a11y-max">{vm.t.post.budgetMax}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="max" max="1000000" value={vm.post.f.max} onChange={vm.setPostField} placeholder="60000" id="a11y-max" /></div>
+            <div><label className="lbl" htmlFor="a11y-min">{vm.t.post.budgetMin}<span style={{ color: '#C2381A', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="min" value={vm.post.f.min} onChange={vm.setPostField} aria-invalid={vm.post.inv.min} aria-describedby="post-err" placeholder="20000" id="a11y-min" /></div>
+            <div><label className="lbl" htmlFor="a11y-max">{vm.t.post.budgetMax}<span style={{ color: '#C2381A', marginInlineStart: '3px' }}>*</span></label><input className="input" type="number" name="max" max="1000000" value={vm.post.f.max} onChange={vm.setPostField} aria-invalid={vm.post.inv.max} aria-describedby="post-err" placeholder="60000" id="a11y-max" /></div>
           </div>
           <div className="sugbox">
             <span className="evlbl">{vm.t.post.sugTitle}</span>
@@ -109,7 +109,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
         
       {vm.post.step4 ? (<>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingBottom: '6px' }}>
-            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.post.secDetails}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.post.secDetails}</span>
             <button className="lnkbtn" data-step="1" onClick={vm.postGoStep}>{vm.t.post.edit}</button>
           </div>
           <table className="table" style={{ marginBottom: '22px' }}><tbody>
@@ -118,7 +118,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
             <tr><td className="muted">{vm.t.post.desc}</td><td style={{ color: '#5B5A7A' }}>{vm.post.f.desc}</td></tr>
           </tbody></table>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingBottom: '6px' }}>
-            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.post.secLocation}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.post.secLocation}</span>
             <button className="lnkbtn" data-step="2" onClick={vm.postGoStep}>{vm.t.post.edit}</button>
           </div>
           <table className="table" style={{ marginBottom: '22px' }}><tbody>
@@ -128,7 +128,7 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
             <tr><td className="muted">{vm.t.post.timing}</td><td>{vm.post.timingLabel}</td></tr>
           </tbody></table>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingBottom: '6px' }}>
-            <span className="kick" style={{ color: '#9B9AB4' }}>{vm.post.secFiles}</span>
+            <span className="kick" style={{ color: '#6B6986' }}>{vm.post.secFiles}</span>
             <button className="lnkbtn" data-step="3" onClick={vm.postGoStep}>{vm.t.post.edit}</button>
           </div>
           <table className="table"><tbody>
@@ -136,14 +136,14 @@ export default function PostProjectPage({ vm }: { vm: VM }) {
           </tbody></table>
           <p className="muted" style={{ fontSize: '12.5px' }}>{vm.post.feeReminder}</p>
           <div className="pledge">
-            <span className="evlbl">{vm.t.post.pledgeTitle}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></span>
-            <label className="radio" style={{ alignItems: 'flex-start', gap: '10px' }}><input type="checkbox" checked={vm.post.pledge} onChange={vm.togglePledge} /><span className="dot" style={{ borderRadius: '5px', marginTop: '3px' }}></span><span style={{ fontSize: '13.5px', lineHeight: '1.7', color: '#1B1464' }}>{vm.t.post.pledgeText}</span></label>
+            <span className="evlbl">{vm.t.post.pledgeTitle}<span style={{ color: '#C2381A', marginInlineStart: '3px' }}>*</span></span>
+            <label className="radio" style={{ alignItems: 'flex-start', gap: '10px' }}><input type="checkbox" checked={vm.post.pledge} onChange={vm.togglePledge} aria-invalid={vm.post.inv.pledge} aria-describedby="post-err" /><span className="dot" style={{ borderRadius: '5px', marginTop: '3px' }}></span><span style={{ fontSize: '13.5px', lineHeight: '1.7', color: '#1B1464' }}>{vm.t.post.pledgeText}</span></label>
             <p className="muted" style={{ fontSize: '11.5px' }}>{vm.t.post.pledgeNote}</p>
           </div>
         </>) : null}
       
         
-      {vm.post.error ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.post.error}</p></>) : null}
+      {vm.post.error ? (<><p id="post-err" role="alert" style={{ fontSize: '13px', color: '#C2381A' }}>{vm.post.error}</p></>) : null}
       
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
           

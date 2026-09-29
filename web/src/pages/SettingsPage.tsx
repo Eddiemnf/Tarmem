@@ -3,6 +3,7 @@
    step — the markup is a mechanical port of the prototype's template. */
 import React from 'react';
 import type { VM } from '../state/viewModel';
+import PasswordCard from '../platform/PasswordCard';
 
 export default function SettingsPage({ vm }: { vm: VM }) {
   return (<>
@@ -11,11 +12,13 @@ export default function SettingsPage({ vm }: { vm: VM }) {
       <h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464', margin: '10px 0 10px' }}>{vm.t.settings.title}</h1>
       <p style={{ color: '#5B5A7A', fontSize: '15px', maxWidth: '56ch' }}>{vm.t.settings.sub}</p>
 
-      <div className="card" style={{ marginTop: '28px', padding: '26px', gap: '16px' }}>
+      <div className="card st-contact" style={{ marginTop: '28px', padding: '26px', gap: '16px' }}>
         <span className="kick">{vm.t.settings.contact}</span>
         <div><label className="lbl" htmlFor="a11y-mobile">{vm.t.settings.mobile}</label><input className="input num" name="mobile" type="tel" value={vm.st.mobile} onChange={vm.setSetting} style={{ direction: 'ltr', textAlign: 'start' }} placeholder="+966 5X XXX XXXX" id="a11y-mobile" /><span className="muted" style={{ fontSize: '11.5px' }}>{vm.t.settings.mobileNote}</span></div>
-        <div><label className="lbl" htmlFor="a11y-email">{vm.t.settings.email}</label><input className="input" type="email" name="email" value={vm.st.email} onChange={vm.setSetting} style={{ direction: 'ltr', textAlign: 'start' }} id="a11y-email" /></div>
-      </div>
+        <div><label className="lbl" htmlFor="a11y-email">{vm.t.settings.email}</label><input className="input" type="email" name="email" value={vm.st.email} readOnly={vm.st.emailLocked} onChange={vm.setSetting} style={{ direction: 'ltr', textAlign: 'start' }} id="a11y-email" />
+    {vm.st.emailNote ? (<><span className="muted" style={{ fontSize: '11.5px' }}>{vm.st.emailNote}</span></>) : null}
+    </div>
+      </div><PasswordCard vm={vm} />
 
       {vm.launch && !vm.whatsapp ? null : (<div className="card wa-card" style={{ marginTop: '16px', padding: '26px', gap: '18px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -36,7 +39,7 @@ export default function SettingsPage({ vm }: { vm: VM }) {
     {vm.wa.sentTo ? (<><p style={{ fontSize: '12.5px', color: '#15703A', margin: '8px 0 0' }}>✓ {vm.t.wa.sent} <span className="num">{vm.wa.sentTo}</span></p></>) : null}
     
           
-    {vm.wa.error ? (<><p className="wa-error" style={{ fontSize: '12.5px', color: '#D9401F', margin: '8px 0 0' }}>{vm.wa.error}</p></>) : null}
+    {vm.wa.error ? (<><p className="wa-error" style={{ fontSize: '12.5px', color: '#C2381A', margin: '8px 0 0' }}>{vm.wa.error}</p></>) : null}
     
         </div>
 

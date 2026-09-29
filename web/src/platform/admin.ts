@@ -7,7 +7,8 @@
                    payments exist)
      verification  contractor applications; Approve / Reject change the application's status
      support       messages from the contact form; "close" marks one handled
-     users         every homeowner account, and every contractor who applied
+     users         every homeowner account, every contractor who applied, and every contractor account that has
+                   no application at all (its sign-up went through, its application did not), so nobody is invisible
      analytics     the site's own visit record (src/platform/track.ts), worked out by the
                    database function admin_analytics
      promos,       saved as the design edits them (table admin_state); nothing can redeem a code
@@ -106,6 +107,12 @@ export async function userDetail(id: string): Promise<UserDetail | null> {
     return error || !data ? null : (data as UserDetail);
   } catch { return null; }
 }
+/* The console's data is re-read by src/platform/bind.ts (with each project's bids, signatures and change requests); a control
+   that changes something asks it to read again at once, instead of waiting for the next minute. */
+let refresher: (() => Promise<void>) | null = null;
+export function setAdminRefresher(next: (() => Promise<void>) | null): void { refresher = next; }
+export async function refreshAdminNow(): Promise<void> { await refresher?.(); }
+
 export const saveConsoleList = async (key: 'promos' | 'affiliates', value: LogicState[]) =>
   Boolean(supabase && !(await supabase.from('admin_state').upsert({ key, value, updated_at: new Date().toISOString() })).error);
 
@@ -118,15 +125,27 @@ export function adminUsers(data: AdminData): Record<string, ReturnType<typeof ho
 
 /** The console's collections, as the design's logic state. */
 export function adminLogicState(data: AdminData): LogicState {
+  const applied = new Set(data.applications.map((a) => (a as ApplicationRow & { user_id?: string | null }).user_id).filter(Boolean));
+  // a contractor account with no application row: listed with the people (never in the verification queue, which decides applications)
+  const unapplied = data.profiles.filter((p) => p.role === 'contractor' && !p.deleted_at && !applied.has(p.id));
   return {
     // a withdrawn project stays visible to the team, marked as such (the view model relabels it)
     projects: data.projects.map((row) => ({ ...toLogicProject(row, row.owner_id), withdrawn: row.status === 'withdrawn' })),
-    contractors: data.applications.map((a) => ({
+    contractors: data.applications.map((a): LogicState => ({
       id: 'A-' + a.id, dbId: a.id, name: both(a.company), city: a.city, trades: a.trades || [], rating: 0, reviews: 0, done: 0,
       verified: a.status === 'verified', since: a.created_at.slice(0, 4), onTime: '—', response: '—', bio: both(a.note || ''),
       checks: { id: false, cr: Boolean(a.cr_number), pf: false }, person: a.person, mobile: a.mobile, email: a.email, appliedAt: a.created_at, cr: a.cr_number || '', note: a.note || '', userId: (a as ApplicationRow & { user_id?: string | null }).user_id || null,
       mobileVerified: Boolean(data.profiles.find((p) => p.id === (a as ApplicationRow & { user_id?: string | null }).user_id)?.mobile_verified_at), lang: (a as ApplicationRow & { lang?: string }).lang === 'en' ? 'en' : 'ar', hasAccount: Boolean((a as ApplicationRow & { user_id?: string | null }).user_id),
-    })),
+    })).concat(unapplied.map((p) => ({
+      id: 'U-' + p.id, dbId: null, noApp: true, name: both(p.company || p.full_name), city: p.city, trades: p.trades || [], rating: 0, reviews: 0, done: 0,
+      verified: false, since: p.created_at.slice(0, 4), onTime: '—', response: '—', bio: both(p.about || ''), checks: { id: false, cr: false, pf: false },
+      person: p.full_name, mobile: p.mobile, email: p.email, appliedAt: p.created_at, cr: '', note: '', userId: p.id, mobileVerified: Boolean(p.mobile_verified_at), lang: p.lang === 'en' ? 'en' : 'ar', hasAccount: true,
+    }))),
+    // who a contractor is, by account id: the names on a project's message threads as the team reads them
+    firms: Object.fromEntries([
+      ...unapplied.map((p) => [p.id, p.company || p.full_name]),
+      ...data.applications.filter((a) => (a as ApplicationRow & { user_id?: string | null }).user_id).map((a) => [(a as ApplicationRow & { user_id?: string | null }).user_id as string, a.company]),
+    ]),
     rejected: data.applications.filter((a) => a.status === 'declined').map((a) => 'A-' + a.id),
     cases: data.messages.map((m) => ({
       id: 'M-' + m.id, dbId: m.id, pid: null, issue: both(m.topic ? `${m.topic} — ${m.message}` : m.message), open: !m.handled,
@@ -146,6 +165,10 @@ const ROUTE_LABELS: Record<string, [string, string]> = {
   faq: ['الأسئلة الشائعة', 'FAQ'], auth: ['تسجيل الدخول', 'Sign in'], join: ['انضمام المقاولين', 'Contractor application'], about: ['عن ترميم', 'About'],
   help: ['مركز المساعدة', 'Help'], contact: ['تواصل معنا', 'Contact'], rules: ['القواعد', 'Rules'], terms: ['الشروط', 'Terms'], privacy: ['الخصوصية', 'Privacy'],
   hdash: ['لوحة العميل', 'Customer dashboard'], project: ['صفحة مشروع', 'Project page'], sent: ['تأكيد الإرسال', 'Confirmation'],
+  // every other page a signed-in person can open, so no page reads as its English id on the Arabic console
+  cdash: ['لوحة المقاول', 'Contractor dashboard'], browse: ['المشاريع المفتوحة', 'Open projects'], contractor: ['ملف مقاول', 'Contractor profile'],
+  homeowner: ['ملف صاحب منزل', 'Homeowner profile'], settings: ['الإعدادات', 'Settings'], wallet: ['المحفظة', 'Wallet'], plan: ['خطة المشروع', 'Project plan'],
+  contractors: ['المقاولون', 'Contractors'], admin: ['لوحة الإدارة', 'Admin console'], inbox: ['الوارد', 'Inbox'], reset: ['كلمة مرور جديدة', 'New password'],
 };
 const EVENT_LABELS: Record<string, [string, string]> = {
   view: ['يتصفح', 'Viewing'], signup: ['أنشأ حسابًا', 'Created an account'], signin: ['سجّل الدخول', 'Signed in'],
@@ -199,7 +222,7 @@ export function analyticsVals(raw: AnalyticsRaw, vm: LogicVals): { an: LogicVals
   };
   const grouped = (rows: Series, label: (k: string) => string) => {
     const merged = new Map<string, number>();
-    for (const r of rows) merged.set(label(r.k), (merged.get(label(r.k)) || 0) + r.n);
+    for (const r of rows) if (Number(r.n) > 0) merged.set(label(r.k), (merged.get(label(r.k)) || 0) + r.n); // a row counting nothing is no row
     return [...merged].map(([l, n]) => ({ l, n })).sort((a, b) => b.n - a.n).slice(0, 7);
   };
   const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
@@ -227,11 +250,14 @@ export function analyticsVals(raw: AnalyticsRaw, vm: LogicVals): { an: LogicVals
       sources: share(grouped(raw.sources, (k) => sourceLabel(k, ar)).slice(0, 6), '%'),
       cities: share(grouped(raw.cities, cityLabel).slice(0, 6), '%'),
       srcLabel: ar ? 'بيانات حقيقية · سجل زيارات ترميم' : 'Real data · Tarmem\'s own visit record', srcCls: 'tag-g',
+      // a card with nothing to show says so, instead of standing empty
+      noTop: !raw.top_pages.some((r) => r.n > 0), noSources: !raw.sources.some((r) => r.n > 0), noCities: !raw.cities.some((r) => r.n > 0),
     },
     live: {
       now: fmt(raw.live.now),
       devices: deviceOrder.map((id, k) => ({ l: A.dev[k], pct: Math.round(((raw.live.devices.find((r) => r.k === id)?.n || 0) / liveSessions) * 100) })),
       pages: livePages.map((r) => ({ l: r.l, v: fmt(r.n), pct: Math.round((r.n / busiest) * 100) })),
+      noPages: !livePages.length, noFeed: !raw.live.feed.length,
       feed: raw.live.feed.map((f) => ({ city: cityLabel(f.city), what: `${pick(EVENT_LABELS[f.event]) || f.event}${f.event === 'view' ? ' · ' + (pick(ROUTE_LABELS[f.route]) || f.route) : ''}`, when: ago(f.age) })),
     },
   };

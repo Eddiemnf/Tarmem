@@ -4,6 +4,9 @@
 import React from 'react';
 import type { VM } from '../state/viewModel';
 import ThreadPicker from '../platform/ThreadPicker';
+import { AcceptedBid, ConfirmComplete, PlannedStages } from '../platform/SignedProject';
+import AdminProjectControls from '../platform/AdminProjectControls';
+import { routeHref } from '../launch/urls';
 
 export default function ProjectPage({ vm }: { vm: VM }) {
   return (<>
@@ -42,6 +45,9 @@ export default function ProjectPage({ vm }: { vm: VM }) {
             </div>
             <div style={{ padding: '16px 26px 20px', borderTop: '1px solid #EEEDF5', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               
+      {vm.agr.error ? (<><p className="autherr" role="alert" style={{ margin: '0' }}>{vm.agr.error}</p></>) : null}
+      
+              
       {vm.agr.notRead ? (<><p className="muted" style={{ fontSize: '12px', margin: '0' }}>{vm.t.agr.scrollHint}</p></>) : null}
       
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -57,16 +63,16 @@ export default function ProjectPage({ vm }: { vm: VM }) {
         </div>
       </>) : null}
     
-      <a className="lnk" data-route={vm.backRoute} onClick={vm.go} style={{ fontSize: '13px', color: '#FF5A3C' }}>{vm.backArrow} {vm.t.nav.dashboard}</a>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', marginTop: '16px' }}>
+      <a className="lnk" data-route={vm.backRoute} onClick={vm.go} style={{ fontSize: '13px', color: '#FF5A3C' }} href={routeHref(vm.backRoute)}>{vm.backArrow} {vm.t.nav.dashboard}</a>
+      <div className="pj-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', marginTop: '16px' }}>
         <div><div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}><span className={`tag ${vm.pj.tagClass}`}>{vm.pj.statusLabel}</span><span className="muted" style={{ fontSize: '13px' }}>{vm.pj.tradeLabel} · {vm.pj.cityLabel}</span></div><h1 style={{ fontSize: 'clamp(26px,3vw,34px)', color: '#1B1464', marginTop: '10px' }}>{vm.pj.title}</h1></div>
         
-    {vm.pjSk.show ? (<><div className="strikebar" data-n={vm.pjSk.n} style={{ margin: '0', flexBasis: '100%', padding: '16px 18px', gap: '8px' }}><div className="strikebar-t" style={{ fontSize: '14.5px' }}>{vm.pjSk.title}</div><p className="strikebar-s" style={{ fontSize: '12.5px' }}>{vm.pjSk.sub}</p></div></>) : null}
+    {vm.pjSk.show ? (<>{vm.launch && !vm.stagesLive ? null : (<div className="strikebar" data-n={vm.pjSk.n} style={{ margin: '0', flexBasis: '100%', padding: '16px 18px', gap: '8px' }}><div className="strikebar-t" style={{ fontSize: '14.5px' }}>{vm.pjSk.title}</div><p className="strikebar-s" style={{ fontSize: '12.5px' }}>{vm.pjSk.sub}</p></div>)}</>) : null}
     
         <div className="num" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', textAlign: 'end' }}><div><div className="muted" style={{ fontSize: '12px' }}>{vm.pj.amountLabel}</div><div style={{ fontSize: '30px', fontWeight: '600', color: '#1B1464', lineHeight: '1.1' }}>{vm.curPre}{vm.pj.amount}{vm.curPost}</div></div>
     {vm.pj.showAddFunds ? (<>{vm.launch && !vm.wallet ? null : (<button className="btn btn-s btn-sm" data-route="wallet" onClick={vm.go}>{vm.t.wallet.addFunds}</button>)}</>) : null}
     </div>
-      </div>
+      </div><AdminProjectControls vm={vm} />
       <div role="tablist" style={{ display: 'flex', gap: '24px', borderBottom: '1px solid #E6E5F0', margin: '24px 0 32px', overflowX: 'auto' }}>
         
     {((vm.pTabs) || []).map((tb: any, _i0: number) => (
@@ -94,7 +100,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
       
         
       {vm.agrCard.show ? (<>
-          <div className="card" style={{ marginBottom: '24px', padding: '20px 22px', gap: '14px' }}>
+          <div className="card agr-card" style={{ marginBottom: '24px', padding: '20px 22px', gap: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
               <span className="kick">{vm.t.agr.signedTitle}</span>
               <a className="hlnk hlnk-i" href="assets/tarmem-services-agreement.pdf" target="_blank" rel="noopener" style={{ fontSize: '12.5px' }}>{vm.t.agr.openPdf} ↗</a>
@@ -115,7 +121,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
         ))}
         
             </div>
-          </div>
+          </div><ConfirmComplete vm={vm} />
         </>) : null}
       
         
@@ -165,7 +171,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
             </div>
             <div><label className="lbl">{vm.t.rev.comment}</label><textarea className="input" value={vm.rev.text} onChange={vm.setRevText} placeholder={vm.t.rev.commentPh} /></div>
             
-        {vm.rev.error ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.rev.error}</p></>) : null}
+        {vm.rev.error ? (<><p style={{ fontSize: '13px', color: '#C2381A' }}>{vm.rev.error}</p></>) : null}
         
             <div><button className="btn btn-p" onClick={vm.submitReview}>{vm.t.rev.submit}</button></div>
           </div>
@@ -191,7 +197,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
               <tr><td className="muted">{vm.t.ws.posted}</td><td>{vm.pj.posted}</td></tr>
               <tr><td className="muted">{vm.t.roles.contractor}</td><td>{vm.pj.contractorName}</td></tr>
               <tr><td className="muted">{vm.t.hprofile.ownerOf}</td><td>
-      {vm.pj.ownerLink ? (<>{vm.launch && !vm.accounts ? null : (<a className="lnk" style={{ color: '#FF5A3C', fontWeight: '500' }} data-route="homeowner" data-id={vm.pj.ownerId} onClick={vm.go}>{vm.pj.ownerName}</a>)}</>) : null}
+      {vm.pj.ownerLink ? (<>{vm.launch && !vm.accounts ? null : (<a className="lnk" style={{ color: '#FF5A3C', fontWeight: '500' }} data-route="homeowner" data-id={vm.pj.ownerId} onClick={vm.go} href={routeHref("homeowner", vm.pj.ownerId)}>{vm.pj.ownerName}</a>)}</>) : null}
       
       {vm.pj.ownerPlain ? (<>{vm.pj.ownerName}</>) : null}
       </td></tr>
@@ -199,7 +205,9 @@ export default function ProjectPage({ vm }: { vm: VM }) {
           </div>
           <aside style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="card"><span className="kick">{vm.t.progress}</span><div className="num" style={{ fontSize: '40px', fontWeight: '600', color: '#1B1464', lineHeight: '1' }}>{vm.pj.pct}%</div><div style={{ height: '6px', background: '#EEEDF5', borderRadius: '3px' }}><div style={{ height: '6px', borderRadius: '3px', background: 'linear-gradient(90deg,#FF8800,#FF4455)', width: `${vm.pj.pct}%` }}></div></div><span className="muted" style={{ fontSize: '12.5px' }}>{vm.pj.msSummary}</span></div>
-            <div className="card" style={{ background: '#1B1464', color: '#fff', border: '0' }}><span className="kick" style={{ color: '#FF9A6B' }}>{vm.t.ws.nextStep}</span><p style={{ fontSize: '14.5px' }}>{vm.pj.nextStep}</p></div>
+            <div className="card next-card" style={{ background: '#1B1464', color: '#fff', border: '0' }}><span className="kick" style={{ color: '#FF9A6B' }}>{vm.t.ws.nextStep}</span><p style={{ fontSize: '14.5px' }}>{vm.pj.nextStep}</p>
+      {vm.pj.nextCta ? (<><div><button className="btn btn-s btn-sm next-cta" data-tab={vm.pj.nextTab} onClick={vm.nextGo}>{vm.pj.nextCta}</button></div></>) : null}
+      </div>
           </aside>
         </div>
       </>) : null}
@@ -237,8 +245,8 @@ export default function ProjectPage({ vm }: { vm: VM }) {
         {vm.bidF.editing ? (<>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div><label className="lbl" htmlFor="bid-price">{vm.t.ws.price}</label><input id="bid-price" className="input" type="number" name="price" value={vm.bidF.price} onChange={vm.setBidField} placeholder="45000" /></div>
-                  <div><label className="lbl" htmlFor="bid-days">{vm.t.ws.days}</label><input id="bid-days" className="input" type="number" name="days" value={vm.bidF.days} onChange={vm.setBidField} placeholder="30" /></div>
+                  <div><label className="lbl" htmlFor="bid-price">{vm.t.ws.price}</label><input id="bid-price" className="input" type="number" name="price" min="100" max="1000000" value={vm.bidF.price} onChange={vm.setBidField} placeholder={vm.t.ws.pricePh} /></div>
+                  <div><label className="lbl" htmlFor="bid-days">{vm.t.ws.days}</label><input id="bid-days" className="input" type="number" name="days" min="1" max="1000" value={vm.bidF.days} onChange={vm.setBidField} placeholder={vm.t.ws.daysPh} /></div>
                 </div>
 
                 <label className="radio" style={{ gap: '10px' }}><input type="checkbox" name="vatReg" checked={vm.bidF.vatReg} onChange={vm.setBidToggle} /><span className="dot" style={{ borderRadius: '5px' }}></span><span style={{ fontSize: '13.5px' }}>{vm.t.ws.vatReg}</span></label>
@@ -258,7 +266,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div><label className="lbl" htmlFor="bid-start">{vm.t.ws.fStart}</label><input id="bid-start" className="input" type="date" name="start" value={vm.bidF.start} onChange={vm.setBidField} /></div>
+                  <div><label className="lbl" htmlFor="bid-start">{vm.t.ws.fStart}</label><div className="datefield" data-empty={vm.bidF.noStart}><input id="bid-start" className="input" type="date" name="start" value={vm.bidF.start} onChange={vm.setBidField} /><span className="dateph" aria-hidden="true">{vm.t.ws.datePh}</span></div></div>
                   <div><label className="lbl" htmlFor="bid-valid">{vm.t.ws.fValid}</label><select id="bid-valid" className="input" name="valid" value={vm.bidF.valid} onChange={vm.setBidField}><option value="">{vm.t.ws.choose}</option>
           {((vm.bidF.validOpts) || []).map((o: any, _i0: number) => (
             <React.Fragment key={_i0}><option value={o}>{o}</option></React.Fragment>
@@ -266,11 +274,11 @@ export default function ProjectPage({ vm }: { vm: VM }) {
           </select></div>
                 </div>
 
-                <div><label className="lbl" htmlFor="bid-incl">{vm.t.ws.fIncl}</label><textarea id="bid-incl" className="input" name="incl" value={vm.bidF.incl} onChange={vm.setBidField} placeholder={vm.t.ws.fInclPh} /></div>
-                <div><label className="lbl" htmlFor="bid-excl">{vm.t.ws.fExcl}</label><textarea id="bid-excl" className="input" name="excl" value={vm.bidF.excl} onChange={vm.setBidField} placeholder={vm.t.ws.fExclPh} /></div>
+                <div><label className="lbl" htmlFor="bid-incl">{vm.t.ws.fIncl}</label><textarea id="bid-incl" className="input" name="incl" maxLength={1500} value={vm.bidF.incl} onChange={vm.setBidField} placeholder={vm.t.ws.fInclPh} /></div>
+                <div><label className="lbl" htmlFor="bid-excl">{vm.t.ws.fExcl}</label><textarea id="bid-excl" className="input" name="excl" maxLength={1500} value={vm.bidF.excl} onChange={vm.setBidField} placeholder={vm.t.ws.fExclPh} /></div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div><label className="lbl" htmlFor="bid-brands">{vm.t.ws.fBrands}</label><input id="bid-brands" className="input" name="brands" value={vm.bidF.brands} onChange={vm.setBidField} placeholder={vm.t.ws.fBrandsPh} /></div>
+                <div className="bid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div><label className="lbl" htmlFor="bid-brands">{vm.t.ws.fBrands}</label><input id="bid-brands" className="input" name="brands" maxLength={200} value={vm.bidF.brands} onChange={vm.setBidField} placeholder={vm.t.ws.fBrandsPh} /></div>
                   <div><label className="lbl" htmlFor="bid-warr">{vm.t.ws.fWarranty}</label><select id="bid-warr" className="input" name="warranty" value={vm.bidF.warranty} onChange={vm.setBidField}><option value="">{vm.t.ws.choose}</option>
           {((vm.bidF.warrantyOpts) || []).map((o: any, _i0: number) => (
             <React.Fragment key={_i0}><option value={o}>{o}</option></React.Fragment>
@@ -280,7 +288,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
 
                 <div>
                   <label className="lbl">{vm.t.ws.fMs}</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
+                  <div className="bid-ms" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
                     
           {((vm.bidF.msRows) || []).map((m: any, _i0: number) => (
             <React.Fragment key={_i0}>
@@ -292,12 +300,12 @@ export default function ProjectPage({ vm }: { vm: VM }) {
                   <span className="muted" style={{ fontSize: '11.5px', display: 'block', marginTop: '6px', color: vm.bidF.msColor }}>{vm.bidF.msNote}</span>
                 </div>
 
-                <div><label className="lbl" htmlFor="bid-note">{vm.t.ws.scopeNote}</label><textarea id="bid-note" className="input" name="note" value={vm.bidF.note} onChange={vm.setBidField} placeholder={vm.t.ws.scopePh} /></div>
+                <div><label className="lbl" htmlFor="bid-note">{vm.t.ws.scopeNote}</label><textarea id="bid-note" className="input" name="note" maxLength={2000} value={vm.bidF.note} onChange={vm.setBidField} placeholder={vm.t.ws.scopePh} /><span className="muted num charcount">{vm.bidF.noteCount}</span></div>
 
                 <label className="radio" style={{ gap: '10px', alignItems: 'flex-start' }}><input type="checkbox" name="visit" checked={vm.bidF.visit} onChange={vm.setBidToggle} /><span className="dot" style={{ borderRadius: '5px', marginTop: '2px' }}></span><span style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}><span style={{ fontSize: '13.5px', fontWeight: '600', color: '#1B1464' }}>{vm.t.ws.fVisit}</span><span className="muted" style={{ fontSize: '12px', lineHeight: '1.6' }}>{vm.t.ws.fVisitNote}</span></span></label>
 
                 
-          {vm.bidF.error ? (<><p style={{ fontSize: '13px', color: '#D9401F' }}>{vm.bidF.error}</p></>) : null}
+          {vm.bidF.error ? (<><p style={{ fontSize: '13px', color: '#C2381A' }}>{vm.bidF.error}</p></>) : null}
           
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}><span className="muted" style={{ fontSize: '12.5px', lineHeight: '1.7', maxWidth: '60ch' }}>{vm.t.ws.commissionNote}</span><button className="btn btn-p" onClick={vm.reviewBid}>{vm.t.ws.sendBid}</button></div>
               </div>
@@ -339,18 +347,22 @@ export default function ProjectPage({ vm }: { vm: VM }) {
       
         
       {vm.hasBids ? (<>
-          <div className="card" style={{ padding: '8px' }}>
+          <div className="card bids-card" style={{ padding: '8px' }}>
           <table className="table"><thead><tr><th>{vm.t.ws.hContractor}</th><th>{vm.t.ws.price}</th><th>{vm.t.ws.duration}</th><th>{vm.t.ws.scopeNote}</th><th></th></tr></thead>
             <tbody>
         {((vm.pj.bidRows) || []).map((b: any, _i0: number) => (
           <React.Fragment key={_i0}>
               <tr>
-                <td><div data-route="contractor" data-id={b.cid} onClick={vm.go} style={{ cursor: 'pointer', fontWeight: '600', color: '#1B1464' }}>{b.name}</div><div className="muted num" style={{ fontSize: '12.5px' }}>★ {b.rating} · {b.done} {vm.t.projectsWord}
+                <td><div data-route="contractor" data-id={b.cid} onClick={vm.go} style={{ cursor: 'pointer', fontWeight: '600', color: '#1B1464' }}>{b.name}</div><div className="muted num" style={{ fontSize: '12.5px' }}>
+          {b.hasRecord ? (<>★ {b.rating} · {b.done} {vm.t.projectsWord}</>) : null}
+          
+          {b.isNew ? (<>{vm.t.ws.newCo}</>) : null}
+          
           {b.verified ? (<> · <span className="tag tag-v" style={{ fontSize: '10.5px', padding: '2px 7px', verticalAlign: '1px' }}>✓ {vm.t.verified}</span></>) : null}
           </div></td>
-                <td className="num" style={{ whiteSpace: 'nowrap', fontWeight: '600' }}>{vm.curPre}{b.price}{vm.curPost}</td>
-                <td className="num">{b.days} {vm.t.daysWord}</td>
-                <td style={{ fontSize: '13.5px', color: '#5B5A7A', maxWidth: '320px' }}>{b.note}</td>
+                <td className="num" style={{ whiteSpace: 'nowrap', fontWeight: '600' }} data-l={vm.t.ws.price}>{vm.curPre}{b.price}{vm.curPost}</td>
+                <td className="num" data-l={vm.t.ws.duration}>{b.days} {vm.t.daysWord}</td>
+                <td style={{ fontSize: '13.5px', color: '#5B5A7A', maxWidth: '320px' }} data-l={vm.t.ws.scopeNote}>{b.note}</td>
                 <td style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
           {b.accepted ? (<><span className="tag tag-g">{vm.t.ws.accepted}</span></>) : null}
           
@@ -359,7 +371,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
               </tr></React.Fragment>
         ))}
         </tbody></table>
-          </div>
+          </div><AcceptedBid vm={vm} />
           <p className="muted" style={{ fontSize: '12.5px', marginTop: '14px' }}>{vm.pj.compareNote}</p>
         </>) : null}
       
@@ -400,7 +412,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
         </>) : null}
       
         
-      {vm.noMs ? (<><p className="muted">{vm.t.ws.noMs}</p></>) : null}
+      {vm.noMs ? (<><p className="muted ms-empty">{vm.t.ws.noMs}</p><PlannedStages vm={vm} /></>) : null}
       
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           
@@ -505,12 +517,14 @@ export default function ProjectPage({ vm }: { vm: VM }) {
           
       {((vm.pj.msgRows) || []).map((m: any, _i0: number) => (
         <React.Fragment key={_i0}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: m.align, gap: '4px' }}><span className="muted" style={{ fontSize: '12px' }}>{m.who} · {m.time}</span><div style={{ maxWidth: '80%', padding: '10px 14px', borderRadius: '14px', background: m.bg, color: m.ink, fontSize: '14px' }}>{m.text}</div></div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: m.align, gap: '4px' }}><span className="muted" style={{ fontSize: '12px' }}>{m.who}
+        {m.time ? (<> · {m.time}</>) : null}
+        </span><div className="msg-text" style={{ maxWidth: '80%', padding: '10px 14px', borderRadius: '14px', background: m.bg, color: m.ink, fontSize: '14px' }}>{m.text}</div></div>
           </React.Fragment>
       ))}
       
           
-      {vm.canMessage ? (<><div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}><input className="input" value={vm.msgDraft} onChange={vm.setMsgDraft} onKeyDown={vm.msgKey} placeholder={vm.t.ws.msgPh} /><button className="btn btn-p" onClick={vm.sendMsg}>{vm.t.ws.send}</button></div><p className="muted" style={{ fontSize: '11.5px' }}>{vm.t.ws.msgPolicy}</p></>) : null}
+      {vm.canMessage ? (<><div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}><input className="input" maxLength={2000} value={vm.msgDraft} onChange={vm.setMsgDraft} onKeyDown={vm.msgKey} placeholder={vm.t.ws.msgPh} /><button className="btn btn-p" onClick={vm.sendMsg}>{vm.t.ws.send}</button></div><span className="muted num charcount" style={{ marginTop: '0' }}>{vm.msgCount}</span><p className="muted" style={{ fontSize: '11.5px' }}>{vm.t.ws.msgPolicy}</p></>) : null}
       
         </div><ThreadPicker vm={vm} />
       </>) : null}
@@ -523,9 +537,14 @@ export default function ProjectPage({ vm }: { vm: VM }) {
       {((vm.pj.files) || []).map((f: any, _i0: number) => (
         <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}>{f.name}</td><td>{f.by}</td><td className="muted">{f.date}</td></tr></React.Fragment>
       ))}
+      
+      {vm.pj.noFiles ? (<><tr className="empty-row"><td colSpan={3} className="muted">{vm.t.ws.noFiles}</td></tr></>) : null}
       </tbody></table></div>
         
-      {vm.canMessage ? (<><label className="btn btn-s" style={{ marginTop: '20px' }}><input type="file" style={{ display: 'none' }} onChange={vm.wsUpload} />{vm.t.ws.upload}</label></>) : null}
+      {vm.filesError ? (<><p className="autherr" role="alert" style={{ marginTop: '14px' }}>{vm.filesError}</p></>) : null}
+      
+        
+      {vm.canMessage ? (<><label className="btn btn-s" style={{ marginTop: '20px' }}><input type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" style={{ display: 'none' }} onChange={vm.wsUpload} />{vm.t.ws.upload}</label></>) : null}
       
       </>) : null}
     
@@ -548,7 +567,7 @@ export default function ProjectPage({ vm }: { vm: VM }) {
           
       {vm.crOpen ? (<>
             <div className="card" style={{ padding: '26px', gap: '16px' }}>
-              <div><label className="lbl" htmlFor="a11y-desc">{vm.t.ws.cr.fDesc}<span style={{ color: '#D9401F', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" value={vm.crF.desc} onChange={vm.crSet} placeholder={vm.t.ws.cr.fDescPh} id="a11y-desc" /></div>
+              <div><label className="lbl" htmlFor="a11y-desc">{vm.t.ws.cr.fDesc}<span style={{ color: '#C2381A', marginInlineStart: '3px' }}>*</span></label><textarea className="input" name="desc" value={vm.crF.desc} onChange={vm.crSet} placeholder={vm.t.ws.cr.fDescPh} id="a11y-desc" /></div>
               <div className="g2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div><label className="lbl" htmlFor="a11y-amount">{vm.t.ws.cr.fAmount}</label><input className="input num" type="number" name="amount" value={vm.crF.amount} onChange={vm.crSet} placeholder="0" id="a11y-amount" /><span className="muted" style={{ fontSize: '11.5px', display: 'block', marginTop: '5px' }}>{vm.t.ws.cr.fAmountNote}</span></div>
                 <div><label className="lbl" htmlFor="a11y-days">{vm.t.ws.cr.fDays}</label><input className="input num" type="number" name="days" value={vm.crF.days} onChange={vm.crSet} placeholder="0" id="a11y-days" /></div>

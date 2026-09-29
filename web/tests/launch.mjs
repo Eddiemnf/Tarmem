@@ -165,6 +165,7 @@ await page.waitForTimeout(600);
 const demoLocked = (await page.locator('.gate').count()) === 1;
 const demoWhole = (await page.locator('text=تصفّح المنصة بصفتك').count()) === 1 && (await page.locator('[role="note"]').count()) === 0;
 check('the private demo at /demo still has the full product — or is locked behind the preview password', demoLocked || demoWhole, demoLocked ? 'locked' : 'open (no password set in this build)');
+if (!demoLocked) check('the demo\'s links stay inside /demo', (await page.locator('header a.brand').getAttribute('href')) === '/demo' && (await page.locator('footer a[data-route="how"]').getAttribute('href')) === '/demo/how');
 
 // H — on a phone: no sideways scroll, and the menu button is on the screen, in both languages
 const phoneProblems = [];
@@ -214,6 +215,151 @@ await page.goto(BASE_URL + 'no-such-page', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('header');
 await page.waitForTimeout(500);
 check('an unknown address lands on the home page, which says so', (await route()) === 'home' && (await pathname()) === '/' && (await page.locator('.notfound').count()) === 1, String(await page.locator('main').innerText()).slice(0, 80));
+
+// K — links a keyboard, a new tab and a search engine can follow (28 Sep 2026)
+await load(null, 'pricing');
+const hrefs = await page.evaluate(() => ({
+  brand: document.querySelector('header a.brand')?.getAttribute('href'),
+  nav: [...document.querySelectorAll('header .mainnav a[data-route]')].map((a) => a.getAttribute('href')),
+  footer: [...document.querySelectorAll('footer a[data-route]')].map((a) => a.getAttribute('href')),
+}));
+check('the logo links home, and every header and footer link carries its page\'s address',
+  hrefs.brand === '/' && hrefs.nav.includes('/how') && hrefs.nav.every(Boolean) && hrefs.footer.length >= 9 && hrefs.footer.every(Boolean) && hrefs.footer.includes('/rules') && hrefs.footer.includes('/terms') && hrefs.footer.includes('/join'),
+  JSON.stringify(hrefs).slice(0, 180));
+check('the footer names the terms page by its own title', (await page.locator('footer a[data-route="terms"]').innerText()).trim() === 'شروط الاستخدام');
+await page.keyboard.press('Tab');
+const skipFirst = await page.evaluate(() => document.activeElement?.className);
+await page.keyboard.press('Enter');
+const onMain = await page.evaluate(() => document.activeElement?.id);
+check('the first Tab reaches "skip to content", which moves focus to the page', skipFirst === 'skip-link' && onMain === 'main', `${skipFirst} → ${onMain}`);
+await load(null, 'pricing');
+await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab');
+const tabbed = await page.evaluate(() => document.activeElement?.getAttribute('data-route'));
+await page.keyboard.press('Enter');
+await page.waitForTimeout(500);
+const afterEnter = await page.evaluate(() => ({ path: location.pathname, focus: document.activeElement?.tagName, inMain: !!document.activeElement?.closest('main'), y: Math.round(scrollY) }));
+check('the keyboard reaches the header\'s links, and a page change moves focus to the new page\'s heading without a scroll jump',
+  tabbed === 'how' && afterEnter.path === '/how' && afterEnter.focus === 'H1' && afterEnter.inMain && afterEnter.y === 0, `${tabbed} ${JSON.stringify(afterEnter)}`);
+const [tab] = await Promise.all([context.waitForEvent('page'), page.locator('footer a[data-route="terms"]').click({ modifiers: ['ControlOrMeta'] })]);
+// (headless Chromium opens the tab but does not load it, so the tab itself is not inspected)
+check('a link clicked with Ctrl/Cmd is left to the browser, which opens a new tab; this one stays where it was', Boolean(tab) && (await pathname()) === '/how' && (await route()) === 'how', await pathname());
+await tab.close();
+const meta = async () => page.evaluate(() => ({ robots: document.querySelector('meta[name="robots"]')?.content, canonical: document.querySelector('link[rel="canonical"]')?.href,
+  ogUrl: document.querySelector('meta[property="og:url"]')?.content, description: document.querySelector('meta[name="description"]')?.content, title: document.title }));
+const howMeta = await meta();
+await load(null, 'post');
+const postMeta = await meta();
+await load();
+const homeMeta = await meta();
+check('each page names its own address and description for search engines, and /post may be indexed',
+  howMeta.canonical === 'https://www.tarmem.sa/how' && howMeta.ogUrl === howMeta.canonical && howMeta.description && howMeta.description !== homeMeta.description
+    && postMeta.robots === 'index,follow' && postMeta.canonical === 'https://www.tarmem.sa/post' && homeMeta.canonical === 'https://www.tarmem.sa/' && /مقاولين/.test(homeMeta.title),
+  JSON.stringify({ howMeta, post: postMeta.robots, home: homeMeta.title }).slice(0, 200));
+await page.goto(BASE_URL + 'no-such-page', { waitUntil: 'domcontentloaded' });
+await page.waitForSelector('.notfound');
+check('the home page shown for a mistyped address is not indexed', (await meta()).robots === 'noindex,nofollow');
+
+// L — refunds & disputes, contact, the contractor application
+await load(null, 'rules');
+check('the refunds & disputes page is titled so', (await page.locator('main h1').innerText()).includes('الاسترداد'));
+await page.locator('a.rjump').click();
+await page.waitForTimeout(900);
+const landed = await page.evaluate(() => ({ focus: document.activeElement?.id, top: Math.round(document.getElementById('refunds').getBoundingClientRect().top) }));
+check('a link near the top jumps to the refund rules', landed.focus === 'refunds' && landed.top >= 0 && landed.top < 200, JSON.stringify(landed));
+await page.goto(BASE_URL + 'rules#refunds', { waitUntil: 'domcontentloaded' });
+await page.waitForSelector('#refunds');
+await page.waitForTimeout(700);
+const deep = await page.evaluate(() => Math.round(document.getElementById('refunds').getBoundingClientRect().top));
+check('/rules#refunds opens at the refund rules', deep >= 0 && deep < 200, String(deep));
+await load(null, 'contact');
+const reach = await page.evaluate(() => ({ mail: !!document.querySelector('main a[href="mailto:support@tarmem.sa"]'), wa: document.querySelector('main a.ct-wa')?.getAttribute('href'),
+  topic: document.querySelector('select[name="topic"]')?.value, first: document.querySelector('select[name="topic"] option')?.disabled,
+  privacy: document.querySelector('main a[data-route="privacy"]')?.getAttribute('href') }));
+check('the contact page shows the support address and a WhatsApp button, starts on "choose a topic", and links the privacy policy',
+  reach.mail && reach.wa === `https://wa.me/${site.whatsapp}` && reach.topic === '' && reach.first === true && reach.privacy === '/privacy', JSON.stringify(reach));
+await page.locator('input[name="name"]').fill('سارة');
+await page.locator('input[name="phone"]').fill('0555123456');
+await page.locator('textarea[name="msg"]').fill('سؤال');
+await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
+await page.waitForTimeout(300);
+check('a message without a topic is refused, and says so where a screen reader hears it',
+  (await page.locator('#ct-err[role="alert"]').count()) === 1 && (await page.locator('select[name="topic"]').getAttribute('aria-invalid')) === 'true' && (await page.locator('input[name="name"]').getAttribute('aria-invalid')) === 'false');
+await load(null, 'join');
+const join = await page.evaluate(() => ({ agree: !!document.querySelector('#join-agree[required]'), terms: document.querySelector('main label a[data-route="terms"]')?.getAttribute('href'),
+  cost: document.querySelector('main')?.innerText.includes('9%'), pricing: document.querySelector('main a[data-route="pricing"]')?.getAttribute('href') }));
+check('the application asks to accept the terms and privacy policy, and says what joining costs', join.agree && join.terms === '/terms' && join.cost && join.pricing === '/pricing', JSON.stringify(join));
+
+// M — the home page: the film can be paused, the testimonials take focus, the WhatsApp button keeps to the line's end
+await load();
+const pause = page.locator('.ph-pause');
+const label0 = await pause.getAttribute('aria-label');
+await pause.click();
+await page.waitForTimeout(300);
+const film = await page.evaluate(() => ({ paused: document.querySelector('.ph-vid').paused, label: document.querySelector('.ph-pause').getAttribute('aria-label') }));
+check('the hero film has a pause button that pauses it', film.paused && film.label !== label0, `${label0} → ${film.label}`);
+check('the testimonials can be reached by keyboard', (await page.locator('.tsti-track[tabindex="0"][role="region"][aria-label]').count()) === 1);
+const fab = async () => page.evaluate(() => { const r = document.querySelector('.wa-fab').getBoundingClientRect(); return { left: Math.round(r.left), right: Math.round(innerWidth - r.right) }; });
+const fabAr = await fab();
+const calm = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+if (accounts) await installSupabaseMock(calm, site.supabase.url);
+const cp = await calm.newPage();
+await cp.goto(BASE_URL + '?lang=en', { waitUntil: 'domcontentloaded' });
+await cp.waitForSelector('.ph-vid');
+await cp.waitForTimeout(600);
+const still = await cp.evaluate(() => ({ src: document.querySelector('.ph-vid').getAttribute('src'), poster: document.querySelector('.ph-vid').getAttribute('poster'), button: !!document.querySelector('.ph-pause') }));
+const fabEn = await cp.evaluate(() => { const r = document.querySelector('.wa-fab').getBoundingClientRect(); return { left: Math.round(r.left), right: Math.round(innerWidth - r.right) }; });
+await calm.close();
+check('with reduced motion the hero shows its still poster only, with no film and no pause button', !still.src && still.poster && !still.button, JSON.stringify(still));
+check('the WhatsApp button sits at the end of the line: left in Arabic, right in English', fabAr.left <= 24 && fabEn.right <= 24, JSON.stringify({ fabAr, fabEn }));
+
+// N — the phone menu: focus goes into it, Escape closes it and returns focus to the menu button
+const phoneMenu = await browser.newContext({ viewport: { width: 390, height: 800 }, isMobile: true, hasTouch: true });
+if (accounts) await installSupabaseMock(phoneMenu, site.supabase.url);
+const pm = await phoneMenu.newPage();
+await pm.goto(BASE_URL + 'pricing', { waitUntil: 'domcontentloaded' });
+await pm.waitForSelector('.hdr .burger');
+await pm.waitForTimeout(500);
+await pm.locator('.hdr .burger').click();
+await pm.waitForTimeout(400);
+const opened1 = await pm.evaluate(() => ({ open: document.querySelector('.mainnav')?.getAttribute('data-open'), focus: document.activeElement?.closest('.mainnav') ? document.activeElement.getAttribute('href') : document.activeElement?.tagName }));
+await pm.keyboard.press('Escape');
+await pm.waitForTimeout(300);
+const closed1 = await pm.evaluate(() => ({ open: document.querySelector('.mainnav')?.getAttribute('data-open'), burger: document.activeElement?.classList.contains('burger') }));
+await phoneMenu.close();
+check('the phone menu takes focus on its first link when it opens; Escape closes it and returns to the menu button',
+  opened1.open === 'true' && opened1.focus === '/how' && closed1.open === 'false' && closed1.burger, JSON.stringify({ opened1, closed1 }));
+
+// O — the review's layout fixes: the service tiles use the site's font, the hero's intro wraps by width, and each row of
+// the pricing calculator keeps its amount on one line at the end (ar + en, desktop and phone)
+const looks = [];
+for (const [width, lang] of [[1366, 'ar'], [1366, 'en'], [390, 'ar'], [390, 'en']]) {
+  const ctx = await browser.newContext({ viewport: { width, height: 900 }, ...(width < 500 ? { isMobile: true, hasTouch: true } : {}) });
+  if (accounts) await installSupabaseMock(ctx, site.supabase.url);
+  const p = await ctx.newPage();
+  await p.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+  await p.evaluate((l) => { localStorage.clear(); localStorage.setItem('tarmem-public-v1', JSON.stringify({ lang: l, route: 'home' })); }, lang);
+  await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.waitForSelector('.hire-c');
+  const home = await p.evaluate(() => ({
+    body: getComputedStyle(document.body).fontFamily,
+    tiles: [...document.querySelectorAll('.hire-c')].map((b) => getComputedStyle(b).fontFamily),
+    breaks: [...document.querySelectorAll('.ph-lead br')].map((b) => getComputedStyle(b).display),
+  }));
+  if (!home.tiles.length || home.tiles.some((f) => f !== home.body)) looks.push(`${lang}@${width} tiles in ${[...new Set(home.tiles)].join(', ')} (page: ${home.body})`);
+  if (width < 1400 && home.breaks.some((d) => d !== 'none')) looks.push(`${lang}@${width} the hero intro keeps its hard line break`);
+  await p.goto(BASE_URL + 'pricing', { waitUntil: 'domcontentloaded' });
+  await p.waitForSelector('.calcbox');
+  const rows = await p.evaluate(() => [...document.querySelectorAll('.calcbox > div')].map((row) => {
+    const num = row.querySelector(':scope > .num'); if (!num) return null;
+    const r = row.getBoundingClientRect(), n = num.getBoundingClientRect(), line = parseFloat(getComputedStyle(num).lineHeight) || parseFloat(getComputedStyle(num).fontSize) * 1.6;
+    const endGap = document.dir === 'rtl' ? n.left - r.left : r.right - n.right;
+    return { text: num.textContent.trim(), oneLine: n.height < line * 1.5, firstLine: n.top - r.top < line * 0.8, atEnd: endGap < 2 };
+  }).filter(Boolean));
+  for (const row of rows) if (!row.oneLine || !row.firstLine || !row.atEnd) looks.push(`${lang}@${width} pricing row «${row.text}» ${JSON.stringify(row)}`);
+  if (!rows.length) looks.push(`${lang}@${width} no pricing rows found`);
+  await ctx.close();
+}
+check('the service tiles use the page\'s font, the hero intro has no forced break below 1400px, and every pricing row keeps its amount on one line at the end (ar + en, 1366 and 390px)', looks.length === 0, looks.slice(0, 4).join('; '));
 
 // J — ready to open to the public?
 const placeholder = site.whatsapp === '966500000000';

@@ -8,17 +8,19 @@ import type { GuardEffects } from '../launch/guard';
 import type { LogicHost, LogicState } from '../state/designRuntime';
 import { supabase } from './client';
 import { PLATFORM_COPY } from './copy';
-import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleList, setApplicationStatus, setMessageHandled } from './admin';
+import { adminLogicState, adminUsers, loadAdminData, loadAnalytics, saveConsoleList, setAdminRefresher, setApplicationStatus, setMessageHandled } from './admin';
 import { openWhatsAppTo } from '../launch/deliver';
 import { contractorRecord, runtimeData, setEveryone, toLogicProject } from './data';
 import { forgetHeldFiles, heldFile, listFiles, listPortfolio, uploadFile, type StoredFile } from './files';
-import { createProject, currentAccount, loadContractorReviews, onAccountChange, refreshAccount, saveBid, savePayoutAccount, saveReview, sendContact, signAgreement, walletRequest, withdrawProject, type AgreementRow, type BidRow, type ChangeRow, loadMessages, markMessagesRead, type MessageRow } from './session';
+import { LIMITS, createProject, currentAccount, loadContractorReviews, onAccountChange, refreshAccount, saveBid, savePayoutAccount, saveReview, sendContact, signAgreement, takeDraft, takeJustConfirmed, walletRequest, withdrawProject, type AgreementRow, type BidRow, type ChangeRow, loadMessages, markMessagesRead, type MessageRow } from './session';
+import type { PlatformError } from './copy';
 import { trackRoutes } from './track';
 
 const langOf = (state: LogicState): 'ar' | 'en' => (state.lang === 'en' ? 'en' : 'ar');
 
 /** The signed-in person and their projects, as the logic's own state. */
-const bidderId = (userId: string) => 'co-' + userId.slice(0, 8);
+// the whole account id: two bidders whose ids begin alike must never be taken for one
+const bidderId = (userId: string) => 'co-' + userId;
 /** A saved bid as the design's bid object: what the contractor typed comes back exactly, plus whose it is. */
 const logicBid = (bid: BidRow, cid: string): LogicState => ({ ...bid.details, cid, price: bid.price, days: bid.days, note: both(bid.note || ''), dbId: bid.id, chosen: bid.status === 'chosen' });
 
@@ -83,15 +85,22 @@ export function guardEffects(getHost: () => LogicHost | null): GuardEffects {
     contact: (form, lang) => {
       // a filled hidden field is a bot: it sees "sent", nothing is saved
       if (String((form as { website?: string }).website || '').trim()) { getHost()?.setLogicState((s) => ({ contact: { ...s.contact, sent: true, delivered: true, busy: false, error: '' } })); return; }
+      // the database's rules (supabase/001) are checked first, so the form names the field; its limits (029) have their own words
       void sendContact({ name: form.name, email: form.email, mobile: form.phone, topic: form.topic, message: form.msg, lang }).then((result) => {
-        getHost()?.setLogicState((s) => ({ contact: result.ok
-          ? { ...s.contact, sent: true, delivered: true, busy: false, error: '' }
-          : { ...s.contact, sent: false, busy: false, error: PLATFORM_COPY[langOf(s)].contactFailed } }));
+        getHost()?.setLogicState((s) => {
+          const copy = PLATFORM_COPY[langOf(s)];
+          return { contact: result.ok
+            ? { ...s.contact, sent: true, delivered: true, busy: false, error: '' }
+            : { ...s.contact, sent: false, busy: false, error: result.error === 'generic' ? copy.contactFailed : copy.err[result.error] } };
+        });
       });
     },
     withdraw: (dbId) => {
-      // If the database refuses, the project comes back into the list rather than silently staying posted.
-      void withdrawProject(dbId).then((result) => { if (!result.ok) getHost()?.setLogicState(accountState()); });
+      // If the database refuses, the project comes back into the list rather than silently staying posted, and they are told.
+      void withdrawProject(dbId).then((result) => {
+        if (result.ok) return;
+        getHost()?.setLogicState((s) => ({ ...accountState(), siteNotice: `${PLATFORM_COPY[langOf(s)].withdrawFailed}${result.error !== 'generic' && result.error !== 'session' ? ' ' + PLATFORM_COPY[langOf(s)].err[result.error] : ''}`, siteNoticeTone: 'warn' }));
+      });
     },
   };
 }
@@ -121,25 +130,36 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   const logic = host.logic as unknown as LogicState;
   let publishing = false;
 
+  /* A project the database would refuse is never dropped on the way: the form opens again at the step that holds the field,
+     with the sentence that says what to change. Its rules (supabase/001): a title of 3 to 140 characters, a description of
+     at least 10 (up to 4,000), a district of up to 120, and a budget whose minimum does not pass its maximum of 1,000,000. */
+  const STEP_OF: Partial<Record<PlatformError, number>> = { title: 1, desc: 1, district: 2, budget: 2 };
+  const problemOf = (f: LogicState, min: number, max: number): PlatformError | null => {
+    const title = String(f.title || '').trim(), desc = String(f.desc || '').trim();
+    if (title.length < 3 || title.length > LIMITS.title) return 'title';
+    if (desc.length < 10 || desc.length > LIMITS.desc) return 'desc';
+    if (String(f.address || '').trim().length > LIMITS.district) return 'district';
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min < 0 || max < min || max > 1000000 || max < 1) return 'budget';
+    return null;
+  };
   // The design adds the project to a list in memory. Here it is saved, and the saved row is what opens.
   logic.publishPost = async () => {
     if (publishing) return;
     const state = host.logic.state;
     const copy = PLATFORM_COPY[langOf(state)];
     const f = state.post.f;
-    const fail = (error: string) => host.setLogicState((s) => ({ post: { ...s.post, error }, pendingPost: false }));
+    const fail = (error: PlatformError) => {
+      host.setLogicState((s) => ({ post: { ...s.post, busy: false, done: null, error: copy.err[error], ...(STEP_OF[error] ? { step: STEP_OF[error] } : {}) }, pendingPost: false }));
+      if (host.logic.state.route !== 'post') logic.nav('post');
+    };
     const min = Math.round(Number(f.min)), max = Math.round(Number(f.max));
-    if (String(f.title || '').trim().length < 3) return fail(copy.err.title);
-    if (String(f.desc || '').trim().length < 3) return fail(copy.err.desc);
-    if (!(min >= 0) || !(max >= min) || max > 1000000) return fail(copy.err.budget);
+    const problem = problemOf(f, min, max);
+    if (problem) return fail(problem);
     publishing = true;
     host.setLogicState((s) => ({ post: { ...s.post, error: '', busy: true } }));
     const result = await createProject({ title: f.title, trade: f.trade, desc: f.desc, city: f.city, address: f.address || '', min, max, timing: f.timing });
     publishing = false;
-    if (!result.ok) {
-      host.setLogicState((s) => ({ post: { ...s.post, busy: false, error: copy.err[result.error] }, pendingPost: false, route: 'post' }));
-      return;
-    }
+    if (!result.ok) return fail(result.error);
     const project = toLogicProject(result.ok);
     // The photos chosen in the form go up now that there is a project to attach them to.
     const names: string[] = state.post.files || [];
@@ -193,6 +213,7 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     });
     put(state);
   };
+  setAdminRefresher(refreshAdmin);
   const refreshAnalytics = async () => {
     const raw = await loadAnalytics(host.logic.state.anRange || 'week');
     if (raw && isAdmin()) put({ adminAn: raw });
@@ -275,7 +296,20 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     if (isAdmin() && s.route === 'admin' && s.atab === 'analytics' && !document.hidden) void refreshAnalytics();
   }, 20000);
 
-  // A contractor's new bid (the design's form adds it to the project in memory) is saved; if the database refuses, it is taken back.
+  /* A contractor's new bid (the design's form adds it to the project in memory, and empties the form) is saved; if the
+     database would refuse it, or does, it is taken back and the form opens again with everything they typed, and the
+     sentence for the field to change. Its rules (supabase/005): a price of 100 to 1,000,000 and 1 to 1,000 days. */
+  const bidForm = (b: LogicState, error: string): LogicState => ({
+    price: String(b.price ?? ''), days: String(b.days ?? ''), note: String(b.note?.ar ?? b.note ?? ''), incl: b.incl || '', excl: b.excl || '', brands: b.brands || '', start: b.start || '',
+    warranty: b.warranty || '', valid: b.valid || '', ms1: String(b.ms?.[0] ?? 30), ms2: String(b.ms?.[1] ?? 40), ms3: String(b.ms?.[2] ?? 30), vatReg: Boolean(b.vatReg), visit: Boolean(b.visit), step: 'edit', error,
+  });
+  const bidProblem = (b: LogicState): PlatformError | null => {
+    const price = Number(b.price), days = Number(b.days);
+    if (!Number.isFinite(price) || price < 100 || price > 1000000) return 'bidPrice';
+    if (!Number.isFinite(days) || days < 1 || days > 1000 || Math.round(days) !== days) return 'bidDays';
+    if (String(b.note?.ar ?? '').length > LIMITS.bidNote) return 'noteLong';
+    return null;
+  };
   const saveNewBids = () => {
     if (applying || currentAccount()?.profile.role !== 'contractor') return;
     for (const project of host.logic.state.projects as LogicState[]) {
@@ -283,10 +317,13 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
       if (!fresh || !project.dbId) continue;
       const mark = (patch: LogicState | null) => put({ projects: (host.logic.state.projects as LogicState[]).map((p) => (p.dbId !== project.dbId ? p
         : { ...p, bids: (p.bids as LogicState[]).flatMap((b) => (b.cid === 'c1' && !b.dbId ? (patch ? [{ ...b, ...patch }] : []) : [b])) })) });
+      const giveBack = (error: PlatformError) => { mark(null); host.setLogicState((s) => ({ bidF: bidForm(fresh, PLATFORM_COPY[langOf(s)].err[error]) })); };
+      const problem = bidProblem(fresh);
+      if (problem) { giveBack(problem); continue; }
       mark({ saving: true });
       void saveBid(project.dbId, fresh).then((result) => {
-        mark(result.ok ? { dbId: result.ok.id, saving: false } : null);
-        if (!result.ok) host.setLogicState((s) => ({ bidF: { ...s.bidF, error: PLATFORM_COPY[langOf(s)].err[result.error] } }));
+        if (result.ok) mark({ dbId: result.ok.id, saving: false });
+        else giveBack(result.error);
       });
     }
   };
@@ -301,7 +338,13 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     if (!fresh || !row || !contractorId) return;
     const mark = (patch: LogicState | null) => put({ reviews: (host.logic.state.reviews as LogicState[]).flatMap((r) => (r === fresh || (r.pid === fresh.pid && !r.saved) ? (patch ? [{ ...r, ...patch }] : []) : [r])) });
     mark({ saving: true });
-    void saveReview(row.id, contractorId, Number(fresh.stars), String(fresh.text)).then((result) => mark(result.ok ? { saved: true, saving: false } : null));
+    void saveReview(row.id, contractorId, Number(fresh.stars), String(fresh.text)).then((result) => {
+      if (result.ok) return mark({ saved: true, saving: false });
+      // the review is taken back, and the form opens again with the stars and the words, and why it was not saved
+      mark(null);
+      const copy = PLATFORM_COPY[langOf(host.logic.state)];
+      host.setLogicState({ revF: { stars: Number(fresh.stars) || 0, text: String(fresh.text || ''), error: result.error === 'generic' ? copy.reviewFailed : `${copy.reviewFailed} ${copy.err[result.error]}` } });
+    });
   };
 
   // The wallet's two writes. A deposit or payout the design adds in memory becomes a request in the database (and the list is
@@ -353,9 +396,19 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
       if (asHomeowner && !bid?.dbId) continue;
       const mark = (patch: LogicState) => put({ projects: (host.logic.state.projects as LogicState[]).map((p) => (p.dbId === project.dbId ? { ...p, ...patch } : p)) });
       mark({ signing: true });
-      void signAgreement(asHomeowner ? 'homeowner' : 'contractor', asHomeowner ? bid!.dbId : project.dbId).then((result) => {
-        if (result.ok) mark({ signing: false, agreementSaved: asHomeowner ? 'homeowner' : 'both', ...(asContractor ? { ms: [] } : {}) });
-        else void refreshAccount();
+      const cid = asHomeowner ? project.pending.cid : project.pending?.cid || project.contractorId || 'c1';
+      void signAgreement(asHomeowner ? 'homeowner' : 'contractor', asHomeowner ? bid!.dbId : project.dbId).then(async (result) => {
+        if (result.ok) {
+          mark({ signing: false, agreementSaved: asHomeowner ? 'homeowner' : 'both', ...(asContractor ? { ms: [] } : {}) });
+          return void refreshAccount(); // the signed agreement as the database holds it (the accepted bid and planned stages read it)
+        }
+        // the signature did not go in: what the database holds is loaded back, and the agreement opens again with the reason
+        const copy = PLATFORM_COPY[langOf(host.logic.state)];
+        const reason = result.error === 'generic' ? '' : ' ' + copy.err[result.error];
+        await refreshAccount();
+        if (result.error === 'session') return;
+        const still = (host.logic.state.projects as LogicState[]).find((p) => p.dbId === project.dbId);
+        host.setLogicState({ ...(still && host.logic.state.curId === still.id && still.status === 'open' ? { agr: { cid, read: false, error: copy.signFailed + reason } } : { siteNotice: copy.signFailed + reason, siteNoticeTone: 'warn' }) });
       });
     }
   };
@@ -383,6 +436,23 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
     });
   };
 
+  /* A guest's project, kept on the device while their new account waited for its activation link, is posted at the first
+     sign-in to that account (src/platform/AuthPage.tsx keeps it). The photos could not be kept: they are asked for again. */
+  let draftFor = '';
+  const publishDraft = () => {
+    const account = currentAccount();
+    if (!account || account.profile.role !== 'homeowner' || draftFor === account.profile.id) return;
+    draftFor = account.profile.id;
+    const draft = takeDraft(account.profile.email);
+    if (!draft) return;
+    // after the page's own address has been read (src/launch/urls.ts runs right after this), so the form it may open stays open
+    void Promise.resolve().then(async () => {
+      host.setLogicState({ post: { ...(initialPost as LogicState), f: { ...(initialPost as LogicState).f, ...draft.f }, files: [], step: 4, pledge: true }, pendingPost: true });
+      await logic.publishPost();
+      if (draft.files && host.logic.state.post?.done) host.setLogicState((s) => ({ siteNotice: PLATFORM_COPY[langOf(s)].draftPhotos, siteNoticeTone: 'warn' }));
+    });
+  };
+
   const apply = () => {
     const account = currentAccount();
     setEveryone(null);
@@ -399,6 +469,14 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
       hoProfile: { city: profile.city, about: both(profile.about || '') } } : {};
     put({ rejected: [], cases: [], promos: [], affiliates: [], strikes: [], refunds: [], adminAn: null, ...mine, ...next, saved: Array.isArray(profile?.prefs?.saved) ? (profile?.prefs?.saved as string[]) : [] });
     if (account?.logicUser.admin) { void refreshAdmin(); void refreshAnalytics(); }
+    // the bid form does not assume VAT registration; a contractor who said so on an earlier bid has it ticked for them
+    if (account?.profile.role === 'contractor' && account.bids.some((b) => (b.details as { vatReg?: boolean } | null)?.vatReg === true)) {
+      const f = host.logic.state.bidF as LogicState | undefined;
+      if (f && !f.vatReg && !f.price && f.step !== 'review') put({ bidF: { ...f, vatReg: true } });
+    }
+    // the page opened from a working activation link: say the account is active (once), then post a waiting project
+    if (account && takeJustConfirmed()) host.setLogicState((s) => ({ siteNotice: PLATFORM_COPY[langOf(s)].confirmedWelcome, siteNoticeTone: 'ok' }));
+    if (account) publishDraft();
   };
   apply();
   const stopAccount = onAccountChange(apply);
@@ -447,5 +525,5 @@ export function bindPlatform(host: LogicHost, initialPost: LogicState): () => vo
   });
   loadProjectFiles();
   const stopTracking = trackRoutes(host);
-  return () => { stopAccount(); stopWatching(); stopFiles(); stopMessages(); stopBids(); stopSigning(); stopReviews(); stopWallet(); stopProfile(); stopRead(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
+  return () => { setAdminRefresher(null); stopAccount(); stopWatching(); stopFiles(); stopMessages(); stopBids(); stopSigning(); stopReviews(); stopWallet(); stopProfile(); stopRead(); stopTracking(); window.clearInterval(live); window.clearInterval(everyMinute); document.removeEventListener('visibilitychange', onFront); window.removeEventListener('click', askToNotify); };
 }

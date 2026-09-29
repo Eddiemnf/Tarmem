@@ -29,7 +29,7 @@ import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { VIDEO_MAX_BYTES, VIDEO_TYPES, acceptFiles, holdFiles, uploadFile } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { approveChange, currentAccount, deleteMyAccount, normalizeMobile, proposeChange, refreshAccount, sendMessage, sendWhatsAppTest, stageStep, updateProfile, validMobile, type MessageRow } from '../platform/session';
+import { approveChange, currentAccount, deleteMyAccount, proposeChange, refreshAccount, saudiMobile, sendMessage, sendWhatsAppTest, stageStep, updateProfile, type MessageRow } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -73,18 +73,20 @@ function userView(d: UserDetail, vm: LogicVals, when: (iso: string) => string): 
   const p = d.profile; const isCo = p.role === 'contractor'; const app = d.application;
   const cityLabel = ((vm.cities || []) as { id: string; label: string }[]).find((c) => c.id === p.city)?.label || p.city;
   const tag = (status: string) => (status === 'completed' ? 'tag-g' : status === 'active' ? 'tag-a' : 'tag-w');
-  const appStatus = app?.status === 'verified' ? t.verified : app?.status === 'declined' ? t.admin.rejected : t.admin.pending;
+  const noApp = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'].admNoApplication;
+  const appStatus = !app ? noApp : app.status === 'verified' ? t.verified : app.status === 'declined' ? t.admin.rejected : t.admin.pending;
   return {
     name: p.full_name, role: isCo ? t.roles.contractor : p.role === 'admin' ? t.admin.kicker : t.roles.homeowner, city: cityLabel,
     mobile: p.mobile || '—', tel: p.mobile ? 'tel:' + String(p.mobile).replace(/\s/g, '') : '', email: d.email || '—', mailto: d.email ? 'mailto:' + d.email : '',
     company: p.company || '—', language: p.lang === 'en' ? 'English' : 'العربية', joined: when(d.created_at), lastSeen: d.last_sign_in_at ? when(d.last_sign_in_at) : dv.never,
     status: isCo ? appStatus : t.admin.active, cls: isCo ? (app?.status === 'verified' ? 'tag-g' : app?.status === 'declined' ? 'tag-a' : 'tag-w') : 'tag-g',
+    // (the design's "application" line; a contractor account with none reads "no application")
     isContractor: isCo,
     projects: d.projects.map((pr) => ({ id: pr.code, title: pr.title, statusLabel: st[pr.status] || pr.status, tagClass: tag(pr.status), bids: String(pr.bids) })),
     projectCount: String(d.projects.length), noProjects: !d.projects.length, hasProjects: d.projects.length > 0,
     bids: d.bids.map((b) => ({ project: b.project_code, title: b.project_title, price: Number(b.price).toLocaleString('en-US'), days: String(b.days ?? '—'), status: st[b.status] || b.status })),
     bidCount: String(d.bids.length), noBids: !d.bids.length, hasBids: d.bids.length > 0,
-    application: app ? appStatus : '—', portfolio: String(d.portfolio), reviews: String(d.reviews),
+    application: isCo ? appStatus : '—', portfolio: String(d.portfolio), reviews: String(d.reviews),
     mobileVerified: p.mobile_verified_at ? dv.verifiedYes : dv.verifiedNo, id: p.id, kind: isCo ? 'c' : 'h',
   };
 }
@@ -96,8 +98,13 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
   const when = (iso: string) => new Date(iso).toLocaleDateString(ar ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const applicants = new Map<string, LogicState>((state.contractors || []).map((c: LogicState) => [c.id, c]));
   const senders = new Map<string, LogicState>((state.cases || []).map((c: LogicState) => [c.id, c]));
-  const budgets: number[] = (state.projects || []).map((p: LogicState) => (Number(p.min) + Number(p.max)) / 2);
-  const average = budgets.length ? Math.round(budgets.reduce((a, b) => a + b, 0) / budgets.length) : 0;
+  // while payment on the site is off, codes and partners have nothing to apply to (and late stages and refunds nothing to record):
+  // those tabs wait for it, and a console reopened on one of them opens on the overview
+  const hiddenTabs = currentAccount()?.paymentsLive ? [] : ['late', 'promos', 'affiliates'];
+  const tabNow = hiddenTabs.includes(String(state.atab)) ? 'overview' : String(state.atab || 'overview');
+  // a contractor account with no application is one of the people, never an application to decide
+  const unapplied = (id: string) => Boolean(applicants.get(id)?.noApp);
+  const queue = ((vm.verifQueue as LogicState[]) || []).filter((row) => !unapplied(row.id));
   // the "one person" view: the account behind the row (a homeowner's profile id, or the account a contractor's application made)
   const view = state.adminView as { kind: string; id: string; ukind?: string } | null;
   const viewedId = view?.kind === 'user' ? (view.ukind === 'c' ? (applicants.get(view.id)?.userId as string | null) : view.id) : null;
@@ -143,18 +150,28 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
       });
     },
     // the design dates every application "4 Sep 2026"; the team also needs to know whom to call
-    verifQueue: (vm.verifQueue || []).map((row: LogicState) => {
+    verifQueue: queue.map((row: LogicState) => {
       const c = applicants.get(row.id);
       return c ? { ...row, name: `${row.name} — ${c.person}`, city: `${row.city} · ${c.mobile}`, date: when(c.appliedAt) } : row;
     }),
+    noVerif: !queue.length,
+    userRows: ((vm.userRows as LogicState[]) || []).map((row) => (row.kind === 'c' && unapplied(row.id) ? { ...row, status: copy.admNoApplication, cls: 'tag-w' } : row)),
     // a support case here is a message from the contact form: there is no project, there is a sender
     cases: (vm.cases || []).map((row: LogicState) => ({ ...row, project: senders.get(row.id)?.from || row.project })),
-    // the design's "average project value" is a fixed 46,800
-    pm: vm.pm?.kpis ? { ...vm.pm, kpis: vm.pm.kpis.map((k: LogicState, i: number) => (i === 3 ? { ...k, v: average ? average.toLocaleString('en-US') : '—' } : k)) } : vm.pm,
-    t: { ...vm.t, admin: { ...vm.t.admin, an: { ...vm.t.admin.an,
+    /* Codes and partners, once payment is on: nothing on the site applies a code or counts a partner's clicks yet, so the
+       figures that would need that read "—" instead of a number (the design fills them with made-up ones). */
+    pm: vm.pm?.kpis ? { ...vm.pm, kpis: vm.pm.kpis.map((k: LogicState, i: number) => (i === 0 ? k : { ...k, v: '—' })),
+      rows: ((vm.pm.rows as LogicState[]) || []).map((r) => ({ ...r, usesL: String(r.usesL || '').replace(/^[^/]*\//, '— /'), usePct: 0 })) } : vm.pm,
+    af: vm.af?.kpis ? { ...vm.af, kpis: vm.af.kpis.map((k: LogicState, i: number) => (i === 0 ? k : { ...k, v: '—' })),
+      rows: ((vm.af.rows as LogicState[]) || []).map((r) => ({ ...r, clicks: '—', signups: '—', projects: '—', earned: '—', owed: '—', owedC: '#7A7994', canPay: false })) } : vm.af,
+    t: { ...vm.t, admin: { ...vm.t.admin, hCaseFrom: copy.admSender, an: { ...vm.t.admin.an,
       sub: ar ? 'الزوار الآن وأرقام اليوم، من سجل زيارات الموقع نفسه: بلا ملفات تعريف ارتباط وبلا عناوين IP.' : 'Live visitors and daily figures, from the site\'s own visit record: no cookies, no IP addresses.' } } },
-    // late stages and refunds come with payments: until then the tab would describe a record that does not exist
-    ...(currentAccount()?.paymentsLive ? {} : { adminTabs: ((vm.adminTabs as LogicState[]) || []).filter((tab) => tab.id !== 'late') }),
+    adminTabs: ((vm.adminTabs as LogicState[]) || []).filter((tab) => !hiddenTabs.includes(tab.id))
+      .map((tab) => ({ ...tab, cur: tab.id === tabNow ? 'page' : 'false', ...(tab.id === 'verification' ? { count: queue.length } : {}) })),
+    ...(tabNow !== state.atab && vm.atab ? { atab: { [tabNow]: true } } : {}),
+    // a project the team removed or cancelled reads "withdrawn" on its own page too (the design's logic has no such status)
+    ...(vm.pj && state.route === 'project' && (state.projects || []).find((p: LogicState) => p.id === state.curId)?.withdrawn
+      ? { pj: { ...vm.pj, statusLabel: vm.t.admin.dv?.statuses?.withdrawn || 'withdrawn', tagClass: 'tag-w' } } : {}),
   };
 }
 
@@ -169,7 +186,11 @@ function filePickers(host: LogicHost, copy: (typeof PLATFORM_COPY)['ar' | 'en'])
     },
     wsUpload: (e: { target: HTMLInputElement }) => {
       const project = (host.logic.state.projects as LogicState[]).find((p) => p.id === host.logic.state.curId);
-      const { ok } = acceptFiles(picked(e), (project?.files || []).filter((f: LogicState) => !f.failed).length);
+      const files = picked(e);
+      const { ok, problem } = acceptFiles(files, (project?.files || []).filter((f: LogicState) => !f.failed).length);
+      // a file that is not taken says why (its type, its size, or the project's ten), instead of simply not appearing
+      const refused = files.filter((f) => !ok.includes(f)).map((f) => f.name).join(copy === PLATFORM_COPY.en ? ', ' : '، ');
+      host.setLogicState({ filesError: problem ? `${copy.filesRefused}: ${refused} — ${copy.fileErr[problem]}` : '', filesErrorAt: host.logic.state.curId });
       for (const file of ok) void uploadToProject(host, host.logic.state.curId, file);
     },
   };
@@ -178,11 +199,19 @@ function filePickers(host: LogicHost, copy: (typeof PLATFORM_COPY)['ar' | 'en'])
 /** A contractor's account: waiting for the team's verification, then verified. The design gates both the dashboard
     and the bid form on Nafath; until Nafath is connected that gate stands for Tarmem's own verification, and —
     until bids are saved for real — for "bidding opens soon", so the form never pretends to send one. */
-function contractorVals(vm: LogicVals, state: LogicState): LogicVals {
+function contractorVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (state.user?.role !== 'contractor' || !vm.t?.auth) return vm;
   const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   // Verified: the design's own bid form, saved for real (src/platform/bind.ts). If the homeowner chose their bid, say what happens next.
   if (state.user.nafath) return vm;
+  // Declined (the applicant reads their own application, supabase/030 E6): said plainly, with a way to reach the team —
+  // not "being verified" for ever
+  if (platformOn && currentAccount()?.application?.status === 'declined') return {
+    ...vm,
+    bidNeedsNafath: true, canBid: false,
+    startNafath: () => { (host.logic as unknown as { nav: (route: string) => void }).nav('contact'); window.scrollTo({ top: 0 }); },
+    t: { ...vm.t, auth: { ...vm.t.auth, nafath: '', gateCoTitle: copy.coDeclinedTitle, gateCoNote: copy.coDeclinedNote, nafathVerify: copy.coDeclinedContact } },
+  };
   return {
     ...vm,
     bidNeedsNafath: true, canBid: false,
@@ -192,16 +221,25 @@ function contractorVals(vm: LogicVals, state: LogicState): LogicVals {
 }
 
 /** After both signatures the design asks the homeowner to verify through Nafath and then pay by card. Neither is connected
-    yet, so that step says so, and nothing pretends to take a payment; stages wait for the first payment. */
-function awardedVals(vm: LogicVals, state: LogicState): LogicVals {
+    yet, so that step says so, and nothing pretends to take a payment; stages wait for the first payment. The homeowner's
+    button says what it checks, and answers; the awarded contractor's Payments tab says the same in their words (the
+    design gives them only the three figures, all zero while nothing can be paid). */
+function awardedVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   const role = state.user?.role;
   if (!platformOn || (role !== 'homeowner' && role !== 'contractor') || !vm.t?.auth) return vm;
   const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const pr = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
+  const checkPayments = () => {
+    void refreshAccount().then(() => { if (!currentAccount()?.paymentsLive) host.setLogicState({ siteNotice: copy.payStillOff, siteNoticeTone: 'ok' }); });
+  };
+  const wonByMe = role === 'contractor' && pr && pr.contractorId === 'c1' && pr.status !== 'open' && !currentAccount()?.paymentsLive;
   return {
     ...vm,
-    ...(role === 'homeowner' ? { fundNeedsNafath: Boolean(vm.fundNeedsNafath || vm.needsFunding), needsFunding: false, startNafath: () => { void refreshAccount(); } } : {}),
-    t: { ...vm.t, ws: { ...vm.t.ws, noMs: copy.stagesSoon },
-      ...(role === 'homeowner' ? { auth: { ...vm.t.auth, nafath: '', gateHoTitle: copy.paySoonTitle, gateHoNote: copy.paySoonNote, nafathVerify: copy.refresh } } : {}) },
+    ...(role === 'homeowner' ? { fundNeedsNafath: Boolean(vm.fundNeedsNafath || vm.needsFunding), needsFunding: false, startNafath: checkPayments } : {}),
+    ...(wonByMe ? { fundNeedsNafath: true, needsFunding: false, naf: { ...(vm.naf || {}), idle: false, wait: false } } : {}),
+    t: { ...vm.t, ws: { ...vm.t.ws, noMs: pr && !pr.contractorId ? copy.stagesAfterAward : copy.stagesSoon },
+      ...(role === 'homeowner' ? { auth: { ...vm.t.auth, nafath: '', gateHoTitle: copy.paySoonTitle, gateHoNote: copy.paySoonNote, nafathVerify: copy.refresh } } : {}),
+      ...(wonByMe ? { auth: { ...vm.t.auth, nafath: '', gateHoTitle: copy.paySoonTitle, gateHoNote: copy.paySoonNoteCo } } : {}) },
   };
 }
 
@@ -274,6 +312,15 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   // The design's settings page says the mobile signs you in and needs a code to change, and calls the email "for invoices";
   // here the email signs you in and the mobile is for contact and WhatsApp. Only notification switches that do something exist.
   const REAL_PREFS = ['pBids', 'pStages', 'pPay', 'pMsg'];
+  /* A contractor's own switches: new messages (the database reads pMsg); their bid being chosen and change requests are
+     part of the agreement and always sent (shown locked, as the design shows essential alerts); new projects in their
+     trades is kept for when those alerts start, and says so. */
+  const coPrefs = [
+    { id: 'pNewProjects', label: copy.prefsCo.pNewProjects, locked: false, on: prefs.pNewProjects === true },
+    { id: 'pBidChosen', label: copy.prefsCo.pBidChosen, locked: true, on: true },
+    { id: 'pMsg', label: copy.prefsCo.pMsg, locked: false, on: prefs.pMsg !== false },
+    { id: 'pChanges', label: copy.prefsCo.pChanges, locked: true, on: true },
+  ];
   return {
     ...vm,
     // the settings copy: what the mobile and email are for, and "delete my account" in words that say what really happens (022)
@@ -281,16 +328,21 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
       ...(vm.wa && vm.t.wa ? { wa: { ...vm.t.wa, sub: copy.waSub, numberNote: copy.waNumberNote } } : {}) },
     // the switches that exist; and an admin's settings page carries no delete-account card (an admin is removed by another admin)
     ...(vm.st ? { st: { ...vm.st,
-      ...(vm.st.prefs ? { prefs: (vm.st.prefs as { id: string }[]).filter((p) => REAL_PREFS.includes(p.id)) } : {}),
+      // the email signs them in: shown, not editable here, with the reason beside it
+      email: account.profile.email || '', emailLocked: true, emailNote: copy.emailReadOnly,
+      ...(vm.st.prefs ? { prefs: account.profile.role === 'contractor' ? coPrefs : (vm.st.prefs as { id: string }[]).filter((p) => REAL_PREFS.includes(p.id)) } : {}),
       ...(account.profile.role === 'admin' ? { canClose: false, closeBlocked: false, closeAsk: false } : {}) } } : {}),
-    // "save contractor" is kept on the profile row, so the dashboard's saved list survives a reload and another device
+    // "save contractor" is kept on the profile row, so the dashboard's saved list survives a reload and another device;
+    // if the database refuses, the choice is undone and they are told
     toggleSave: (e: { stopPropagation: () => void; currentTarget: { dataset: { id?: string } } }) => {
       e.stopPropagation();
       const id = String(e.currentTarget.dataset.id || '');
       const now = (state.saved as string[] | undefined) || [];
       const next = now.includes(id) ? now.filter((x) => x !== id) : [...now, id];
       host.setLogicState({ saved: next });
-      void updateProfile({ prefs: { ...(prefs as Record<string, boolean | string | string[]>), saved: next } });
+      void updateProfile({ prefs: { ...(prefs as Record<string, boolean | string | string[]>), saved: next } }).then((result) => {
+        if (!result.ok) host.setLogicState({ saved: now, siteNotice: copy.saveFailed, siteNoticeTone: 'warn' });
+      });
     },
     ...(vm.wa && vm.t.wa ? {
       wa: {
@@ -301,8 +353,8 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
       },
     } : {}),
     waVerify: () => {
-      const mobile = normalizeMobile(waNumber);
-      if (!validMobile(mobile)) return host.setLogicState((s) => ({ setg: { ...s.setg, waError: copy.err.mobile, waSent: '' } }));
+      const mobile = saudiMobile(waNumber);
+      if (!mobile) return host.setLogicState((s) => ({ setg: { ...s.setg, waError: copy.err.mobile, waSent: '' } }));
       if (state.setg?.waBusy) return; // one test at a time: the button is greyed out until the database answers
       host.setLogicState((s) => ({ setg: { ...s.setg, waBusy: true } }));
       void (async () => {
@@ -321,11 +373,12 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
       void updateProfile({ prefs: next }).then((result) => note(result.ok ? copy.settingsSaved : copy.err[result.error]));
     },
     saveSettings: () => {
-      const mobile = normalizeMobile(state.setg?.mobile);
-      if (!validMobile(mobile)) return note(copy.err.mobile);
-      const changedEmail = String(state.setg?.email || '').trim().toLowerCase() !== String(account.profile.email || '').toLowerCase();
+      // a Saudi mobile number, kept as 05XXXXXXXX however it was typed
+      const mobile = saudiMobile(state.setg?.mobile);
+      if (!mobile) return note(copy.err.mobile);
+      host.setLogicState((s) => ({ setg: { ...s.setg, mobile } }));
       void updateProfile({ mobile, prefs: state.setg?.prefs || {}, lang: state.lang === 'en' ? 'en' : 'ar' })
-        .then((result) => note(result.ok ? (changedEmail ? `${copy.settingsSaved} ${copy.emailLocked}` : copy.settingsSaved) : copy.err[result.error]));
+        .then((result) => note(result.ok ? copy.settingsSaved : copy.err[result.error]));
     },
     // the settings page really erases the account now (supabase/022): the database scrubs it and the person is signed out
     confirmClose: () => {
@@ -347,15 +400,18 @@ function accountPages(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
 }
 
 /* The home page's background video, chosen once per visit: 1 MB at 720p on a desktop, 0.4 MB at 480p on a phone,
-   and only the still poster when the visitor's browser asks to save data. */
+   and only the still poster when the visitor's browser asks to save data or for reduced motion. A phone gets the
+   middle of the poster (assets/hero-poster-800.webp, 800 px wide: it shows full height), which index.html preloads. */
 const PHONE = (): boolean => { try { return window.matchMedia('(max-width: 768px)').matches; } catch { return false; } };
 
 const HERO_VIDEO: string = (() => {
   try {
     if ((navigator as { connection?: { saveData?: boolean } }).connection?.saveData) return '';
-    return window.matchMedia('(max-width: 768px)').matches ? 'assets/hero-480.mp4' : 'assets/hero.mp4';
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return '';
+    return PHONE() ? 'assets/hero-480.mp4' : 'assets/hero.mp4';
   } catch { return 'assets/hero.mp4'; }
 })();
+const HERO_POSTER = PHONE() ? 'assets/hero-poster-800.webp' : 'assets/hero-poster.webp';
 
 /** The project's Messages tab on real rows (supabase/019). The design's chat kept messages in memory; here a thread is
     one project and one contractor, read from the database (src/platform/bind.ts loads and refreshes it), and sending
@@ -388,13 +444,35 @@ function messagesVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
   const msgRows = thread.map((r) => { const mine = r.from_id === me; return { who: mine ? vm.t.ws.you : partner, time: when(r.created_at), text: scrub(r.body), align: mine ? 'flex-end' : 'flex-start', bg: mine ? '#1B1464' : '#F1F0FA', ink: mine ? '#fff' : '#14113F' }; });
   const canMessage = Boolean(active) && (owner || account.bids.some((b) => b.project_id === dbId && b.status !== 'withdrawn') || pr.contractorId === 'c1');
   const note = (text: string) => ({ who: copy.msgsFrom, time: '', text, align: 'flex-start', bg: '#F7F6FC', ink: '#3A385C' });
+  /* The team reads a project's conversations (supabase/030: admins read every message), one thread per contractor, as
+     written: nothing is sent from here and nothing is marked read (src/platform/bind.ts only marks the reader's own thread). */
+  if (account.profile.role === 'admin') {
+    const firms = (state.firms as Record<string, string> | undefined) || {};
+    const threads = [...new Set(rows.map((r) => r.contractor_id))];
+    const open = threads.includes(String(state.msgThread)) ? String(state.msgThread) : threads[0] || '';
+    const ownerId = String(pr.ownerDbId || '');
+    const read = rows.filter((r) => r.contractor_id === open).map((r) => {
+      const home = r.from_id === ownerId;
+      return { who: home ? copy.msgsHomeowner : firms[open] || copy.msgsContractor, time: when(r.created_at), text: r.body, align: home ? 'flex-start' : 'flex-end', bg: home ? '#F1F0FA' : '#1B1464', ink: home ? '#14113F' : '#fff' };
+    });
+    return {
+      ...vm, canMessage: vm.tab?.messages ? false : vm.canMessage,
+      msgThreads: threads.map((id) => ({ id, name: firms[id] || copy.msgsContractor, on: id === open })),
+      pTabs: ((vm.pTabs as LogicState[]) || []).map((t) => (t.id === 'messages' ? { ...t, count: rows.length || 0 } : t)),
+      sendMsg: () => undefined, msgKey: () => undefined,
+      // with one thread there is no picker above it: the note says whose it is
+      pj: { ...vm.pj, ...progress, msgRows: vm.tab?.messages ? [note(threads.length === 1 ? `${copy.msgsAdminRead} ${copy.msgsWith}: ${firms[open] || copy.msgsContractor}.` : copy.msgsAdminRead),
+        ...(read.length ? read : [note(copy.msgsNoneYet)])] : read },
+    };
+  }
   const send = () => {
     const body = String(state.msgDraft || '').trim();
     if (!body || !active) return;
     host.setLogicState({ msgDraft: '', msgError: '' });
-    void sendMessage(dbId, active, body).then((r) => host.setLogicState((s) => (r.ok ? { msgBump: (Number(s.msgBump) || 0) + 1 } : { msgDraft: body, msgError: copy.msgFailed })));
+    void sendMessage(dbId, active, body).then((r) => host.setLogicState((s) => (r.ok ? { msgBump: (Number(s.msgBump) || 0) + 1 }
+      : { msgDraft: body, msgError: r.error === 'generic' || r.error === 'network' ? copy.msgFailed : `${copy.msgFailed} ${copy.err[r.error]}` })));
   };
-  const shown = vm.tab?.messages ? [...(msgRows.length ? msgRows : [note(canMessage ? copy.msgsEmpty : copy.msgsNoThread)]), ...(state.msgError ? [note(String(state.msgError))] : [])] : msgRows;
+  const shown = vm.tab?.messages ? [...(msgRows.length ? msgRows : [note(canMessage ? copy.msgsEmpty : owner ? copy.msgsNoThread : copy.msgsNoThreadCo)]), ...(state.msgError ? [note(String(state.msgError))] : [])] : msgRows;
   return {
     // (the design gates the Files tab's upload label with the same flag: only the messages tab's box is decided here)
     ...vm, canMessage: vm.tab?.messages ? canMessage : vm.canMessage, msgThreads: ids.map((id) => ({ id, name: names.get(id) || '', on: id === active })),
@@ -408,9 +486,14 @@ function messagesVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicV
 function changeVals(given: LogicVals, state: LogicState, host: LogicHost): LogicVals {
   if (!platformOn || !given.pj) return given;
   // only a homeowner has a profile page to open (their own); for a contractor or the team the owner's name is plain text
-  const ownProfile = currentAccount()?.profile.role === 'homeowner';
-  const vm: LogicVals = { ...given, pj: { ...given.pj, ownerLink: ownProfile, ownerPlain: !ownProfile } };
+  const account = currentAccount();
+  const ownProfile = account?.profile.role === 'homeowner';
   const pr = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
+  // the contractor learns the homeowner's full name once both have signed (the agreement card above names them): the
+  // details row says the same, instead of "a homeowner"; before the award it stays masked
+  const agreed = account?.profile.role === 'contractor' && pr?.dbId
+    ? account.agreements.find((a) => a.project_id === pr.dbId && a.contractor_id === account.profile.id && a.contractor_signed_at) : undefined;
+  const vm: LogicVals = { ...given, pj: { ...given.pj, ownerLink: ownProfile, ownerPlain: !ownProfile, ...(agreed?.homeowner_name ? { ownerName: agreed.homeowner_name } : {}) } };
   if (!pr?.dbId) return vm;
   const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const submit = () => {
@@ -429,6 +512,84 @@ function changeVals(given: LogicVals, state: LogicState, host: LogicHost): Logic
     void approveChange(Number(change.dbId)).then((r) => host.setLogicState(r.ok ? { crBusy: false, crError: '' } : { crBusy: false, crOpen: true, crError: copy.err[r.error] }));
   };
   return { ...vm, crSubmit: submit, crApprove: approve };
+}
+
+/** The project page for who is looking, and where the project stands:
+    - a contractor sees the tabs that are theirs: before they win the project, its overview, their bid and the messages;
+      after, everything but the files, which only the homeowner and the team can open (supabase/003);
+    - "next step" says what really comes next while payment on the site is off, with a button that opens it;
+    - the progress box of a signed project says its stages start with the first payment, not "0 of 0 stages";
+    - reviews are a homeowner's (supabase/007): a contractor's finished project asks nothing of them. */
+function projectVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals {
+  if (!platformOn || !vm.pj || !vm.pTabs) return vm;
+  const account = currentAccount();
+  const pr = (state.projects as LogicState[] | undefined)?.find((p) => p.id === state.curId);
+  if (!account || !pr) return vm;
+  const copy = PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
+  const role = account.profile.role, isCo = role === 'contractor', isHo = role === 'homeowner';
+  const won = isCo && pr.contractorId === 'c1' && pr.status !== 'open';
+  const visible = !isCo ? null : won ? ['overview', 'bids', 'milestones', 'messages', 'payments', 'changes'] : ['overview', 'bids', 'messages'];
+  const tabNow = visible && !visible.includes(String(state.tab)) ? 'overview' : String(state.tab);
+  const out: LogicVals = { ...vm };
+  if (visible) {
+    out.pTabs = (vm.pTabs as LogicState[]).filter((t) => visible.includes(t.id)).map((t) => ({ ...t, sel: t.id === tabNow ? 'true' : 'false' }));
+    if (tabNow !== state.tab) out.tab = { [tabNow]: true };
+  }
+  if (isCo && out.tab?.files) out.canMessage = false;
+  // a refused file is said on the project it was chosen for, not on the next one opened
+  if (state.filesErrorAt !== state.curId) out.filesError = '';
+  if (isCo && vm.rev?.show) out.rev = { ...vm.rev, show: false };
+  const live = Boolean(account.paymentsLive);
+  const signed = Boolean(pr.contractorId) && pr.status !== 'open';
+  const pj: LogicVals = { ...vm.pj };
+  if (signed && !live && !(pr.ms || []).length) pj.msSummary = copy.stagesPlanned;
+  if (!live) {
+    const reviewed = Boolean((state.reviews as LogicState[] | undefined)?.some((r) => r.pid === pr.id));
+    const set = (text: string, tab = '', cta = '') => { pj.nextStep = text; pj.nextTab = tab; pj.nextCta = cta; };
+    if (pr.status === 'open' && pr.pending) {
+      if (isHo) set(copy.nextPendingHo, 'messages', copy.nextCta.messages);
+      else if (isCo && pr.pending.cid === 'c1') set(copy.nextPendingCo, 'agreement', copy.nextCta.agreement);
+    } else if (pr.status === 'active' && signed) {
+      // completion needs both parties (supabase/030 B): once one has confirmed, "next step" says whose turn it is
+      const ag = account.agreements.find((a) => a.project_id === pr.dbId && a.contractor_signed_at);
+      const mineDone = ag && (isHo ? ag.homeowner_done_at : ag.contractor_done_at), theirsDone = ag && (isHo ? ag.contractor_done_at : ag.homeowner_done_at);
+      if ((isHo || isCo) && mineDone) set(isHo ? copy.completeWaitHo : copy.completeWaitCo, 'messages', copy.nextCta.messages);
+      else if ((isHo || isCo) && theirsDone) set(isHo ? copy.completeAskHo : copy.completeAskCo);
+      else if (isHo) set(copy.nextSignedHo, 'messages', copy.nextCta.messages);
+      else if (isCo) set(copy.nextSignedCo, 'messages', copy.nextCta.messages);
+    } else if (pr.status === 'completed') {
+      if (isHo) set(reviewed ? copy.nextReviewed : copy.nextDoneHo, reviewed ? '' : 'review', reviewed ? '' : copy.nextCta.review);
+      else if (isCo) set(copy.nextDoneCo);
+    } else if (pr.status === 'open' && isHo && !(pr.bids || []).length) set(pj.nextStep);
+  }
+  out.pj = pj;
+  // "next step" opens its tab, the agreement to sign, or the review form on this page
+  out.nextGo = (e: { currentTarget: HTMLElement }) => {
+    const tab = e.currentTarget.dataset.tab || '';
+    if (tab === 'agreement') return (vm.openAgreementCo as () => void)?.();
+    if (tab === 'review') {
+      host.setLogicState({ tab: 'overview' });
+      window.setTimeout(() => { const box = document.querySelector<HTMLElement>('main .starbtn'); box?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); box?.focus({ preventScroll: true }); }, 60);
+      return undefined;
+    }
+    if (tab) {
+      host.setLogicState({ tab });
+      window.setTimeout(() => document.querySelector<HTMLElement>('main [role="tablist"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    }
+    return undefined;
+  };
+  return out;
+}
+
+/** The dashboards while payment on the site is off: no money figures that are zero only because nothing can be paid yet. */
+function dashVals(vm: LogicVals): LogicVals {
+  if (!platformOn || currentAccount()?.paymentsLive) return vm;
+  return {
+    ...vm,
+    ...(Array.isArray(vm.hStats) ? { hStats: (vm.hStats as LogicState[]).slice(0, 2) } : {}),
+    ...(Array.isArray(vm.cStats) ? { cStats: (vm.cStats as LogicState[]).slice(0, 2) } : {}),
+    stagesLive: false,
+  };
 }
 
 /** While payment on the site is off, nobody is asked to "fund the project": the team arranges the first payment, as the
@@ -455,7 +616,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
   if (!vm.t) return vm;
   const copy = LAUNCH_COPY[vm.dir === 'ltr' ? 'en' : 'ar'];
   const real = platformOn ? PLATFORM_COPY[vm.dir === 'ltr' ? 'en' : 'ar'] : null;
-  return bellVals(changeVals(messagesVals(profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
+  return dashVals(projectVals(bellVals(changeVals(messagesVals(profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
     ...vm,
     launch: true,
     // the footer's legal line, once the owner fills site.config.json (the commercial registration and VAT numbers)
@@ -469,8 +630,12 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
     /** The settings page's WhatsApp card shows once the owner has switched WhatsApp updates on in the database (supabase/013). */
     whatsapp: Boolean(platformOn && currentAccount()?.whatsappLive),
     // the contractor dashboard's "profile performance", measured (supabase/020): a dash until there is something to measure
-    ...(platformOn ? (() => { const p = currentAccount()?.performance; return { perfViews: p ? String(p.views) : '—', perfWin: p && p.bids ? `${Math.round((p.won / p.bids) * 100)}%` : '—', perfResponse: '—' }; })() : {}),
-    heroVideo: HERO_VIDEO,
+    ...(platformOn ? (() => { const p = currentAccount()?.performance; return { perfViews: p ? String(p.views) : '—', perfWin: p && p.bids ? (vm.dir === 'ltr' ? `${p.won} of ${p.bids}` : `${p.won} من ${p.bids}`) : '—', perfResponse: '—' }; })() : {}),
+    /** Late delivery, evidence and extensions are about stages, which move once payment on the site is live. */
+    stagesLive: Boolean(platformOn && currentAccount()?.paymentsLive),
+    heroVideo: HERO_VIDEO, heroPoster: HERO_POSTER,
+    // no film, no pause button; a paused film stays paused when the home page is opened again
+    heroMotion: Boolean(HERO_VIDEO), heroAuto: Boolean(HERO_VIDEO) && !state.heroPaused,
     // an open project's headline figure is its budget range, not the top of it alone; a contractor with no finished
     // work yet reads "new", not a rating of 0.0
     ...(vm.pj?.id && !state.projects?.find((p: LogicState) => p.id === state.curId)?.amount ? (() => {
@@ -483,7 +648,7 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
       const f = (n: number) => Number(n || 0).toLocaleString('en-US');
       return pr ? { amount: `${f(pr.min)} – ${f(pr.max)}` } : {};
     })() : {}),
-      bidRows: vm.pj.bidRows.map((b: LogicState) => (b.rating === 0 && !b.done ? { ...b, rating: vm.dir === 'ltr' ? 'New' : 'جديد' } : b)) } } : {}),
+      bidRows: vm.pj.bidRows } } : {}),
     ...(real ? filePickers(host, real) : {}),
     justPosted: state.justPosted,
     /** The request last written into WhatsApp, for the page that follows it (src/launch/SentPage.tsx). */
@@ -496,14 +661,12 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
       post: { ...vm.t.post, ...(real ? {} : { filesIntro: copy.filesIntro, fileTypes: '' }) },
       // an open project with no bids yet: say what actually happens next
       ...(real ? { ws: { ...vm.t.ws, noBids: currentAccount()?.whatsappLive ? real.postedNoBidsWa : real.postedNoBids } } : {}),
-      // the design's contact form opens on "a project above SAR 1,000,000"; most visitors want the last option, "something else"
-      ...(Array.isArray(vm.t.contact?.topics) && vm.t.contact.topics.length > 1 ? { contact: { ...vm.t.contact, topics: [vm.t.contact.topics[vm.t.contact.topics.length - 1], ...vm.t.contact.topics.slice(0, -1)] } } : {}),
     },
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request, and on a phone it
     // covers the end of a form's fields and buttons, so it stays off the form pages there
     showWaFab: vm.showWaFab && !vm.r?.sent && !(PHONE() && ['post', 'join', 'contact', 'auth'].includes(String(state.route))),
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
-  }, state, host), state), state), state, host), state, host), state, host), state, host), state, host));
+  }, state, host), state, host), state, host), state, host), state, host), state, host), state, host), state, host)), state, host));
 }
 
 export function LogicProvider({ children }: { children: ReactNode }) {

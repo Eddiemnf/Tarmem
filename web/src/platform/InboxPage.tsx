@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import type { VM } from '../state/viewModel';
+import { PLATFORM_COPY } from './copy';
 import { fileLink, listFiles, type StoredFile } from './files';
 import { currentAccount, loadInbox, markFunded, type Inbox, type SentRow } from './session';
 
@@ -43,6 +44,11 @@ const EVENT_LABELS: Record<string, [string, string]> = {
   // change requests (027): the other party is told of a proposal, the proposer of its approval
   change_request: ['طلب تغيير', 'Change request'], change_applied: ['اعتماد طلب تغيير', 'Change request approved'],
   wa_inbound: ['رسالة واتساب من عميل', 'WhatsApp from a customer'], wa_autoreply: ['رد تلقائي على واتساب', 'WhatsApp auto-reply'], wa_webhook: ['اتصال من Meta', 'Call from Meta'],
+  // the project's lifecycle and the applicant's (030)
+  application_received: ['إيصال طلب انضمام', 'Application receipt'], application_declined: ['رفض طلب انضمام', 'Application declined'],
+  project_withdrawn_bidder: ['سحب مشروع قدّم عليه', 'Project withdrawn (bidder)'], bid_not_chosen: ['إسناد المشروع لغيره', 'Awarded to another'],
+  completion_confirm: ['طلب تأكيد الإنجاز', 'Asked to confirm completion'], project_completed: ['اكتمال المشروع', 'Project completed'],
+  project_cancelled: ['إلغاء المشروع', 'Project cancelled'], project_removed: ['إزالة المشروع', 'Project removed'],
 };
 const eventLabel = (template: string): [string, string] | undefined =>
   EVENT_LABELS[template] || (template.startsWith('auth_') ? ['بريد الدخول', 'Sign-in email'] : undefined);
@@ -66,10 +72,18 @@ const WA_KIND: Record<string, [string, string]> = {
   text: ['نص', 'Text'], image: ['صورة', 'Photo'], video: ['فيديو', 'Video'], audio: ['رسالة صوتية', 'Voice note'], document: ['ملف', 'File'], sticker: ['ملصق', 'Sticker'],
   location: ['موقع', 'Location'], contacts: ['جهة اتصال', 'Contact'], reaction: ['تفاعل', 'Reaction'], button: ['زر', 'Button'], interactive: ['اختيار', 'Choice'],
 };
+const DEVICES: Record<string, [string, string]> = { desktop: ['حاسوب', 'Desktop'], mobile: ['جوال', 'Phone'], tablet: ['تابلت', 'Tablet'] };
 const prettyWa = (n: string) => (/^9665\d{8}$/.test(n) ? `+966 ${n.slice(3, 5)} ${n.slice(5, 8)} ${n.slice(8)}` : `+${n}`);
 
 export default function InboxPage({ vm }: { vm: VM }) {
   const ar = vm.dir !== 'ltr';
+  /** A project's status in the words the rest of the site uses (a signed project, while payment on the site is off, is
+      "signed · the Tarmem team arranges the start"). */
+  const statusWord = (status: string, funded: boolean) => {
+    const copy = PLATFORM_COPY[ar ? 'ar' : 'en'], st = (vm.t?.ws?.st || {}) as Record<string, string>;
+    if (status === 'active') return !currentAccount()?.paymentsLive ? copy.signedArrange : funded ? st.active || status : st.funding || status;
+    return status === 'open' ? copy.statusOpen : status === 'completed' ? copy.statusCompleted : status === 'withdrawn' ? copy.statusWithdrawn : status;
+  };
   const [inbox, setInbox] = useState<Inbox | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -80,6 +94,11 @@ export default function InboxPage({ vm }: { vm: VM }) {
   }, []);
 
   const label = (list: { id: string; label: string }[] | undefined, id: string) => list?.find((x) => x.id === id)?.label || id;
+  // the page's language throughout: statuses, the currency, the start date and the CR label (the rows keep their own ids)
+  const copy = PLATFORM_COPY[ar ? 'ar' : 'en'];
+  const n = (v: unknown) => Number(v || 0).toLocaleString('en-US');
+  const money = (text: string) => (ar ? `${text} ${copy.admSar}` : `${copy.admSar} ${text}`);
+  const timing = (id: string) => String((vm.t?.post as Record<string, unknown> | undefined)?.[id] || id);
 
   return (
     <section className="wrap fade" style={{ paddingBlock: '40px 80px' }}>
@@ -92,14 +111,14 @@ export default function InboxPage({ vm }: { vm: VM }) {
         <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.projects.map((p) => (
             <tr key={p.id}>
-              <td style={cell} className="num">{p.code}<br /><span className="muted">{when(p.created_at)}</span><br /><span className="tag tag-n">{p.status}</span></td>
-              <td style={cell}><strong style={{ color: '#1B1464' }}>{p.title}</strong><br />{label(vm.trades, p.trade)} · {label(vm.cities, p.city)}{p.district ? ` · ${p.district}` : ''}<br /><span className="num">{p.budget_min.toLocaleString('en-US')} – {p.budget_max.toLocaleString('en-US')} SAR</span> · {p.timing}<br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{p.description}</span><br /><ProjectFiles ownerId={p.owner_id} projectId={p.id} ar={ar} />
+              <td style={cell} className="num">{p.code}<br /><span className="muted">{when(p.created_at)}</span><br /><span className="tag tag-n">{statusWord(p.status, Boolean(p.funded_at))}</span></td>
+              <td style={cell}><strong style={{ color: '#1B1464' }}>{p.title}</strong><br />{label(vm.trades, p.trade)} · {label(vm.cities, p.city)}{p.district ? ` · ${p.district}` : ''}<br /><span className="num">{money(`${n(p.budget_min)} – ${n(p.budget_max)}`)}</span> · {timing(p.timing)}<br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{p.description}</span><br /><ProjectFiles ownerId={p.owner_id} projectId={p.id} ar={ar} />
                 {currentAccount()?.paymentsLive && p.status === 'active' ? (p.funded_at
                   ? <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#0F7B4B' }}>{ar ? '✔ الدفعة مستلمة' : '✔ Payment received'}</div>
                   : <button type="button" className="btn btn-s btn-sm" style={{ marginTop: '8px' }} onClick={() => { void markFunded(p.id).then((r) => { if (r.ok) void loadInbox().then((x) => { if (x.ok) setInbox(x.ok); }); }); }}>{ar ? 'تأكيد استلام الدفعة' : 'Confirm payment received'}</button>) : null}
                 {p.bids.map((b) => (
                   <div key={b.id} className="num" style={{ marginTop: '6px', fontSize: '12.5px', color: b.status === 'chosen' ? '#0F7B4B' : '#3A385C' }}>
-                    {b.status === 'chosen' ? '✔ ' : '• '}{b.company} — {b.price.toLocaleString('en-US')} SAR · {b.days} {ar ? 'يوم' : 'days'} · <a dir="ltr" href={`tel:${b.mobile}`}>{b.mobile}</a>{b.status === 'chosen' ? (ar ? ' — اختاره العميل' : ' — chosen by the customer') : ''}
+                    {b.status === 'chosen' ? '✔ ' : '• '}{b.company} — {money(n(b.price))} · {b.days} {copy.admDays} · <a dir="ltr" href={`tel:${b.mobile}`}>{b.mobile}</a>{b.status === 'chosen' ? ` — ${copy.admChosen}` : ''}
                   </div>
                 ))}</td>
               <td style={cell}>{p.owner?.full_name || '—'}<br /><a className="num" dir="ltr" href={`tel:${p.owner?.mobile || ''}`}>{p.owner?.mobile}</a><br /><a dir="ltr" href={`mailto:${p.owner?.email || ''}`}>{p.owner?.email}</a></td>
@@ -112,8 +131,8 @@ export default function InboxPage({ vm }: { vm: VM }) {
         <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.applications.map((a) => (
             <tr key={String(a.id)}>
-              <td style={cell} className="num"><span className="muted">{when(a.created_at)}</span><br /><span className="tag tag-n">{String(a.status)}</span></td>
-              <td style={cell}><strong style={{ color: '#1B1464' }}>{String(a.company)}</strong> — {String(a.person)}<br />{label(vm.cities, String(a.city))} · {(a.trades as string[] || []).map((t) => label(vm.trades, t)).join(ar ? '، ' : ', ')}{a.cr_number ? <><br />CR <span className="num">{String(a.cr_number)}</span></> : null}{a.note ? <><br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{String(a.note)}</span></> : null}</td>
+              <td style={cell} className="num"><span className="muted">{when(a.created_at)}</span><br /><span className={`tag ${a.status === 'verified' ? 'tag-g' : a.status === 'declined' ? 'tag-a' : 'tag-n'}`}>{copy.admApp[String(a.status)] || String(a.status)}</span></td>
+              <td style={cell}><strong style={{ color: '#1B1464' }}>{String(a.company)}</strong> — {String(a.person)}<br />{label(vm.cities, String(a.city))} · {(a.trades as string[] || []).map((t) => label(vm.trades, t)).join(ar ? '، ' : ', ')}{a.cr_number ? <><br />{copy.admCr} <span className="num">{String(a.cr_number)}</span></> : null}{a.note ? <><br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{String(a.note)}</span></> : null}</td>
               <td style={cell}><a className="num" dir="ltr" href={`tel:${String(a.mobile)}`}>{String(a.mobile)}</a>{a.email ? <><br /><a dir="ltr" href={`mailto:${String(a.email)}`}>{String(a.email)}</a></> : null}</td>
             </tr>
           ))}
@@ -150,7 +169,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
           {inbox.errors.map((e, i) => (
             <tr key={i}>
               <td style={cell} className="num"><span className="muted">{when(e.at)}</span></td>
-              <td style={cell}><span className="num" dir="ltr">{e.path}</span> · {e.device}</td>
+              <td style={cell}><span className="num" dir="ltr">{e.path}</span> · {DEVICES[e.device] ? (ar ? DEVICES[e.device][0] : DEVICES[e.device][1]) : e.device}</td>
               <td style={cell}><span dir="ltr" style={{ whiteSpace: 'pre-wrap', color: '#3A385C', fontFamily: 'ui-monospace, monospace', fontSize: '12px' }}>{e.detail}</span></td>
             </tr>
           ))}
@@ -162,7 +181,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
         <div className="card sent-log" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.sent.map((r) => { const o = outcome(r, ar); const ev = eventLabel(r.template); return (
             <tr key={r.id}>
-              <td style={cell} className="num"><span className="muted">{when(r.at)}</span><br /><span className="tag tag-n">{r.channel === 'whatsapp' ? 'WhatsApp' : ar ? 'بريد' : 'Email'}</span></td>
+              <td style={cell} className="num"><span className="muted">{when(r.at)}</span><br /><span className="tag tag-n">{r.channel === 'whatsapp' ? (ar ? 'واتساب' : 'WhatsApp') : ar ? 'بريد' : 'Email'}</span></td>
               <td style={cell}><strong style={{ color: '#1B1464' }}>{ev ? (ar ? ev[0] : ev[1]) : r.template}</strong><br /><span className="num" dir="ltr">{r.recipient === 'meta' ? '' : r.recipient}</span></td>
               <td style={cell}><span className={`tag ${o.cls}`}>{o.text}</span>{r.delivery && DELIVERY[r.delivery] ? <><br /><span className={`tag ${DELIVERY[r.delivery][2]}`}>{ar ? DELIVERY[r.delivery][0] : DELIVERY[r.delivery][1]}{r.delivery === 'failed' && r.delivery_detail ? `: ${r.delivery_detail}` : ''}</span></> : null}</td>
             </tr>); })}

@@ -346,8 +346,12 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
             props.append(f"{prop}={{{value}}}")
         else:
             props.append(f'{prop}="{value}"')
-    if node.tag == "img" and "assets/trades/" in (dict(node.attrs).get("src") or ""):
+    if node.tag == "img" and ("assets/trades/" in (dict(node.attrs).get("src") or "") or "logoSrc" in (dict(node.attrs).get("src") or "")):
+        # trade photographs and partner logos sit far below the fold
         props += ['loading="lazy"', 'decoding="async"']
+    href = route_href(node, scope)
+    if href:
+        props.append(href)
     attr_str = (" " + " ".join(props)) if props else ""
 
     if node.tag == "textarea":
@@ -368,6 +372,32 @@ def emit(node: Node, scope: Scope, indent: int) -> str:
     if hidden_when:
         out = "{" + hidden_when + " ? null : (" + out + ")}"
     return out + launch_insert(node)
+
+
+"""Links that carry a real address.
+
+The design's links (`<a data-route="how" onClick="{{ go }}">`) have no `href`: the click
+is the only way to follow one. A keyboard cannot reach them, a search engine cannot see
+them, and they cannot be opened in a new tab. Every such link gets the address of the page
+it opens (src/launch/urls.ts `routeHref`: the public page's own path, or a path inside
+/demo on the demo). The click is still handled by the design's logic, which leaves a click
+with a modifier key to the browser. The parity test ignores these hrefs (tests/parity.mjs)."""
+_route_links = 0
+
+
+def route_href(node: "Element", scope: "Scope") -> str:
+    global _route_links
+    attrs = dict(node.attrs)
+    route = attrs.get("data-route")
+    if node.tag != "a" or not route or "href" in attrs:
+        return ""
+    def value(v: str) -> str:
+        return interpolate(scope, v) if "{{" in v else _json.dumps(v)
+    ident = attrs.get("data-id")
+    role = attrs.get("data-signup") or attrs.get("data-role")
+    _route_links += 1
+    args = [value(route)] + ([value(ident)] if ident else (["undefined"] if role else [])) + ([value(role)] if role else [])
+    return "href={routeHref(" + ", ".join(args) + ")}"
 
 
 # --------------------------------------------------------------------------- file writing
@@ -398,9 +428,13 @@ LAUNCH_HIDDEN_CLASSES = {
     "ai2-att": "the same, on the home page's description box: it feeds the assistant, which is not public",
     "wa-card": "the WhatsApp card (the number, a test message, the channel, quiet hours): shown once the owner has switched WhatsApp updates on in the database (vm.whatsapp, supabase/013)",
     "hp-identity": "the homeowner profile's \"verified with Nafath\" card: Nafath is not connected, so nobody is",
+    # late delivery (missed deadlines, evidence, an extension) is about stages, which start with payment on the site
+    "strikebar": "the late-delivery card (deadlines, evidence, extensions): stages move only once payment on the site is live (vm.stagesLive)",
+    "hd-saved": "the homeowner dashboard's saved contractors: there is no contractor search on the public site to save one from yet",
+    "cd-pay": "the contractor dashboard's stage payments: shown once payment on the site is live (vm.wallet)",
 }
 # When a marker above is hidden; anything not listed here is hidden on the whole public site.
-LAUNCH_HIDDEN_CONDITIONS = {"drop": "vm.launch && !vm.uploads", "wa-card": "vm.launch && !vm.whatsapp"}
+LAUNCH_HIDDEN_CONDITIONS = {"drop": "vm.launch && !vm.uploads", "wa-card": "vm.launch && !vm.whatsapp", "strikebar": "vm.launch && !vm.stagesLive", "cd-pay": "vm.launch && !vm.wallet"}
 # Figures the design typed into a card, which the public site reads from real rows instead (the vm field named here,
 # a dash while there is nothing to measure); the demo keeps the typed figures.
 LAUNCH_TEXT_SWAPS = {"perf-card": {"128": "vm.perfViews", "31%": "vm.perfWin", "4h": "vm.perfResponse"}}
@@ -453,6 +487,14 @@ LAUNCH_INSERTS = {
     "pay-table": ("<WalletRequests vm={vm} />", "import WalletRequests from '../platform/WalletRequests';"),
     # a homeowner picks which contractor's thread the messages tab shows (supabase/019)
     "msg-card": ("<ThreadPicker vm={vm} />", "import ThreadPicker from '../platform/ThreadPicker';"),
+    # the settings page's "change password" (supabase auth); while payment is off, a signed project's accepted bid, its
+    # planned stages, and the homeowner's "confirm the work is complete" (supabase/030 B)
+    "st-contact": ("<PasswordCard vm={vm} />", "import PasswordCard from '../platform/PasswordCard';"),
+    "bids-card": ("<AcceptedBid vm={vm} />", "import { AcceptedBid, ConfirmComplete, PlannedStages } from '../platform/SignedProject';"),
+    "ms-empty": ("<PlannedStages vm={vm} />", "import { AcceptedBid, ConfirmComplete, PlannedStages } from '../platform/SignedProject';"),
+    "agr-card": ("<ConfirmComplete vm={vm} />", "import { AcceptedBid, ConfirmComplete, PlannedStages } from '../platform/SignedProject';"),
+    # the team's controls on a project opened from the console: complete, cancel, or remove it (supabase/030 A)
+    "pj-head": ("<AdminProjectControls vm={vm} />", "import AdminProjectControls from '../platform/AdminProjectControls';"),
 }
 _launch_inserts_applied: set[str] = set()
 
@@ -462,7 +504,8 @@ _launch_inserts_applied: set[str] = set()
 - a `<label class="lbl">` followed by a control gets `for`, and the control the matching id;
 - a control with no label at all — the search filters, the pricing slider — gets a spoken name;
 - the home page's hero video is chosen per device (src/state/viewModel.ts): the 720p file on
-  desktops, the 480p file on phones, and none at all when the visitor asked to save data.
+  desktops, the 480p file on phones, and none at all when the visitor asked to save data or
+  for reduced motion; its poster is an 800px copy on phones.
 
 The parity test ignores these additions (tests/parity.mjs), so the demo still compares equal."""
 CONTROL_NAMES = {
@@ -489,7 +532,9 @@ def a11y_pass(kids: list, parent_tag: str = "root") -> None:
                     child.attrs.append(("for", ident))
                     following.attrs.append(("id", ident))
         if child.tag == "video" and attrs.get("src") == "assets/hero.mp4":
-            child.attrs = [(k, v) for k, v in child.attrs if k != "src"] + [("src", "JSX:vm.heroVideo === undefined ? 'assets/hero.mp4' : (vm.heroVideo || undefined)")]
+            child.attrs = [(k, v) for k, v in child.attrs if k not in ("src", "poster")] + [
+                ("src", "JSX:vm.heroVideo === undefined ? 'assets/hero.mp4' : (vm.heroVideo || undefined)"),
+                ("poster", "JSX:vm.heroPoster || " + repr(attrs.get("poster") or "assets/hero-poster.webp"))]
         a11y_pass(child.children, child.tag)
     # second look, once labels are linked: what is still nameless gets a spoken name
     for child in kids:
@@ -553,10 +598,13 @@ def launch_hidden(node: "Element") -> str:
 
 The design's ten trade photographs are 2-3 MB PNG placeholders (24 MB on the
 landing page). `public/assets/trades/NN.jpg` holds 900px JPEG copies made by
-tools/optimize-assets.sh, so references are pointed at those. Applied to the
+tools/optimize-assets.sh, so references are pointed at those. The same goes for
+the logo (public/assets/tarmem-logo-sm.png, tarmem-logo-white-sm.png: 240px wide). Applied to the
 generated pages here and to the logic's computed paths via LOGIC_PATCHES.
 """
-ASSET_REWRITES = [(re.compile(r"(assets/trades/\d\d)\.png"), r"\1.jpg")]
+ASSET_REWRITES = [(re.compile(r"(assets/trades/\d\d)\.png"), r"\1.jpg"),
+                  # the logo is a 2354x822 PNG shown 34-40px tall: public/assets/tarmem-logo*-sm.png are 2x copies
+                  (re.compile(r"assets/tarmem-logo(-white)?\.png"), r"assets/tarmem-logo\1-sm.png")]
 _asset_rewrites_applied = 0
 
 
@@ -568,6 +616,10 @@ def rewrite_assets(code: str) -> str:
     _whatsapp_rewrites += code.count(PLACEHOLDER_WHATSAPP)
     return code.replace(PLACEHOLDER_WHATSAPP, "wa.me/" + SITE_CONFIG["whatsapp"])
 
+
+# Pages every visitor can open: bundled with the site. Every other page (signed in, or the
+# demo's) is split out and loaded on first use.
+PUBLIC_ROUTES = ["home", "how", "pricing", "about", "help", "faq", "post", "rules", "terms", "privacy", "contact"]
 
 BANNER = """/* Generated from ../../project/Tarmem.dc.html by tools/convert-template.py.
    Edit the design file and re-run the converter, or edit here and keep both in
@@ -588,6 +640,8 @@ def component(name: str, body: str, uses_slot: bool) -> str:
     for _marker, (snippet, extra) in LAUNCH_INSERTS.items():
         if snippet in body and extra not in imports:
             imports.append(extra)
+    if "routeHref(" in body:
+        imports.append("import { routeHref } from '../launch/urls';")
     return (
         BANNER
         + "\n".join(imports)
@@ -847,13 +901,24 @@ def main() -> None:
     if missing_extras:
         raise SystemExit(f"blocks in the map that the template never defines: {missing_extras}")
 
-    # A routing table so App.tsx stays declarative.
-    lines = [BANNER, "import type { ComponentType } from 'react';",
+    # A routing table so App.tsx stays declarative. The pages a visitor can open are in the
+    # main bundle; the signed-in and demo-only pages load when first opened (App.tsx wraps
+    # the page in <Suspense>).
+    eager = [r for r in seen_routes if r in PUBLIC_ROUTES]
+    lazy = [r for r in seen_routes if r not in PUBLIC_ROUTES]
+    unknown = set(PUBLIC_ROUTES) - set(seen_routes)
+    if unknown:
+        raise SystemExit(f"PUBLIC_ROUTES names pages the template never defines: {sorted(unknown)}")
+    lines = [BANNER, "import { lazy, type ComponentType, type LazyExoticComponent } from 'react';",
              "import type { VM } from './state/viewModel';"]
-    for route in seen_routes:
+    for route in eager:
         lines.append(f"import {routes[route]} from './pages/{routes[route]}';")
+    lines.append("")
+    for route in lazy:
+        lines.append(f"const {routes[route]} = lazy(() => import('./pages/{routes[route]}'));")
     lines.append("\nexport type Route =\n  " + "\n  | ".join(f"'{r}'" for r in seen_routes) + ";\n")
-    lines.append("export const PAGES: Record<Route, ComponentType<{ vm: VM }>> = {")
+    lines.append("type Page = ComponentType<{ vm: VM }> | LazyExoticComponent<ComponentType<{ vm: VM }>>;\n")
+    lines.append("export const PAGES: Record<Route, Page> = {")
     for route in seen_routes:
         lines.append(f"  {route}: {routes[route]},")
     lines.append("};\n")
@@ -875,6 +940,9 @@ def main() -> None:
 
     if not _asset_rewrites_applied:
         raise SystemExit("ASSET_REWRITES matched nothing — the design no longer references assets/trades/NN.png")
+
+    if not _route_links:
+        raise SystemExit("no <a data-route> links found — the design's links changed shape; check route_href")
 
     if not _whatsapp_rewrites:
         raise SystemExit(f"the design no longer links to {PLACEHOLDER_WHATSAPP} — check where its WhatsApp links point")

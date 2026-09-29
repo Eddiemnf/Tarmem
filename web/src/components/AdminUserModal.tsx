@@ -36,7 +36,7 @@ export default function AdminUserModal({ vm }: { vm: VM }) {
       {vm.av.user.hasProjects ? (<><table className="table dv-table"><thead><tr><th>#</th><th>{vm.t.project}</th><th>{vm.t.status}</th><th>{vm.t.admin.dv.bids}</th><th></th></tr></thead><tbody>
           
         {((vm.av.user.projects) || []).map((p: any, _i0: number) => (
-          <React.Fragment key={_i0}><tr><td className="muted num">{p.id}</td><td style={{ fontWeight: '500' }}>{p.title}</td><td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td><td className="num">{p.bids}</td><td style={{ textAlign: 'end' }}><button className="lnkbtn" data-id={p.id} onClick={vm.openAdminProject}>{vm.t.admin.dv.openProject}</button></td></tr></React.Fragment>
+          <React.Fragment key={_i0}><tr><td className="muted num">{p.id}</td><td style={{ fontWeight: '500' }}>{p.title}</td><td><span className={`tag ${p.tagClass}`}>{p.statusLabel}</span></td><td className="num" data-l={vm.t.admin.dv.bids}>{p.bids}</td><td style={{ textAlign: 'end' }}><button className="lnkbtn" data-id={p.id} onClick={vm.openAdminProject}>{vm.t.admin.dv.openProject}</button></td></tr></React.Fragment>
         ))}
         
         </tbody></table></>) : null}
@@ -52,7 +52,7 @@ export default function AdminUserModal({ vm }: { vm: VM }) {
         {vm.av.user.hasBids ? (<><table className="table dv-table"><thead><tr><th>{vm.t.project}</th><th>{vm.t.ws.amount}</th><th>{vm.t.admin.dv.days}</th><th>{vm.t.status}</th><th></th></tr></thead><tbody>
           
           {((vm.av.user.bids) || []).map((b: any, _i0: number) => (
-            <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}><span className="muted num">{b.project}</span> {b.title}</td><td className="num">{vm.curPre}{b.price}{vm.curPost}</td><td className="num">{b.days}</td><td>{b.status}</td><td style={{ textAlign: 'end' }}><button className="lnkbtn" data-id={b.project} onClick={vm.openAdminProject}>{vm.t.admin.dv.openProject}</button></td></tr></React.Fragment>
+            <React.Fragment key={_i0}><tr><td style={{ fontWeight: '500' }}><span className="muted num">{b.project}</span> {b.title}</td><td className="num" data-l={vm.t.ws.amount}>{vm.curPre}{b.price}{vm.curPost}</td><td className="num" data-l={vm.t.admin.dv.days}>{b.days}</td><td data-l={vm.t.status}>{b.status}</td><td style={{ textAlign: 'end' }}><button className="lnkbtn" data-id={b.project} onClick={vm.openAdminProject}>{vm.t.admin.dv.openProject}</button></td></tr></React.Fragment>
           ))}
           
         </tbody></table></>) : null}
@@ -65,7 +65,7 @@ export default function AdminUserModal({ vm }: { vm: VM }) {
           <b style={{ fontSize: '14px', color: '#B3341A' }}>{vm.t.admin.dv.eraseQ}</b>
           <p style={{ fontSize: '12.5px', color: '#5B5A7A', lineHeight: '1.7', margin: '0' }}>{vm.t.admin.dv.eraseBody}</p>
           
-        {vm.av.user.eraseError ? (<><p style={{ fontSize: '12.5px', color: '#D9401F', margin: '0' }}>{vm.av.user.eraseError}</p></>) : null}
+        {vm.av.user.eraseError ? (<><p style={{ fontSize: '12.5px', color: '#C2381A', margin: '0' }}>{vm.av.user.eraseError}</p></>) : null}
         
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}><button className="btn btn-s btn-sm" style={{ borderColor: '#E8836A', color: '#B3341A' }} data-id={vm.av.user.id} onClick={vm.eraseUserConfirm}>{vm.t.admin.dv.eraseYes}</button><button className="btn btn-g btn-sm" onClick={vm.eraseUserCancel}>{vm.t.admin.dv.eraseNo}</button></div>
         </div>

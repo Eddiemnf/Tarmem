@@ -137,6 +137,7 @@ check('approval releases the stage and records 1% + VAT and 9% + VAT',
 await setLS({ user: { role:'homeowner', name:'عبدالله القحطاني', nafath:true }, route:'post' });
 await page.locator('input[name="title"]').fill('تجديد غرفة الجلوس');
 await page.locator('textarea[name="desc"]').fill('تغيير الأرضيات والدهانات، 30 م².');
+await page.locator('select[name="trade"]').selectOption('flooring');
 await page.locator('button', { hasText: 'التالي' }).first().click();
 await page.waitForTimeout(200);
 await page.locator('input[name="min"]').fill('20000');
@@ -154,7 +155,13 @@ await page.waitForTimeout(400);
 s = await state();
 const posted = s.projects.find(p => p.title?.ar === 'تجديد غرفة الجلوس');
 check('posting requires the undertaking before publishing', blockedByPledge);
-check('project publishes and opens its workspace', !!posted && s.route === 'project' && s.curId === posted?.id, 'route=' + s.route);
+// the design now confirms the project on the post page (23 Sep 2026: `post.done`), with a button into its workspace
+const doneCard = page.locator('.post-done');
+check('project publishes and shows its confirmation, with the project number', !!posted && s.route === 'post' && (await doneCard.count()) === 1 && (await doneCard.innerText()).includes(posted?.id), 'route=' + s.route);
+await doneCard.locator('button.btn-p').click();
+await page.waitForTimeout(400);
+s = await state();
+check('…and the confirmation opens the project\'s workspace', s.route === 'project' && s.curId === posted?.id, `route=${s.route} curId=${s.curId}`);
 
 // H — state survives a reload
 await page.reload({ waitUntil: 'domcontentloaded' });

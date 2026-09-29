@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { installSupabaseMock, recoveryFragment } from './supabase-mock.mjs';
+import { confirmLink, expiredFragment, installSupabaseMock, recoveryFragment } from './supabase-mock.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:5173/').replace(/demo\/?$/, '');
 const site = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
@@ -41,13 +41,34 @@ check('a user written into saved state signs nobody in', (await pathname()) === 
 
 // B — a guest fills the project form, then creates an account to publish it
 await open('post');
-await page.locator('input[name="title"]').fill('تجديد مطبخ، 20 م²');
+check('the title says its limit (140 characters) and counts what is typed; the description says its own (4,000)', (await page.locator('input[name="title"]').getAttribute('maxlength')) === '140' && (await page.locator('textarea[name="desc"]').getAttribute('maxlength')) === '4000'
+  && (await page.locator('.charcount').first().innerText()).includes('/ 140'));
+await page.locator('input[name="title"]').fill('مط');
 await page.locator('textarea[name="desc"]').fill('تغيير الخزائن والرخام، المساحة 4×5 م.');
+await page.locator('button', { hasText: 'التالي' }).first().click();
+await settle(200);
+check('a title shorter than 3 characters is refused at its own step, with a sentence that says so', (await page.locator('#post-err', { hasText: 'من 3 إلى 140 حرفًا' }).count()) === 1 && (await page.locator('input[name="title"]').count()) === 1);
+await page.locator('input[name="title"]').fill('تجديد مطبخ، 20 م²');
+await page.locator('textarea[name="desc"]').fill('مطبخ');
+await page.locator('button', { hasText: 'التالي' }).first().click();
+await settle(200);
+check('…and so is a description under 10 characters', (await page.locator('#post-err', { hasText: '10 أحرف على الأقل' }).count()) === 1 && (await page.locator('textarea[name="desc"]').count()) === 1);
+await page.locator('textarea[name="desc"]').fill('تغيير الخزائن والرخام، المساحة 4×5 م.');
+check('the type of work starts unchosen («اختر الخدمة»), not as a kitchen', (await page.locator('select[name="trade"]').inputValue()) === '' && (await page.locator('select[name="trade"] option[value=""]').innerText()) === 'اختر الخدمة');
+await page.locator('button', { hasText: 'التالي' }).first().click();
+await settle(200);
+check('…and "next" without one says so, at its own step', (await page.locator('#post-err', { hasText: 'اختر نوع العمل.' }).count()) === 1 && (await page.locator('select[name="trade"]').count()) === 1);
+await page.locator('select[name="trade"]').selectOption('kitchen');
 await page.locator('button', { hasText: 'التالي' }).first().click();
 check('the budget step shows the suggested range for the trade, as designed', (await page.locator('.sugbox').count()) === 1 && (await page.locator('.sugbox button.sugbtn').count()) === 1);
 check('…worked out from the size in the description (a 4×5 kitchen: 16 linear metres of cabinets at published Saudi rates)',
   (await page.locator('.sugbox .num').first().innerText()).includes('14,500 – 32,000') && (await page.locator('.sugbox p').first().innerText()).includes('الأمتار الطولية: 16'),
   await page.locator('.sugbox .num').first().innerText());
+await page.locator('input[name="min"]').fill('60000');
+await page.locator('input[name="max"]').fill('40000');
+await page.locator('button', { hasText: 'التالي' }).first().click();
+await settle(200);
+check('a minimum budget above the maximum is refused at the budget step', (await page.locator('#post-err', { hasText: 'لا يتجاوز الحد الأعلى' }).count()) === 1 && (await page.locator('input[name="min"]').count()) === 1);
 await page.locator('input[name="min"]').fill('40000');
 await page.locator('input[name="max"]').fill('60000');
 await page.locator('button', { hasText: 'التالي' }).first().click();
@@ -87,8 +108,8 @@ check('publishing lands on the confirmation page: "your first project", its numb
 await page.locator('.post-done button', { hasText: 'افتح صفحة المشروع' }).click();
 await page.waitForFunction(() => window.location.pathname.startsWith('/project/'), null, { timeout: 8000 }).catch(() => undefined);
 await settle();
-check('sign-up creates the account and the profile (mobile in Latin digits, never as admin)',
-  db.users.length === 1 && db.users[0].email === 'sara@example.com' && db.profiles[0]?.role === 'homeowner' && db.profiles[0]?.mobile === '055 1234567' && db.profiles[0]?.full_name === 'سارة العتيبي',
+check('sign-up creates the account and the profile (a Saudi mobile, typed in Arabic digits with spaces, kept as 05XXXXXXXX; never as admin)',
+  db.users.length === 1 && db.users[0].email === 'sara@example.com' && db.profiles[0]?.role === 'homeowner' && db.profiles[0]?.mobile === '0551234567' && db.profiles[0]?.full_name === 'سارة العتيبي',
   JSON.stringify(db.profiles[0] || null).slice(0, 160));
 check('…and the project is saved with only the columns a homeowner may set',
   !!project && project.title === 'تجديد مطبخ، 20 م²' && project.budget_min === 40000 && project.budget_max === 60000 && project.timing === 'month' && db.refused.length === 0,
@@ -103,6 +124,10 @@ check('…and the Files tab lists it under the name its owner gave it', (await p
 await page.locator('label.btn input[type="file"]').setInputFiles({ name: 'plan.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') });
 await settle(600);
 check('the Files tab\'s own upload button really uploads', db.files.length === 2 && (await page.locator('td', { hasText: 'plan.pdf' }).count()) === 1);
+await page.locator('label.btn input[type="file"]').setInputFiles({ name: 'setup.exe', mimeType: 'application/x-msdownload', buffer: Buffer.from('MZ') });
+await settle(300);
+check('a file the Files tab does not take is named, with the reason (allowed types), and nothing is uploaded', db.files.length === 2 && (await page.locator('main .autherr', { hasText: 'setup.exe' }).count()) === 1 && (await page.locator('main .autherr', { hasText: 'الملفات المسموحة' }).count()) === 1,
+  await page.locator('main .autherr').innerText().catch(() => '-'));
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForSelector('header'); await settle(700);
 await page.locator('[role="tab"][data-tab="files"]').click();
@@ -113,6 +138,7 @@ await settle(200);
 await page.locator('.tab[data-tab="messages"]').click();
 await settle(300);
 check('before any bid, the messages tab says messaging opens with the first bid, and offers no box', (await page.locator('text=تفتح المراسلة مع المقاول').count()) === 1 && (await page.locator('main .card input.input').count()) === 0);
+check('…under a header that reads "Tarmem" alone, with no stray "·"', (await page.locator('main .msg-card > div > span.muted').first().innerText()).trim() === 'ترميم', await page.locator('main .msg-card > div > span.muted').first().innerText().catch(() => '-'));
 await page.locator('.tab[data-tab="bids"]').click();
 await settle(300);
 check('the bids tab says what happens next instead of "no bids"', (await page.locator('text=نُشر مشروعك ويراه المقاولون الموثّقون').count()) === 1);
@@ -121,6 +147,10 @@ check('the bids tab says what happens next instead of "no bids"', (await page.lo
 await page.locator('header [data-route="hdash"]').first().click({ timeout: 3000 }).catch(() => undefined);
 await settle(300);
 check('the dashboard greets them by name and lists the project', (await pathname()) === '/dashboard' && (await page.locator('h1', { hasText: 'سارة العتيبي' }).count()) === 1 && (await page.locator('#hdash-projects tbody tr').count()) === 1);
+const hStatsText = (await page.locator('.statstrip').innerText()).replace(/\s+/g, ' ');
+check('while payment is off, the dashboard shows no money figures that are zero only because nothing can be paid, and says a zero once (no "0" above "no bids")',
+  (await page.locator('.statstrip > div').count()) === 2 && !hStatsText.includes('لا عروض مستلمة') && !hStatsText.includes('ريال'), hStatsText);
+check('the saved-contractors card, which nothing on the public site can fill yet, is not shown', (await page.locator('.hd-saved').count()) === 0 && (await page.locator('main', { hasText: 'المقاولون المحفوظون' }).count()) === 0);
 await page.locator('button.acct').click();
 await settle(200);
 const menu = await page.locator('.acctmenu .acctitem').allInnerTexts();
@@ -128,13 +158,19 @@ check('the account menu offers their profile, settings and sign-out — no walle
 await page.keyboard.press('Escape');
 await open('settings');
 check('the designed settings page opens with their own mobile and email, without the WhatsApp card while WhatsApp updates are switched off',
-  (await pathname()) === '/settings' && (await page.locator('input[name="mobile"]').inputValue()) === '055 1234567' && (await page.locator('input[name="email"]').inputValue()) === 'sara@example.com' && (await page.locator('.wa-card').count()) === 0);
+  (await pathname()) === '/settings' && (await page.locator('input[name="mobile"]').inputValue()) === '0551234567' && (await page.locator('input[name="email"]').inputValue()) === 'sara@example.com' && (await page.locator('.wa-card').count()) === 0);
 check('the settings page offers only the notification switches that exist, and says what the mobile and the email are for', (await page.locator('input[name="pBids"], input[name="pStages"], input[name="pPay"], input[name="pMsg"]').count()) === 4 && (await page.locator('input[name="pNews"], input[name="pDeadlines"]').count()) === 0 && (await page.locator('text=البريد الإلكتروني (لتسجيل الدخول)').count()) === 1);
-await page.locator('input[name="mobile"]').fill('0559998877');
+check('the sign-in email is shown read-only, with the reason beside it', (await page.locator('input[name="email"]').getAttribute('readonly')) !== null && (await page.locator('main', { hasText: 'بريد تسجيل الدخول لا يُغيَّر من هنا' }).count()) === 1);
+check('the settings page has a "change password" action', (await page.locator('.password-card button', { hasText: 'تغيير كلمة المرور' }).count()) === 1);
+await page.locator('input[name="mobile"]').fill('0123456789');
+await page.locator('button', { hasText: 'حفظ' }).first().click();
+await settle(300);
+check('a mobile number that is not a Saudi mobile is refused, and nothing is saved', (await page.locator('main', { hasText: 'رقم جوال سعوديًا' }).count()) === 1 && db.profiles[0].mobile === '0551234567');
+await page.locator('input[name="mobile"]').fill('+966 55 999 8877');
 await page.locator('input[name="pNews"]').check({ force: true }).catch(() => undefined);
 await page.locator('button', { hasText: 'حفظ' }).first().click();
 await settle(700);
-check('saving writes the new mobile and notification choices to their profile, and says so', db.profiles[0].mobile === '0559998877' && typeof db.profiles[0].prefs === 'object' && (await page.locator('text=حُفظت إعداداتك').count()) === 1 && db.refused.length === 0,
+check('saving writes the new mobile (typed the international way, kept as 05XXXXXXXX) and notification choices to their profile, and says so', db.profiles[0].mobile === '0559998877' && typeof db.profiles[0].prefs === 'object' && (await page.locator('text=حُفظت إعداداتك').count()) === 1 && db.refused.length === 0,
   db.refused.join('; ') || JSON.stringify({ m: db.profiles[0].mobile, p: db.profiles[0].prefs }));
 // once the owner has switched WhatsApp on in the database (supabase/013), the designed WhatsApp card is real
 db.whatsappLive = true;
@@ -153,6 +189,9 @@ await settle(600);
 check('choosing email alone is saved to their profile at once, and the card no longer says connected', db.profiles[0].prefs?.channel === 'email' && (await page.locator('.wa-card .tag-g').count()) === 0 && (await page.locator('text=حُفظت إعداداتك').count()) === 1, JSON.stringify(db.profiles[0].prefs));
 db.whatsappLive = false;
 await open('profile');
+const memberLine = await page.locator('main p.num', { hasText: 'في المنصة منذ' }).first().innerText().catch(() => '');
+check('the homeowner\'s profile says «في المنصة منذ» with the month and year, not «انضم في»', /في المنصة منذ \S+ \d{4}/.test(memberLine) && !memberLine.includes('انضم في') && !memberLine.includes('Joined'), memberLine);
+check('…and an introduction not written yet says so, with a way to write one', (await page.locator('main .hp-noabout', { hasText: 'لم تُضف نبذة بعد.' }).count()) === 1 && (await page.locator('main button.lnkbtn', { hasText: 'تعديل الملف' }).count()) === 1);
 await page.locator('button', { hasText: /تعديل/ }).first().click();
 await settle(300);
 await page.locator('.modal textarea, [role="dialog"] textarea, textarea[name="about"]').first().fill('فيلا في حي العارض، نجدّد المطبخ هذا العام.');
@@ -174,13 +213,25 @@ check("somebody else's project number opens nothing", (await pathname()) === '/d
 
 // D — withdraw, sign out, sign back in
 await open('project/P-2001');
+check('an open project with no bids yet has no "next step" button (there is nothing to open yet)', (await page.locator('.next-cta').count()) === 0);
+db.failNext['PATCH /rest/v1/projects'] = { status: 503, body: { code: 'XX000', message: 'the database is busy' } };
+await page.locator('button', { hasText: 'سحب المشروع' }).first().click().catch(() => undefined);
+await settle(200);
+await page.locator('.card button.btn-p.btn-sm', { hasText: 'نعم، اسحبه' }).first().click();
+await settle();
+check('a withdrawal the database does not take is said in a sentence, and the project stays posted and listed', (await page.locator('.sitenotice[data-tone="warn"]', { hasText: 'تعذّر سحب المشروع' }).count()) === 1 && db.projects[0].status === 'open' && (await page.locator('#hdash-projects tbody tr:not(.empty-row)').count()) === 1,
+  `${db.projects[0].status} ${await page.locator('.sitenotice').innerText().catch(() => '-')}`);
+const noticeBox = await page.locator('.sitenotice').boundingBox(), headerBox = await page.locator('header.hdr').boundingBox();
+check('…in a notice that sits below the header, never under it', Boolean(noticeBox && headerBox && noticeBox.y >= headerBox.y + headerBox.height - 1), JSON.stringify({ noticeBox, headerBox }));
+await page.locator('.sitenotice button').click();
+await open('project/P-2001');
 await page.locator('button', { hasText: 'سحب المشروع' }).first().click().catch(() => undefined);
 await settle(200);
 const confirm = page.locator('.card button.btn-p.btn-sm').first();
 await confirm.click();
 await settle();
 check('withdrawing marks the project withdrawn in the database and leaves the dashboard empty',
-  db.projects[0].status === 'withdrawn' && (await pathname()) === '/dashboard' && (await page.locator('#hdash-projects tbody tr').count()) === 0, db.projects[0].status);
+  db.projects[0].status === 'withdrawn' && (await pathname()) === '/dashboard' && (await page.locator('#hdash-projects tbody tr:not(.empty-row)').count()) === 0, `${db.projects[0].status} ${await pathname()} ${await page.locator('#hdash-projects tbody').innerText().catch(() => '-')}`);
 await page.locator('button.acct').click();
 await page.locator('.acctmenu .acctitem').last().click();
 await settle();
@@ -222,6 +273,21 @@ await page.locator('input[name="name"]').fill('خالد');
 await page.locator('input[name="phone"]').fill('0555123456');
 await page.locator('textarea[name="msg"]').fill('هل تغطون جدة؟');
 await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
+await settle(300);
+check('the contact form needs a topic: without one nothing is saved, and the error is announced', db.contact.length === 0 && (await page.locator('#ct-err[role="alert"]').count()) === 1);
+await page.locator('select[name="topic"]').selectOption({ index: 1 });
+check('the message says its limit (4,000 characters) and counts what is typed', (await page.locator('textarea[name="msg"]').getAttribute('maxlength')) === '4000' && (await page.locator('.charcount', { hasText: '/ 4,000' }).count()) === 1);
+await page.locator('input[name="name"]').fill('خ');
+await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
+await settle(400);
+check('a one-letter name is refused with its own sentence before anything is sent', db.contact.length === 0 && (await page.locator('#ct-err', { hasText: 'حرفان على الأقل' }).count()) === 1, await page.locator('#ct-err').innerText().catch(() => '-'));
+await page.locator('input[name="name"]').fill('خالد');
+await page.locator('input[name="phone"]').fill('12');
+await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
+await settle(400);
+check('…and so is a phone number the database would not take', db.contact.length === 0 && (await page.locator('#ct-err', { hasText: 'رقم جوال صحيحًا' }).count()) === 1, await page.locator('#ct-err').innerText().catch(() => '-'));
+await page.locator('input[name="phone"]').fill('0555123456');
+await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
 await settle();
 check('the contact form is saved for the team and confirms it', db.contact.length === 1 && db.contact[0].message === 'هل تغطون جدة؟' && db.contact[0].mobile === '0555123456'
   && (await page.locator('text=وصلتنا رسالتك').count()) === 1 && (await page.evaluate(() => window.__opened.length)) === 0, JSON.stringify(db.contact[0] || null).slice(0, 140));
@@ -230,12 +296,27 @@ const contactBefore = db.contact.length;
 await open('contact');
 await page.locator('input[name="name"]').fill('bot');
 await page.locator('input[name="phone"]').fill('0555000000');
+await page.locator('select[name="topic"]').selectOption({ index: 1 });
 await page.locator('textarea[name="msg"]').fill('buy now');
 await page.evaluate(() => { const el = document.querySelector('input[name="website"]'); if (el) { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, 'http://spam.example'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } });
 await page.locator('button', { hasText: 'إرسال الرسالة' }).click();
 await settle(600);
 check('a filled honeypot field on the contact form saves nothing, and the sender is told nothing', db.contact.length === contactBefore, `${db.contact.length} vs ${contactBefore}`);
 await open('join');
+const usersBeforeJoin = db.users.length;
+const chipsShown = await page.locator('button.tchip').allInnerTexts();
+check('the join form offers the common trades (plumbing, electrical, painting, AC, bathrooms, flooring, gypsum…), not only the home page\'s ten',
+  chipsShown.length === 21 && ['سباكة وصرف صحي', 'كهرباء', 'دهانات', 'تكييف وتهوية', 'حمامات', 'أرضيات وبلاط', 'جبس وأسقف', 'صيانة عامة وإصلاحات بسيطة'].every((t) => chipsShown.includes(t)), chipsShown.join('، '));
+await page.locator('button.join-more').click();
+const allChips = await page.locator('button.tchip').count();
+check('…and every other trade is one tap away, grouped («تخصصات أخرى»)', allChips === 43 && (await page.locator('main [role="group"]', { hasText: 'مسابح ونوافير' }).count()) >= 1, String(allChips));
+for (let i = 0; i < 12; i += 1) await page.locator('button.tchip').nth(i).click();
+await page.locator('button.tchip').nth(12).click();
+check('…up to twelve, as the database allows: the thirteenth says so and is not picked', (await page.locator('#join-error', { hasText: 'حتى 12 تخصصًا' }).count()) === 1 && (await page.locator('button.tchip[aria-pressed="true"]').count()) === 12);
+for (let i = 0; i < 12; i += 1) await page.locator('button.tchip').nth(i).click();
+await page.locator('button.join-more').click();
+check('the consent sentence joins the Arabic «و» to the next word («وسياسة الخصوصية»)', (await page.locator('label:has(#join-agree)').innerText()).includes('شروط الاستخدام وسياسة الخصوصية'));
+check('the Arabic password hint reads right to left until something is typed', (await page.locator('#join-password').evaluate((el) => getComputedStyle(el).direction)) === 'rtl' && (await page.locator('#join-password').getAttribute('dir')) === 'ltr');
 await page.locator('#join-company').fill('مؤسسة البناء المتقن');
 await page.locator('#join-person').fill('خالد العتيبي');
 await page.locator('button.tchip').first().click();
@@ -246,11 +327,33 @@ check('a contractor application needs a mobile number, an email and a password',
 await page.locator('#join-mobile').fill('0501112223');
 await page.locator('#join-email').fill('Khalid@Build.example');
 await page.locator('#join-password').fill('contractor-pass-1');
+check('…and once typed, the password itself runs left to right', (await page.locator('#join-password').evaluate((el) => getComputedStyle(el).direction)) === 'ltr');
+await apply.click();
+await settle(300);
+check('…and the Terms of use and Privacy policy must be accepted before it is sent', db.applications.length === 0 && db.users.length === usersBeforeJoin
+  && (await page.locator('#join-error[role="alert"]').innerText()).includes('شروط الاستخدام'));
+await page.locator('#join-agree').check();
+check('the application note says its limit (2,000 characters) and counts what is typed', (await page.locator('#join-note').getAttribute('maxlength')) === '2000' && (await page.locator('#join-note-count').innerText()).includes('/ 2,000'));
+await page.locator('#join-company').fill('م');
+await apply.click();
+await settle(200);
+check('a one-letter company name is refused with its own sentence', (await page.locator('#join-error', { hasText: 'اسم المنشأة' }).count()) === 1 && db.applications.length === 0);
+await page.locator('#join-company').fill('مؤسسة البناء المتقن');
+await page.locator('#join-cr').fill('12ab');
+await apply.click();
+await settle(200);
+check('a commercial registration with letters in it says what is wrong (digits only, 5 to 15), not the field\'s hint', (await page.locator('#join-error', { hasText: 'أرقام فقط' }).count()) === 1 && db.applications.length === 0, await page.locator('#join-error').innerText().catch(() => '-'));
+await page.locator('#join-cr').fill('');
+await page.locator('#join-mobile').fill('+971 50 111 2223');
+await apply.click();
+await settle(200);
+check('a mobile number that is not Saudi is refused', (await page.locator('#join-error', { hasText: 'سعوديًا' }).count()) === 1 && db.applications.length === 0);
+await page.locator('#join-mobile').fill('+966 50 111 2223');
 await apply.click();
 await settle(900);
 const coUser = db.users.find((u) => u.email === 'khalid@build.example');
 check('applying creates the contractor\'s account, their profile, and an application tied to it',
-  !!coUser && db.profiles.some((p) => p.id === coUser.id && p.role === 'contractor' && p.company === 'مؤسسة البناء المتقن') && db.applications.length === 1 && db.applications[0].user_id === coUser?.id && db.applications[0].trades.length === 1,
+  !!coUser && db.profiles.some((p) => p.id === coUser.id && p.role === 'contractor' && p.company === 'مؤسسة البناء المتقن') && db.applications.length === 1 && db.applications[0].user_id === coUser?.id && db.applications[0].trades.length === 1 && db.applications[0].mobile === '0501112223',
   JSON.stringify(db.applications[0] || null).slice(0, 140));
 check('…and lands on their dashboard, which says the account is being verified', (await pathname()) === '/contractor' && (await page.locator('text=حسابك قيد التوثيق').count()) === 1 && (await page.evaluate(() => window.__opened.length)) === 0);
 await open('projects');
@@ -293,6 +396,7 @@ check('an admin has a settings page too, for their own contact details and the W
 await open('admin'); await settle(600);
 await page.locator('.side[data-tab="overview"]').click(); await settle(400);
 check('a withdrawn project still shows in the console, marked as withdrawn', (await page.locator('tr.row-h', { hasText: 'P-2001' }).count()) === 1 && (await page.locator('tr.row-h', { hasText: 'P-2001' }).locator('.tag', { hasText: 'مسحوب' }).count()) === 1);
+check('the projects table\'s headers are all in Arabic on the Arabic site (no "ID")', (await page.locator('main th', { hasText: 'الرقم' }).count()) === 1 && (await page.locator('main th').filter({ hasText: /^ID$/ }).count()) === 0);
 const tab = async (id) => { await page.locator(`.side[data-tab="${id}"]`).click(); await settle(500); };
 await tab('verification');
 check('verification lists the real application, with who to call', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: '0501112223' }).count()) === 1
@@ -316,6 +420,8 @@ check('…and opens WhatsApp to the contractor\'s own number, with the "your acc
   told.length === 1 && told[0].startsWith('https://wa.me/966501112223?text=') && decodeURIComponent(told[0]).includes('تم توثيق حساب') && decodeURIComponent(told[0]).includes('/signin'), told[0]?.slice(0, 80));
 await tab('support');
 check('support cases are the contact-form messages, with the sender', (await page.locator('main', { hasText: 'هل تغطون جدة؟' }).count()) === 1 && (await page.locator('main', { hasText: '0555123456' }).count()) === 1);
+check('…in a column titled «المرسل» (a case here has a sender, not a project), beside «الرقم»', (await page.locator('main th', { hasText: 'المرسل' }).count()) === 1 && (await page.locator('main th', { hasText: 'الرقم' }).count()) === 1
+  && (await page.locator('main th', { hasText: 'المشروع' }).count()) === 0);
 await page.locator('button[data-id="M-1"]', { hasText: 'عرض' }).click();
 await settle(400);
 check('opening a case shows the whole message and who sent it', (await page.locator('.modal.dv', { hasText: 'هل تغطون جدة؟' }).count()) === 1 && (await page.locator('.modal.dv', { hasText: '0555123456' }).count()) === 1, (await page.locator('.modal.dv').innerText().catch(() => '-')).replace(/\s+/g, ' ').slice(0, 200));
@@ -353,6 +459,10 @@ check('analytics says its figures are real, and shows the recorded visits', (awa
   && (await page.locator('main', { hasText: 'يتصفح' }).count()) === 1,
   `real=${await page.locator('main', { hasText: 'بيانات حقيقية' }).count()} demo=${await page.locator('main', { hasText: 'بيانات تجريبية' }).count()} feed=${(await page.locator('main').innerText()).includes('يتصفح')}`);
 check('…and the design\u2019s "connect Google Analytics" box, which installed nothing, is not shown', (await page.locator('main', { hasText: 'Google Analytics' }).count()) === 0);
+check('the delays and refunds tab waits for payments: it would describe a record that does not exist yet', (await page.locator('.side[data-tab="late"]').count()) === 0 && (await page.locator('.side[data-tab="analytics"]').count()) === 1);
+check('…and so do the promo-code and partner tabs: nothing can apply a code or pay a partner while payment on the site is off', (await page.locator('.side[data-tab="promos"], .side[data-tab="affiliates"]').count()) === 0);
+db.paymentsLive = true;
+await open('admin'); await settle(700);
 await tab('promos');
 await page.locator('button', { hasText: /كود جديد|إنشاء كود|New code/ }).first().click().catch(() => undefined);
 await settle(300);
@@ -360,8 +470,15 @@ await page.locator('#pm-code').fill('WELCOME10');
 await page.locator('#pm-value').fill('10');
 await page.locator('.btn-p', { hasText: /حفظ|إنشاء|Save|Create/ }).last().click();
 await settle();
-check('a promo code made in the console is saved to the database', db.adminState.promos?.[0]?.code === 'WELCOME10' && db.adminState.promos.length === 1, JSON.stringify(db.adminState.promos || null).slice(0, 120));
-check('the delays and refunds tab waits for payments: it would describe a record that does not exist yet', (await page.locator('.side[data-tab="late"]').count()) === 0 && (await page.locator('.side[data-tab="analytics"]').count()) === 1);
+check('with payment on, a promo code made in the console is saved to the database', db.adminState.promos?.[0]?.code === 'WELCOME10' && db.adminState.promos.length === 1, JSON.stringify(db.adminState.promos || null).slice(0, 120));
+const pmFigures = await page.locator('main .qstrip .qv').allInnerTexts();
+check('…and the figures nothing on the site measures yet (uses, discounts, average value with a code) read "—", never a made-up number', pmFigures.length === 4 && pmFigures[0] === '1' && pmFigures.slice(1).every((v) => v === '—')
+  && (await page.locator('main', { hasText: '46,800' }).count()) === 0, pmFigures.join(' | '));
+await tab('affiliates');
+const afFigures = await page.locator('main .qstrip .qv').allInnerTexts();
+check('…the same on the partners tab: clicks, sign-ups, projects and commissions are not measured, so they read "—"', afFigures.length === 5 && afFigures.slice(1).every((v) => v === '—'), afFigures.join(' | '));
+db.paymentsLive = false;
+await open('admin'); await settle(700);
 check('nothing invented is left: no seeded strikes, refunds or affiliates', !(await saved()).strikes?.length && !(await saved()).refunds?.length && !(await saved()).affiliates?.length);
 check("the team's own browsing is not counted as traffic", db.visits.length === before, `${before} → ${db.visits.length}`);
 db.emailLog = [
@@ -403,20 +520,57 @@ await settle(900);
 const perfText = (await page.locator('.perf-card').count()) ? await page.locator('.perf-card').innerText() : '';
 check('the contractor dashboard\u2019s performance card shows measured figures, dashes where nothing is measured yet, never the design\u2019s typed ones', (await page.locator('.perf-card').count()) === 1 && !/128|31%|4h/.test(perfText) && /0/.test(perfText) && /—/.test(perfText), perfText.replace(/\n/g, ' | '));
 check('the verified contractor signs in and lands on the contractor dashboard, no longer "being verified"', (await pathname()) === '/contractor' && (await page.locator('text=حسابك قيد التوثيق').count()) === 0 && (await page.locator('h1', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1, await pathname());
+const cStatsText = (await page.locator('.statstrip').innerText()).replace(/\s+/g, ' ');
+check('while stages and payment are off, the contractor dashboard has no late-delivery card, no stage-payments card and no money figures', (await page.locator('.strikebar').count()) === 0 && (await page.locator('.cd-pay').count()) === 0
+  && (await page.locator('.statstrip > div').count()) === 2 && !cStatsText.includes('ريال'), cStatsText);
+check('an empty "your projects and bids" table says so, and where to start', (await page.locator('#cdash-work tr.empty-row', { hasText: 'تصفّح المشاريع المفتوحة' }).count()) === 1);
+await open('how');
+await page.locator('main button[data-route="post"]').first().click();
+await settle(500);
+check('"post a project" from a contractor\'s account says contractor accounts do not post projects, instead of bouncing back without a word', (await pathname()) === '/contractor' && (await page.locator('.sitenotice', { hasText: 'حسابات المقاولين لا تنشر مشاريع' }).count()) === 1, await pathname());
+await page.locator('.sitenotice button').click().catch(() => undefined);
 await page.locator('header [data-route="browse"]').first().click();
 await settle(500);
 check('…browses the open projects', (await pathname()) === '/projects' && (await page.locator('main', { hasText: 'ترميم حمام رئيسي' }).count()) === 1);
 check('…without ever seeing who posted them', (await page.locator('main', { hasText: 'سارة' }).count()) === 0);
 await open('project/P-9001');
-await page.locator('[role="tab"][data-tab="bids"]').click();
+check('a contractor who has not won the project sees only its overview, their bid and the messages', (await page.locator('[role="tab"]').evaluateAll((els) => els.map((e) => e.dataset.tab).join(','))) === 'overview,bids,messages',
+  await page.locator('[role="tab"]').evaluateAll((els) => els.map((e) => e.dataset.tab).join(',')));
+await page.locator('.tab[data-tab="messages"]').click();
 await settle(300);
+check('…and, before bidding, the messages tab says messaging with the homeowner opens once they bid', (await page.locator('main', { hasText: 'تفتح المراسلة مع صاحب المنزل بعد تقديم عرضك' }).count()) === 1 && (await page.locator('main .card input.input').count()) === 0);
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(200);
+await page.locator('.next-cta').click();
+await settle(300);
+check('"next step" has a button that opens it: the bid form', (await page.locator('[role="tab"][data-tab="bids"]').getAttribute('aria-selected')) === 'true' && (await page.locator('input[name="price"]').count()) === 1);
 check('…and gets the designed bid form', (await pathname()) === '/project/P-9001' && (await page.locator('input[name="price"]').count()) === 1);
+check('the bid form assumes nothing: VAT registration is not ticked, and the placeholders read as hints, not typed figures', !(await page.locator('input[name="vatReg"]').isChecked())
+  && (await page.locator('input[name="price"]').getAttribute('placeholder')) === 'المبلغ بالريال' && (await page.locator('input[name="days"]').getAttribute('placeholder')) === 'عدد الأيام'
+  && (await page.locator('.datefield .dateph').innerText()) === 'اختر التاريخ' && (await page.locator('textarea[name="note"]').getAttribute('maxlength')) === '2000');
+await page.locator('input[name="price"]').fill('50');
+await page.locator('input[name="days"]').fill('18');
+await page.locator('button', { hasText: 'مراجعة العرض' }).first().click();
+await settle(200);
+check('a price below SAR 100 is refused before anything is sent, with the range', (await page.locator('main', { hasText: 'بين 100 و1,000,000 ريال' }).count()) === 1 && db.bids.length === 0);
 await page.locator('input[name="price"]').fill('24000');
+await page.locator('input[name="days"]').fill('2000');
+await page.locator('button', { hasText: 'مراجعة العرض' }).first().click();
+await settle(200);
+check('…and so is a duration over 1,000 days', (await page.locator('main', { hasText: 'بين يوم واحد و1,000 يوم' }).count()) === 1);
 await page.locator('input[name="days"]').fill('18');
 await page.locator('textarea[name="note"], input[name="note"]').first().fill('يشمل العزل والأدوات الصحية.');
 // the design asks for the terms too: warranty, how long the bid is valid, and a start date
 for (const [name, value] of [['warranty', '12'], ['valid', '14']]) await page.locator(`[name="${name}"]`).first().fill(value).catch(() => page.locator(`[name="${name}"]`).first().selectOption({ index: 1 }));
 await page.locator('[name="start"]').first().fill('2026-10-05');
+await page.locator('button', { hasText: 'مراجعة العرض' }).first().click();
+await settle(300);
+db.failNext['POST /rest/v1/bids'] = { status: 400, body: { code: '23514', details: 'Failing row', hint: null, message: 'new row for relation "bids" violates check constraint "bids_price_check"' } };
+await page.locator('button', { hasText: 'إرسال العرض لصاحب المنزل' }).first().click();
+await settle(800);
+check('a bid the database refuses keeps everything typed, and says which field to change', db.bids.length === 0 && (await page.locator('input[name="price"]').inputValue()) === '24000' && (await page.locator('input[name="days"]').inputValue()) === '18'
+  && (await page.locator('textarea[name="note"]').inputValue()) === 'يشمل العزل والأدوات الصحية.' && (await page.locator('main', { hasText: 'اكتب سعرًا بين 100 و1,000,000 ريال.' }).count()) === 1,
+  `${await page.locator('input[name="price"]').inputValue().catch(() => '-')} ${db.bids.length}`);
 await page.locator('button', { hasText: 'مراجعة العرض' }).first().click();
 await settle(300);
 await page.locator('button', { hasText: 'إرسال العرض لصاحب المنزل' }).first().click();
@@ -429,6 +583,13 @@ await page.waitForSelector('header'); await settle(700);
 await page.locator('[role="tab"][data-tab="bids"]').click();
 await settle(300);
 check('…it is still there after a reload, and the form is not offered twice', (await page.locator('main', { hasText: '24,000' }).count()) === 1 && (await page.locator('input[name="price"]').count()) === 0);
+await open('settings');
+check('a contractor\'s settings offer their own notifications (new projects in their trades, their bid chosen, new messages, change requests)', (await page.locator('input[name="pNewProjects"], input[name="pBidChosen"], input[name="pMsg"], input[name="pChanges"]').count()) === 4
+  && (await page.locator('input[name="pBids"], input[name="pStages"], input[name="pPay"]').count()) === 0 && (await page.locator('input[name="pBidChosen"]').isDisabled()) && (await page.locator('input[name="pMsg"]').isChecked()));
+await open('project/P-9001');
+await page.locator('[role="tab"][data-tab="messages"]').click();
+await settle(400);
+check('once they have bid, the contractor writes to the homeowner in a box that says its limit and counts what is typed', (await page.locator('main .card input.input').getAttribute('maxlength')) === '2000' && (await page.locator('main .msg-card .charcount', { hasText: '/ 2,000' }).count()) === 1);
 await open('dashboard');
 check("a contractor cannot open a homeowner's dashboard or the admin console", (await pathname()) === '/contractor' && (await open('admin'), (await pathname()) === '/contractor'));
 
@@ -455,6 +616,11 @@ await page.locator('[role="tab"][data-tab="bids"]').click();
 await settle(400);
 const bidsText = await page.locator('main').innerText();
 check('the homeowner sees the bid with the contractor\'s company, not their mobile or email', bidsText.includes('مؤسسة البناء المتقن') && bidsText.includes('24,000') && !bidsText.includes('0501112223') && !bidsText.includes('khalid@'));
+const bidMeta = await page.locator('main table tbody tr').first().locator('td').first().innerText();
+check('a contractor with no finished work yet reads "new", without "★ 0 · 0 projects"', bidMeta.includes('جديد') && !/مشروع/.test(bidMeta) && !bidMeta.includes('★'), bidMeta.replace(/\s+/g, ' '));
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(200);
+check('the homeowner\'s "next step" with a bid in has a button, "compare bids"', (await page.locator('.next-cta', { hasText: 'قارن العروض' }).count()) === 1);
 await page.locator('.tab[data-tab="messages"]').click();
 await settle(600);
 await page.locator('main .card input.input').fill('متى يمكن معاينة الموقع؟');
@@ -468,6 +634,13 @@ await page.locator('button[data-cid]', { hasText: 'قبول العرض' }).first
 await settle(400);
 const signBtn = page.locator('button', { hasText: 'أوافق وأوقّع' }).first();
 check('accepting opens the agreement, which cannot be signed before it is read to the end', await signBtn.isDisabled());
+await page.locator('.agrbody').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+await settle(300);
+db.failNext['POST /rest/v1/rpc/sign_agreement_homeowner'] = { status: 400, body: { code: 'P0001', message: 'the project is no longer open' } };
+await signBtn.click();
+await settle(1200);
+check('a signature the database does not take opens the agreement again, with a sentence that says why', db.agreements.length === 0 && (await page.locator('.agrbox .autherr', { hasText: 'تعذّر حفظ توقيعك' }).count()) === 1
+  && (await page.locator('.agrbox .autherr', { hasText: 'لم يعد مفتوحًا' }).count()) === 1, await page.locator('.agrbox').innerText().catch(() => '-').then((t) => t.slice(-160)));
 await page.locator('.agrbody').evaluate((el) => el.scrollTo(0, el.scrollHeight));
 await settle(300);
 await signBtn.click();
@@ -485,12 +658,15 @@ check('…and after a reload the project still says it awaits the contractor\'s 
 await page.locator('button.acct').click();
 await page.locator('.acctmenu .acctitem').last().click();
 await settle();
-await open('signin');
+// the email that says "the homeowner accepted your bid" links to the project: signed out, it asks to sign in first
+await open('project/P-9001');
+check('a project link opened while signed out asks to sign in', (await pathname()) === '/signin');
 await page.locator('#au-email').fill('khalid@build.example');
 await page.locator('#au-password').fill('contractor-pass-1');
 await submit.click();
 await settle(900);
-await open('project/P-9001');
+check('…and after signing in, the project opens, not the dashboard', (await pathname()) === '/project/P-9001', await pathname());
+check('the contractor\'s "next step" opens the agreement to sign', (await page.locator('.next-cta', { hasText: 'راجع الاتفاقية' }).count()) === 1);
 await page.locator('button', { hasText: 'راجع الاتفاقية' }).first().click();
 await settle(400);
 await page.locator('.agrbody').evaluate((el) => el.scrollTo(0, el.scrollHeight));
@@ -501,9 +677,39 @@ const awarded = db.projects.find((p) => p.code === 'P-9001');
 check("the contractor's signature awards the project: active, theirs, at the agreed amount, both signatures kept",
   awarded.status === 'active' && awarded.contractor_id === coUser?.id && awarded.amount === 24000 && Boolean(db.agreements[0].contractor_signed_at) && db.agreements[0].contractor_name === 'مؤسسة البناء المتقن' && db.refused.length === 0, db.refused.join('; ') || awarded.status);
 check('the contractor sees the owner\u2019s name as plain text, not a link that would bounce them', (await page.locator('main a[data-route="homeowner"]').count()) === 0);
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(300);
+check('while payment is off, the signed project reads "Signed · the Tarmem team arranges the start" (not "awaiting funding")', (await page.locator('main .tag', { hasText: 'موقّع · يرتّب فريق ترميم البدء' }).count()) >= 1 && (await page.locator('main', { hasText: 'بانتظار إيداع' }).count()) === 0);
+check('…its progress box says the stages start with the first payment, not "0 of 0 stages"', (await page.locator('main', { hasText: 'تبدأ المراحل بعد ترتيب الدفعة الأولى' }).count()) >= 1 && (await page.locator('main', { hasText: 'من أصل 0' }).count()) === 0);
+check('the contractor who won it sees every tab but the files (only the homeowner and the team open those)', (await page.locator('[role="tab"]').evaluateAll((els) => els.map((e) => e.dataset.tab).join(','))) === 'overview,bids,milestones,messages,payments,changes',
+  await page.locator('[role="tab"]').evaluateAll((els) => els.map((e) => e.dataset.tab).join(',')));
+await page.locator('[role="tab"][data-tab="bids"]').click();
+await settle(300);
+const acceptedText = (await page.locator('.accepted-bid').innerText().catch(() => '')).replace(/\s+/g, ' ');
+check('the accepted bid shows read-only: chosen, its price, duration, warranty, start date in words, what it includes and the stage split', acceptedText.includes('24,000') && acceptedText.includes('18') && acceptedText.includes('5 أكتوبر 2026')
+  && acceptedText.includes('يشمل') && acceptedText.includes('30%') && acceptedText.includes('اختاره صاحب المنزل') && (await page.locator('input[name="price"]').count()) === 0, acceptedText.slice(0, 240));
+await page.locator('[role="tab"][data-tab="milestones"]').click();
+await settle(300);
+check('the stages tab lists the three planned stages and their share of the value, waiting for the first payment', (await page.locator('.planned-stages .tag', { hasText: 'مخططة' }).count()) === 3 && (await page.locator('.planned-stages', { hasText: '7,200' }).count()) === 1,
+  (await page.locator('.planned-stages').innerText().catch(() => '-')).replace(/\s+/g, ' ').slice(0, 200));
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(200);
 await page.locator('.tab[data-tab="messages"]').click();
 await settle(800);
 check('the contractor sees the homeowner\u2019s message, named by role only, and it is marked read', (await page.locator('main .card', { hasText: 'متى يمكن معاينة الموقع؟' }).count()) === 1 && (await page.locator('main .card', { hasText: 'صاحب المنزل' }).count()) === 1 && Boolean(db.messages[0].read_at) && (await page.locator('text=العتيبي').count()) === 0);
+check('the message box says its limit (2,000 characters)', (await page.locator('main .card input.input').getAttribute('maxlength')) === '2000');
+db.expired = coUser.id; // the sign-in expired while the page was open
+await page.locator('main .card input.input').fill('رسالة بعد انتهاء الجلسة');
+await page.keyboard.press('Enter');
+await settle(900);
+check('when the database no longer accepts the session, the person is asked to sign in again, with a sentence that says why', (await pathname()) === '/signin' && (await page.locator('main', { hasText: 'انتهت جلستك' }).count()) === 1 && db.messages.length === 1, await pathname());
+await page.locator('#au-email').fill('khalid@build.example');
+await page.locator('#au-password').fill('contractor-pass-1');
+await submit.click();
+await settle(900);
+check('…and signing in returns them to the page they were on', (await pathname()) === '/project/P-9001', await pathname());
+await page.locator('.tab[data-tab="messages"]').click();
+await settle(600);
 await page.locator('main .card input.input').fill('غدًا الساعة 5 مساءً');
 await page.keyboard.press('Enter');
 await settle(800);
@@ -514,6 +720,9 @@ await settle(800);
 check('a phone number or an email inside a message is masked on screen, as the note under the box promises', (db.messages || []).length === 3 && (await page.locator('main .card', { hasText: '0551234567' }).count()) === 0 && (await page.locator('main .card', { hasText: 'khalid@build.example' }).count()) === 0, await page.locator('main .card').first().innerText().then((t) => t.slice(0, 160)));
 await page.locator('.tab[data-tab="overview"]').click();
 await settle(400);
+await open('contractor');
+check('the contractor dashboard lists the project as signed, and reads its win rate as "1 of 1", not 100%', (await page.locator('#cdash-work .tag', { hasText: 'موقّع · يرتّب فريق ترميم البدء' }).count()) === 1 && (await page.locator('.perf-card', { hasText: '1 من 1' }).count()) === 1,
+  (await page.locator('.perf-card').innerText()).replace(/\s+/g, ' '));
 await page.locator('button.acct').click();
 await page.locator('.acctmenu .acctitem').last().click();
 await settle();
@@ -526,6 +735,8 @@ await open('project/P-9001');
 await page.locator('[role="tab"][data-tab="overview"]').click();
 await settle(300);
 check('the signed agreement shows both parties and both dates', (await page.locator('main', { hasText: 'مؤسسة البناء المتقن' }).count()) === 1 && (await page.locator('main', { hasText: 'سارة العتيبي' }).count()) === 1);
+check('the homeowner\'s "next step" says the team arranges the start, with a button to the messages', (await page.locator('.next-card', { hasText: 'يتواصل معكما فريق ترميم لترتيب البدء' }).count()) === 1 && (await page.locator('.next-cta', { hasText: 'افتح الرسائل' }).count()) === 1);
+check('…and the homeowner can confirm the work is complete, once it is', (await page.locator('.confirm-complete button', { hasText: 'تأكيد إنجاز العمل' }).count()) === 1);
 await page.locator('button.ntf, [aria-label*="الإشعارات"], .bell').first().click().catch(() => 0);
 await settle(300);
 check('while payment is off, neither the bell nor the dashboard asks the homeowner to fund the project', (await page.locator('text=موّل المشروع').count()) === 0);
@@ -614,6 +825,11 @@ check('a homeowner opens a bidder\'s profile: the verified company, the real rev
   (await pathname()).startsWith('/firm/co-') && firmText.includes('مؤسسة البناء المتقن') && firmText.includes('أنصح بالتعامل معهم') && firmText.includes('سارة') && !firmText.includes('العتيبي')
     && (await page.locator('main img[src*="assets/trades"]').count()) === 0 && !firmText.includes('0501112223'), await pathname());
 check('…and its "how Tarmem protects you" makes no Nafath claim', !firmText.includes('نفاذ') && firmText.includes('يراجع فريق ترميم بيانات المنشأة'));
+db.failNext['PATCH /rest/v1/profiles'] = { status: 503, body: { code: 'XX000', message: 'the database is busy' } };
+await page.locator('button', { hasText: 'حفظ المقاول' }).click();
+await settle(600);
+check('saving a contractor that the database does not take is undone, and said', (await page.locator('.sitenotice', { hasText: 'تعذّر حفظ المقاول' }).count()) === 1 && !(db.profiles.find((p) => p.role === 'homeowner')?.prefs?.saved || []).length);
+await page.locator('.sitenotice button').click().catch(() => undefined);
 await page.locator('button', { hasText: 'حفظ المقاول' }).click();
 await settle(600);
 check('saving a contractor is kept on the profile row, so the dashboard list survives a reload', Array.isArray(db.profiles.find((p) => p.role === 'homeowner')?.prefs?.saved) && db.profiles.find((p) => p.role === 'homeowner').prefs.saved.length === 1, JSON.stringify(db.profiles.find((p) => p.role === 'homeowner')?.prefs));
@@ -633,6 +849,9 @@ await page.locator('button', { hasText: 'حفظ' }).last().click();
 await settle(900);
 check('their introduction, city and trades are saved, and show on the profile', String(db.profiles.find((p) => p.id === coUser.id).about).includes('بطاقم خاص') && (await page.locator('main', { hasText: 'بطاقم خاص' }).count()) === 1 && db.refused.length === 0, db.refused.join('; '));
 // J5 — the contractor's portfolio: real photos of their work on the public profile
+await page.locator('label.btn input[type="file"][accept*="image"]').setInputFiles({ name: 'plan.gif', mimeType: 'image/gif', buffer: PNG });
+await settle(400);
+check('a portfolio photo of a type it does not take is refused with a sentence, not silently', (await page.locator('main .autherr', { hasText: 'JPG وPNG وWebP' }).count()) === 1 && db.portfolio.length === 0);
 await page.locator('#pf-caption').fill('مطبخ في حي العارض، 2026');
 await page.locator('label.btn input[type="file"][accept*="image"]').setInputFiles({ name: 'kitchen.png', mimeType: 'image/png', buffer: PNG });
 await settle(900);
@@ -688,17 +907,90 @@ check("an admin opens a homeowner's project from the console and sees its photos
 db.profiles[0].role = 'homeowner';
 await open('dashboard');
 
+// N — finishing a signed project while payment on the site is off (supabase/030 B): the homeowner confirms the work is
+// complete, the project completes, and the design's review form opens
+const P2 = '10000000-0000-4000-8000-000000009002';
+db.projects.push({ id: P2, code: 'P-9002', owner_id: db.users[0].id, status: 'active', contractor_id: coUser.id, amount: 15000, created_at: new Date().toISOString(), title: 'دهان الواجهة', trade: 'painting', description: 'دهان الواجهة الأمامية بلونين، 120 م².', city: 'riyadh', district: null, budget_min: 12000, budget_max: 20000, timing: 'month' });
+db.bids.push({ id: '20000000-0000-4000-8000-000000009002', project_id: P2, contractor_id: coUser.id, price: 15000, days: 10, note: 'يشمل المعجون ودهانين.', details: { incl: 'معجون ودهانين', excl: 'السقالات', warranty: '12', valid: '14', start: '2026-10-12', ms: [50, 30, 20], vatReg: false, visit: true }, status: 'chosen', created_at: new Date().toISOString() });
+db.agreements.push({ project_id: P2, bid_id: '20000000-0000-4000-8000-000000009002', homeowner_id: db.users[0].id, contractor_id: coUser.id, amount: 15000, days: 10, homeowner_name: 'سارة العتيبي', homeowner_signed_at: new Date().toISOString(), contractor_name: 'مؤسسة البناء المتقن', contractor_signed_at: new Date().toISOString() });
+db.profiles[0].role = 'admin';
+await open('admin'); await settle(700);
+await page.locator('.side[data-tab="overview"]').click(); await settle(500);
+check('the team\'s console says the same of a signed project while payment is off', (await page.locator('tr.row-h', { hasText: 'P-9002' }).locator('.tag', { hasText: 'موقّع · يرتّب فريق ترميم البدء' }).count()) === 1,
+  await page.locator('tr.row-h', { hasText: 'P-9002' }).innerText().catch(() => '-'));
+await open('inbox'); await settle(700);
+check('…and so does the inbox', (await page.locator('main tr', { hasText: 'P-9002' }).locator('.tag', { hasText: 'موقّع · يرتّب فريق ترميم البدء' }).count()) === 1);
+db.profiles[0].role = 'homeowner';
+await open('dashboard');
+check('the homeowner dashboard says the signed project is signed and the team arranges the start', (await page.locator('#hdash-projects tr', { hasText: 'دهان الواجهة' }).locator('.tag', { hasText: 'موقّع · يرتّب فريق ترميم البدء' }).count()) === 1);
+await open('project/P-9002');
+check('the stages tab of a signed project uses the bid\'s own split', (await page.locator('[role="tab"][data-tab="milestones"]').click(), await settle(300), (await page.locator('.planned-stages', { hasText: '7,500' }).count()) === 1 && (await page.locator('.planned-stages', { hasText: '3,000' }).count()) === 1));
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(200);
+await page.locator('.confirm-complete button', { hasText: 'تأكيد إنجاز العمل' }).click();
+await settle(200);
+check('confirming the work is complete asks first', (await page.locator('.confirm-complete', { hasText: 'لا يمكن التراجع' }).count()) === 1 && db.projects.find((p) => p.id === P2).status === 'active');
+await page.locator('.confirm-complete button', { hasText: 'ليس بعد' }).click();
+await settle(200);
+check('…and "not yet" changes nothing', (await page.locator('.confirm-complete', { hasText: 'لا يمكن التراجع' }).count()) === 0 && db.projects.find((p) => p.id === P2).status === 'active');
+await page.locator('.confirm-complete button', { hasText: 'تأكيد إنجاز العمل' }).click();
+await settle(200);
+await page.locator('.confirm-complete button', { hasText: 'نعم، اكتمل العمل' }).click();
+await settle(1200);
+check('completion is never one-sided: the homeowner\'s "yes" is recorded, the project stays in progress, and the card says the contractor is asked to confirm',
+  db.projects.find((p) => p.id === P2).status === 'active' && Boolean(db.agreements.find((a) => a.project_id === P2).homeowner_done_at) && (await page.locator('.sitenotice', { hasText: 'سجّلنا تأكيدك' }).count()) === 1
+  && (await page.locator('.confirm-complete[data-state="waiting"]', { hasText: 'بانتظار تأكيد المقاول' }).count()) === 1 && (await page.locator('.confirm-complete button').count()) === 0,
+  `${db.projects.find((p) => p.id === P2).status} ${JSON.stringify(db.confirmations || [])}`);
+await page.locator('.sitenotice button').click().catch(() => undefined);
+await signInAs('khalid@build.example', 'contractor-pass-1');
+await open('project/P-9002');
+check('the contractor sees that the homeowner confirmed, and is asked to confirm too', (await page.locator('.confirm-complete[data-state="asked"]', { hasText: 'أكّده صاحب المنزل' }).count()) === 1
+  && (await page.locator('.confirm-complete', { hasText: 'أكّده أنت أيضًا' }).count()) === 1);
+check('once both have signed, the details row names the homeowner as the agreement does (not «صاحب منزل»)', (await page.locator('main tr', { hasText: 'سارة العتيبي' }).count()) >= 1 && (await page.locator('main td', { hasText: /^صاحب منزل$/ }).count()) === 0);
+await page.locator('[role="tab"][data-tab="payments"]').click();
+await settle(400);
+check('the contractor\'s Payments tab says payment on the site is being set up, and who arranges the payments', (await page.locator('main .card', { hasText: 'يتواصل معك فريق ترميم لترتيب الدفعات' }).count()) === 1 && (await page.locator('main .btn-naf').count()) === 0);
+await page.locator('[role="tab"][data-tab="overview"]').click();
+await settle(200);
+await page.locator('.confirm-complete button', { hasText: 'تأكيد إنجاز العمل' }).click();
+await settle(200);
+await page.locator('.confirm-complete button', { hasText: 'نعم، اكتمل العمل' }).click();
+await settle(1200);
+check('the contractor confirming too completes the project in the database, and says so', db.projects.find((p) => p.id === P2).status === 'completed' && (await page.locator('.sitenotice', { hasText: 'شكرًا لعملك مع ترميم' }).count()) === 1
+  && (await page.locator('main .tag', { hasText: 'مكتمل' }).count()) >= 1 && (await page.locator('.confirm-complete').count()) === 0 && (db.confirmations || []).map((c) => c.by).join(',') === 'homeowner,contractor', db.projects.find((p) => p.id === P2).status);
+check('the contractor sees the project completed, and is not asked for a review (reviews are the homeowner\'s)', (await page.locator('main .tag', { hasText: 'مكتمل' }).count()) >= 1 && (await page.locator('main .starbtn').count()) === 0 && (await page.locator('.confirm-complete').count()) === 0);
+await signInAs('sara@example.com', 'long-enough-1');
+await open('project/P-9002');
+check('for the homeowner the project is complete', (await page.locator('main .tag', { hasText: 'مكتمل' }).count()) >= 1 && (await page.locator('.confirm-complete').count()) === 0, db.projects.find((p) => p.id === P2).status);
+check('…and the design\'s review form opens, with "next step" pointing to it', (await page.locator('main .starbtn').count()) === 5 && (await page.locator('.next-cta', { hasText: 'قيّم المقاول' }).count()) === 1);
+await page.locator('.sitenotice button').click().catch(() => undefined);
+await page.locator('main .starbtn').nth(4).click();
+await page.locator('main textarea').first().fill('عمل نظيف وفي الموعد، والتزام بكل ما اتفقنا عليه.');
+db.failNext['POST /rest/v1/reviews'] = { status: 503, body: { code: 'XX000', message: 'the database is busy' } };
+const reviewsBefore = (db.reviews || []).length;
+await page.locator('button', { hasText: /إرسال التقييم|نشر التقييم|أرسل التقييم/ }).first().click();
+await settle(900);
+check('a review the database does not take comes back with its stars and words, and a sentence', (db.reviews || []).length === reviewsBefore && (await page.locator('main', { hasText: 'تعذّر حفظ تقييمك' }).count()) === 1
+  && (await page.locator('main textarea').first().inputValue()) === 'عمل نظيف وفي الموعد، والتزام بكل ما اتفقنا عليه.' && (await page.locator('main .starbtn[aria-pressed="true"]').count()) === 5);
+await page.locator('button', { hasText: /إرسال التقييم|نشر التقييم|أرسل التقييم/ }).first().click();
+await settle(900);
+check('…and sending it again saves it, for the contractor who did the work', (db.reviews || []).length === reviewsBefore + 1 && db.reviews.slice(-1)[0].project_id === P2 && db.reviews.slice(-1)[0].stars === 5 && db.reviews.slice(-1)[0].contractor_id === coUser.id);
+
 // K — a forgotten password
 await page.locator('button.acct').click();
 await page.locator('.acctmenu .acctitem').last().click();
 await settle();
 await open('signin');
-await page.locator('a', { hasText: 'أعد تعيينها' }).click();
+await page.locator('button', { hasText: 'أعد تعيينها' }).click();
 await page.locator('#au-email').fill('sara@example.com');
+db.failNext['POST /auth/v1/recover'] = { status: 500, body: { code: 500, error_code: 'unexpected_failure', msg: 'Error sending recovery email' } };
+await page.locator('form.authcard button[type="submit"]').click();
+await settle(600);
+check('a reset request that did not go through says so, and never claims the link is on its way', (await page.locator('.autherr').count()) === 1 && (await page.locator('text=إذا كان هذا البريد مسجّلًا').count()) === 0 && !(db.recoveries || []).length);
 await page.locator('form.authcard button[type="submit"]').click();
 await settle(600);
 check('"forgot your password" emails a reset link that returns to the sign-in page, without saying whether the address exists',
-  db.recoveries?.length === 1 && db.recoveries[0].email === 'sara@example.com' && String(db.recoveries[0].redirect).endsWith('/signin') && (await page.locator('text=إذا كان هذا البريد مسجّلًا').count()) === 1);
+  db.recoveries?.length === 1 && db.recoveries[0].email === 'sara@example.com' && String(db.recoveries[0].redirect).endsWith('/signin?link=reset') && (await page.locator('text=إذا كان هذا البريد مسجّلًا').count()) === 1, String(db.recoveries?.[0]?.redirect));
 await page.goto('about:blank'); // an email link is a fresh page load, not a change of fragment on an open page
 await page.goto(BASE_URL + 'signin' + recoveryFragment(db.users[0].id), { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('header'); await settle(900);
@@ -718,6 +1010,7 @@ await page.locator('#rp-again').fill('a-brand-new-pass-2');
 await page.locator('form.authcard button[type="submit"]').click();
 await settle(600);
 check('…saving it changes the password and says so, signed in', db.users[0].password === 'a-brand-new-pass-2' && (await page.locator('text=تم تغيير كلمة المرور').count()) === 1, `pw=${db.users[0].password}`);
+check('…and signs the account out on every other device', db.logouts.includes('others'), db.logouts.join(','));
 await page.locator('.reset-page button', { hasText: 'افتح لوحتك' }).click();
 await page.waitForFunction(() => window.location.pathname === '/dashboard', null, { timeout: 8000 }).catch(() => undefined);
 check('…and its button opens their dashboard', (await pathname()) === '/dashboard', await pathname());
@@ -751,6 +1044,22 @@ await page.waitForFunction(() => window.location.pathname === '/dashboard', null
 check('the right code verifies the number and opens the dashboard', Boolean(db.profiles.find((p) => p.email === 'hind@example.com')?.mobile_verified_at) && (await pathname()) === '/dashboard', await pathname());
 db.otpLive = false;
 
+// L2 — "change password" on the settings page
+await open('settings');
+await settle(600);
+await page.locator('.password-card button', { hasText: 'تغيير كلمة المرور' }).click();
+await page.locator('#pw-new').fill('hind-new-pass-9');
+await page.locator('#pw-again').fill('hind-new-pass-8');
+await page.locator('.password-card button[type="submit"]').click();
+await settle(300);
+const hind = db.users.find((u) => u.email === 'hind@example.com');
+check('changing the password asks for it twice, and says when the two differ', (await page.locator('.password-card .autherr', { hasText: 'غير متطابقتين' }).count()) === 1 && hind.password === 'long-enough-3');
+const logoutsBefore = db.logouts.length;
+await page.locator('#pw-again').fill('hind-new-pass-9');
+await page.locator('.password-card button[type="submit"]').click();
+await settle(900);
+check('…saves the new one, signs the other devices out, and says so', hind.password === 'hind-new-pass-9' && db.logouts.slice(logoutsBefore).includes('others') && (await page.locator('.password-card', { hasText: 'تم تغيير كلمة المرور' }).count()) === 1 && (await pathname()) === '/settings');
+
 // M — deleting one's own account from the settings page
 await open('settings');
 await settle(600);
@@ -764,6 +1073,315 @@ await settle(500);
 check('confirming erases the account, signs the person out, and says so on the home page', (db.erased || []).includes(hindId) && (await pathname()) === '/' && (await page.locator('.sitenotice', { hasText: 'تم حذف حسابك' }).count()) === 1 && (await page.locator('button.acct').count()) === 0, `${await pathname()} erased=${JSON.stringify(db.erased || [])}`);
 
 check('the site asked the database for nothing the test does not know about', db.unknown.length === 0, db.unknown.join(' · '));
+
+// O — "Confirm email" switched on (supabase/030 F): a new account opens from the link in its email. Each part has its own
+// browser and its own stand-in database, so nothing above is affected.
+const fresh = async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+  await ctx.addInitScript(() => { window.__opened = []; window.open = (url) => { window.__opened.push(String(url)); return null; }; Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }); });
+  const mock = await installSupabaseMock(ctx, site.supabase.url);
+  mock.confirmEmail = true;
+  const pg = await ctx.newPage();
+  pg.setDefaultTimeout(8000);
+  pg.on('pageerror', (e) => errors.push('PAGEERROR (confirm email): ' + String(e).slice(0, 300)));
+  return { ctx, cdb: mock, pg };
+};
+const go = async (pg, path) => { await pg.goto(BASE_URL + path, { waitUntil: 'domcontentloaded' }); await pg.waitForSelector('header'); await pg.waitForTimeout(450); };
+const byLink = async (pg, path) => { await pg.goto('about:blank'); await pg.goto(BASE_URL + path, { waitUntil: 'domcontentloaded' }); await pg.waitForSelector('header'); await pg.waitForTimeout(1500); };
+const signOutOf = async (pg) => { await pg.locator('button.acct').click(); await pg.locator('.acctmenu .acctitem').last().click(); await pg.waitForTimeout(500); };
+{
+  const { ctx, cdb, pg } = await fresh();
+  // O1 — a guest's project, through sign-up, the activation email and back
+  await go(pg, 'post');
+  await pg.locator('input[name="title"]').fill('ترميم دورة مياه الضيوف');
+  await pg.locator('textarea[name="desc"]').fill('تغيير البلاط والمغسلة، المساحة 2×2 م.');
+  await pg.locator('select[name="trade"]').selectOption('bathroom');
+  await pg.locator('button', { hasText: 'التالي' }).first().click();
+  await pg.locator('input[name="min"]').fill('8000');
+  await pg.locator('input[name="max"]').fill('15000');
+  await pg.locator('button', { hasText: 'التالي' }).first().click();
+  await pg.locator('label.drop input[type="file"]').setInputFiles({ name: 'قبل.png', mimeType: 'image/png', buffer: PNG });
+  await pg.locator('button', { hasText: 'التالي' }).first().click();
+  await pg.waitForTimeout(200);
+  await pg.locator('label.radio').first().click();
+  await pg.locator('button', { hasText: 'نشر المشروع' }).first().click();
+  await pg.waitForTimeout(500);
+  await pg.locator('#au-name').fill('منى الشهري');
+  await pg.locator('#au-mobile').fill('+966 55 111 0002');
+  await pg.locator('#au-email').fill('Mona@Example.com');
+  await pg.locator('#au-password').fill('mona-pass-123');
+  await pg.locator('form.authcard input[type="checkbox"]').check();
+  await pg.locator('form.authcard button[type="submit"]').click();
+  await pg.waitForTimeout(900);
+  check('with "Confirm email" on, sign-up says to activate the account from the link in the email, names the address, and nothing else is created yet',
+    (await pg.locator('.confirm-email h1', { hasText: 'فعّل حسابك من الرابط في بريدك' }).count()) === 1 && (await pg.locator('.confirm-email', { hasText: 'mona@example.com' }).count()) === 1
+    && cdb.users.length === 1 && cdb.profiles.length === 0 && cdb.projects.length === 0 && String(cdb.signupRedirects[0]).endsWith('/signin?link=signup'), String(cdb.signupRedirects[0]));
+  check('…says their project is kept on this device and posted once the account is active', (await pg.locator('.confirm-email', { hasText: 'مشروعك محفوظ على هذا الجهاز' }).count()) === 1 && Boolean(await pg.evaluate(() => localStorage.getItem('tarmem-post-draft'))));
+  await pg.locator('.confirm-email button', { hasText: 'أعد إرسال الرابط' }).click();
+  await pg.waitForTimeout(600);
+  check('…and sends the link again on request', cdb.resent.length === 1 && cdb.resent[0].type === 'signup' && cdb.resent[0].email === 'mona@example.com' && String(cdb.resent[0].redirect).endsWith('/signin?link=signup')
+    && (await pg.locator('.confirm-email', { hasText: 'أرسلنا الرابط مرة أخرى' }).count()) === 1, JSON.stringify(cdb.resent));
+  await pg.locator('.confirm-email button', { hasText: 'العودة لتسجيل الدخول' }).click();
+  await pg.waitForTimeout(300);
+  await pg.locator('#au-email').fill('mona@example.com');
+  await pg.locator('#au-password').fill('mona-pass-123');
+  await pg.locator('form.authcard button[type="submit"]').click();
+  await pg.waitForTimeout(700);
+  check('signing in before activating says to activate first, and offers to send the link again', (await pg.locator('.autherr', { hasText: 'فعّل حسابك أولًا' }).count()) === 1 && (await pg.locator('form.authcard button', { hasText: 'أعد إرسال الرابط' }).count()) === 1);
+  await byLink(pg, 'signin?link=signup' + confirmLink(cdb, 'mona@example.com'));
+  const monaProject = cdb.projects[0];
+  check('opening the activation link signs them in, makes their profile, and posts the project they had filled in', cdb.profiles.length === 1 && cdb.profiles[0].mobile === '0551110002' && monaProject?.title === 'ترميم دورة مياه الضيوف' && monaProject?.budget_max === 15000
+    && (await pg.locator('.post-done-code', { hasText: monaProject?.code || '??' }).count()) === 1, `${await pg.evaluate(() => location.pathname)} ${JSON.stringify(monaProject || null).slice(0, 120)}`);
+  check('…tells them to add the photos again (a device cannot keep them), and leaves no draft behind', (await pg.locator('.sitenotice', { hasText: 'أضفها من تبويب الملفات' }).count()) === 1 && !(await pg.evaluate(() => localStorage.getItem('tarmem-post-draft'))));
+  await pg.locator('.sitenotice button').click().catch(() => undefined);
+  // a refusal from the database while posting returns to the form, at its step, with the sentence
+  await pg.locator('.post-done button', { hasText: 'أضف مشروعًا آخر' }).click();
+  await pg.waitForTimeout(300);
+  await pg.locator('input[name="title"]').fill('تجديد غرفة النوم');
+  await pg.locator('textarea[name="desc"]').fill('دهان وأرضيات، المساحة 4×4 م.');
+  await pg.locator('select[name="trade"]').selectOption('painting');
+  await pg.locator('button', { hasText: 'التالي' }).first().click();
+  await pg.locator('input[name="min"]').fill('9000'); await pg.locator('input[name="max"]').fill('16000');
+  await pg.locator('button', { hasText: 'التالي' }).first().click();
+  await pg.locator('button', { hasText: 'التالي' }).first().click();
+  await pg.waitForTimeout(200);
+  await pg.locator('label.radio').first().click();
+  cdb.failNext['POST /rest/v1/projects'] = { status: 400, body: { code: 'P0001', message: 'Only a homeowner account can post a project.' } };
+  await pg.locator('button', { hasText: 'نشر المشروع' }).first().click();
+  await pg.waitForTimeout(800);
+  check('a project the database refuses stays in the form, with the database\'s reason in a sentence ("only a homeowner account can post")', (await pg.evaluate(() => location.pathname)) === '/post' && (await pg.locator('#post-err', { hasText: 'لحسابات أصحاب المنازل فقط' }).count()) === 1 && cdb.projects.length === 1);
+  // O2 — a draft that the database would refuse is never dropped silently after sign-up
+  await signOutOf(pg);
+  await go(pg, 'signin');
+  await pg.locator('.authseg input[value="signup"]').check();
+  await pg.locator('#au-name').fill('ريم العنزي');
+  await pg.locator('#au-mobile').fill('0551110003');
+  await pg.locator('#au-email').fill('reem@example.com');
+  await pg.locator('#au-password').fill('reem-pass-123');
+  await pg.locator('form.authcard input[type="checkbox"]').check();
+  await pg.locator('form.authcard button[type="submit"]').click();
+  await pg.waitForTimeout(700);
+  await pg.evaluate(() => localStorage.setItem('tarmem-post-draft', JSON.stringify({ email: 'reem@example.com', f: { title: 'مط', trade: 'kitchen', desc: 'تجديد المطبخ بالكامل مع الخزائن.', city: 'riyadh', address: '', min: 20000, max: 30000, timing: 'month' }, files: 0, at: Date.now() })));
+  await byLink(pg, 'signin?link=signup' + confirmLink(cdb, 'reem@example.com'));
+  check('a waiting project the database would refuse (a 2-letter title) opens the form at the step that holds it, with the sentence, and nothing is posted', (await pg.evaluate(() => location.pathname)) === '/post'
+    && (await pg.locator('input[name="title"]').count()) === 1 && (await pg.locator('#post-err', { hasText: 'من 3 إلى 140 حرفًا' }).count()) === 1 && cdb.projects.length === 1, await pg.evaluate(() => location.pathname));
+  // O3 — links that no longer work
+  await signOutOf(pg);
+  await byLink(pg, 'signin?link=signup' + expiredFragment);
+  check('an expired activation link says so, and offers a new one', (await pg.locator('.link-expired h1', { hasText: 'انتهت صلاحية الرابط' }).count()) === 1 && !(await pg.evaluate(() => location.hash)));
+  await pg.locator('.link-expired #au-email').fill('mona@example.com');
+  await pg.locator('.link-expired button', { hasText: 'أرسل رابط تفعيل جديدًا' }).click();
+  await pg.waitForTimeout(600);
+  check('…and sends it to the address typed', cdb.resent.length === 2 && cdb.resent[1].email === 'mona@example.com' && (await pg.locator('.link-expired', { hasText: 'أرسلنا الرابط مرة أخرى' }).count()) === 1);
+  await byLink(pg, 'signin?link=reset' + expiredFragment);
+  await pg.locator('.link-expired #au-email').fill('mona@example.com');
+  await pg.locator('.link-expired button', { hasText: 'أرسل رابط إعادة تعيين جديدًا' }).click();
+  await pg.waitForTimeout(600);
+  check('an expired password-reset link offers a new reset link, and sends it', (cdb.recoveries || []).length === 1 && cdb.recoveries[0].email === 'mona@example.com' && (await pg.locator('.link-expired', { hasText: 'إذا كان هذا البريد مسجّلًا' }).count()) === 1);
+  // O4 — the contact form's hourly limit has its own sentence
+  for (let i = 0; i < 5; i += 1) cdb.contact.push({ name: 'زائر', email: null, mobile: '0555000111', topic: 'استفسار', message: 'رسالة سابقة', lang: 'ar' });
+  await go(pg, 'contact');
+  await pg.locator('input[name="name"]').fill('زائر');
+  await pg.locator('input[name="phone"]').fill('0555000111');
+  await pg.locator('select[name="topic"]').selectOption({ index: 1 });
+  await pg.locator('textarea[name="msg"]').fill('رسالة سادسة خلال ساعة');
+  await pg.locator('button', { hasText: 'إرسال الرسالة' }).click();
+  await pg.waitForTimeout(700);
+  check('the contact form\'s hourly limit is said in its own sentence, not "could not be sent"', (await pg.locator('#ct-err', { hasText: 'الحد المسموح خلال ساعة' }).count()) === 1 && cdb.contact.length === 5, await pg.locator('#ct-err').innerText().catch(() => '-'));
+  // O5 — an account whose sign-up name is unusable still gets a profile the database accepts
+  cdb.users.push({ id: '00000000-0000-4000-8000-0000000000aa', email: 'noname@example.com', password: 'noname-pass-1', data: { full_name: ' ', mobile: '0551110009', city: 'riyadh', lang: 'ar' }, created_at: new Date().toISOString() });
+  await go(pg, 'signin');
+  await pg.locator('#au-email').fill('noname@example.com');
+  await pg.locator('#au-password').fill('noname-pass-1');
+  await pg.locator('form.authcard button[type="submit"]').click();
+  await pg.waitForTimeout(900);
+  check('an account with no usable name at sign-up still gets its profile (named from its email), and opens', cdb.profiles.some((p) => p.id === '00000000-0000-4000-8000-0000000000aa' && p.full_name === 'noname') && (await pg.evaluate(() => location.pathname)) === '/dashboard');
+  await ctx.close();
+}
+{
+  const { ctx, cdb, pg } = await fresh();
+  // O6 — a contractor applies with "Confirm email" on: the application goes in without an account, and is linked at the first sign-in
+  const apply = async (company, email, mobile) => {
+    await go(pg, 'join');
+    await pg.locator('#join-company').fill(company);
+    await pg.locator('#join-person').fill('فهد القحطاني');
+    await pg.locator('button.tchip').nth(1).click();
+    await pg.locator('#join-mobile').fill(mobile);
+    await pg.locator('#join-email').fill(email);
+    await pg.locator('#join-password').fill('fahad-pass-123');
+    await pg.locator('#join-agree').check();
+    await pg.locator('button', { hasText: 'إرسال الطلب وإنشاء الحساب' }).click();
+    await pg.waitForTimeout(900);
+  };
+  await apply('مؤسسة الإتقان للمقاولات', 'Fahad@Co.example', '0501112299');
+  check('/join with "Confirm email" on: the application is saved without an account, and the page says to activate the account from the email',
+    cdb.applications.length === 1 && cdb.applications[0].user_id === null && cdb.applications[0].email === 'fahad@co.example' && cdb.profiles.length === 0
+    && (await pg.locator('.confirm-email h1', { hasText: 'فعّل حسابك' }).count()) === 1 && (await pg.locator('.confirm-email', { hasText: 'وصلنا طلبك' }).count()) === 1, JSON.stringify(cdb.applications[0] || null).slice(0, 160));
+  await byLink(pg, 'signin?link=signup' + confirmLink(cdb, 'fahad@co.example'));
+  const fahad = cdb.users.find((u) => u.email === 'fahad@co.example');
+  check('…opening the link makes the contractor profile and links the application to the account (claim_my_application)', cdb.profiles.some((p) => p.id === fahad.id && p.role === 'contractor' && p.company === 'مؤسسة الإتقان للمقاولات')
+    && cdb.applications[0].user_id === fahad.id && (cdb.claimed || []).includes(fahad.id) && (await pg.evaluate(() => location.pathname)) === '/contractor' && (await pg.locator('text=حسابك قيد التوثيق').count()) === 1, await pg.evaluate(() => location.pathname));
+  await signOutOf(pg);
+  // O7 — an application that went missing is sent again, once, from what the account remembers of it
+  await apply('مؤسسة الركن المتين', 'sami@co.example', '0501112288');
+  cdb.applications.splice(cdb.applications.findIndex((a) => a.email === 'sami@co.example'), 1);
+  await byLink(pg, 'signin?link=signup' + confirmLink(cdb, 'sami@co.example'));
+  const sami = cdb.users.find((u) => u.email === 'sami@co.example');
+  const again = cdb.applications.filter((a) => a.user_id === sami.id);
+  check('a contractor whose application is missing at the first sign-in has it sent again from the sign-up details, tied to the account', again.length === 1 && again[0].company === 'مؤسسة الركن المتين' && again[0].mobile === '0501112288' && again[0].trades.length === 1
+    && (await pg.evaluate(() => location.pathname)) === '/contractor', JSON.stringify(again).slice(0, 200));
+  await pg.reload({ waitUntil: 'domcontentloaded' }); await pg.waitForSelector('header'); await pg.waitForTimeout(900);
+  check('…and only once', cdb.applications.filter((a) => a.user_id === sami.id).length === 1);
+  // O8 — an application the team verified before the account existed: the new account with that email and mobile is linked to it
+  cdb.applications.push({ company: 'مؤسسة الأساس الموثّقة', person: 'ماجد', mobile: '0501112277', email: 'majed@co.example', city: 'riyadh', trades: ['kitchen'], cr_number: null, note: null, lang: 'ar', user_id: null, status: 'verified',
+    created_at: new Date(Date.now() - 3 * 86400000).toISOString() });
+  await apply('مؤسسة الأساس الموثّقة', 'majed@co.example', '0501112277');
+  await byLink(pg, 'signin?link=signup' + confirmLink(cdb, 'majed@co.example'));
+  const majed = cdb.users.find((u) => u.email === 'majed@co.example');
+  const majedApp = cdb.applications.filter((a) => a.user_id === majed.id);
+  check('an application verified before the account existed is linked at the first sign-in (same email and mobile): the contractor is verified, not "being verified"',
+    majedApp.length === 1 && majedApp[0].status === 'verified' && (await pg.locator('text=حسابك قيد التوثيق').count()) === 0 && (await pg.evaluate(() => location.pathname)) === '/contractor', JSON.stringify(majedApp).slice(0, 200));
+  check('the confirm-email parts asked the database for nothing unknown', cdb.unknown.length === 0, cdb.unknown.join(' · '));
+  await ctx.close();
+}
+{
+  // P — the team's console (supabase/030): its words in the page's language, a phone, the team's project controls, a
+  // project's messages read by the team, contractor accounts with no application, and a declined contractor
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+  await ctx.addInitScript(() => { window.__opened = []; window.open = (url) => { window.__opened.push(String(url)); return null; }; Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }); });
+  const adb = await installSupabaseMock(ctx, site.supabase.url);
+  const pg = await ctx.newPage();
+  pg.setDefaultTimeout(8000);
+  pg.on('pageerror', (e) => errors.push('PAGEERROR (console): ' + String(e).slice(0, 300)));
+  const at = new Date().toISOString();
+  const ID = (n) => `00000000-0000-4000-8000-0000000001${String(n).padStart(2, '0')}`;
+  const person = (n, role, name, company, mobile) => {
+    adb.users.push({ id: ID(n), email: `p${n}@example.com`, password: 'console-pass-1', data: {}, created_at: at });
+    adb.profiles.push({ id: ID(n), role, full_name: name, company, mobile, city: 'riyadh', lang: 'ar', email: `p${n}@example.com`, created_at: at });
+  };
+  person(1, 'admin', 'فريق ترميم', null, '0500000101'); person(2, 'homeowner', 'نورة الشمري', null, '0500000102');
+  person(3, 'contractor', 'ماجد', 'مؤسسة الإتقان', '0500000103'); person(4, 'contractor', 'بدر الحربي', 'مؤسسة البدر', '0500000104'); person(5, 'contractor', 'سعد', 'مؤسسة الرفض', '0500000105');
+  const app = (n, company, status, extra = {}) => adb.applications.push({ company, person: 'المسؤول', mobile: `05000001${n}9`, email: `p${n}@example.com`, city: 'riyadh', trades: ['kitchen'], cr_number: null, note: null, lang: 'ar', user_id: ID(n), status, created_at: at, ...extra });
+  app(3, 'مؤسسة الإتقان', 'verified', { cr_number: '1010123456' }); app(5, 'مؤسسة الرفض', 'declined'); app(6, 'مؤسسة جديدة', 'new', { user_id: null, email: 'fresh@example.com' });
+  const PID = (n) => `10000000-0000-4000-8000-00000000700${n}`;
+  const proj = (n, status, extra = {}) => adb.projects.push({ id: PID(n), code: 'P-700' + n, owner_id: ID(2), status, created_at: at, title: `مشروع اختبار ${n}`, trade: 'kitchen', description: 'تجديد المطبخ بالكامل مع الخزائن.', city: 'riyadh', district: null, budget_min: 10000, budget_max: 30000, timing: 'month', ...extra });
+  proj(1, 'open'); proj(2, 'active', { contractor_id: ID(3), amount: 20000 }); proj(3, 'active', { contractor_id: ID(3), amount: 18000 });
+  for (const n of [2, 3]) {
+    const bid = `20000000-0000-4000-8000-00000000700${n}`;
+    adb.bids.push({ id: bid, project_id: PID(n), contractor_id: ID(3), price: 20000, days: 20, note: null, details: {}, status: 'chosen', created_at: at });
+    adb.agreements.push({ project_id: PID(n), bid_id: bid, homeowner_id: ID(2), contractor_id: ID(3), amount: 20000, days: 20, homeowner_name: 'نورة الشمري', homeowner_signed_at: at, contractor_name: 'مؤسسة الإتقان', contractor_signed_at: at });
+  }
+  adb.messages = [
+    { id: 1, project_id: PID(2), contractor_id: ID(3), from_id: ID(2), body: 'متى تبدأون العمل؟', created_at: at, read_at: null },
+    { id: 2, project_id: PID(2), contractor_id: ID(3), from_id: ID(3), body: 'نبدأ يوم الأحد إن شاء الله.', created_at: at, read_at: null },
+  ];
+  adb.contact.push({ name: 'زائرة', email: null, mobile: '0555000222', topic: 'استفسار', message: 'هل تغطون الخبر؟', lang: 'ar' });
+  const signIn = async (n) => { await go(pg, 'signin'); await pg.locator('#au-email').fill(`p${n}@example.com`); await pg.locator('#au-password').fill('console-pass-1'); await pg.locator('form.authcard button[type="submit"]').click(); await pg.waitForTimeout(1100); };
+  const side = async (id) => { await pg.locator(`.side[data-tab="${id}"]`).click(); await pg.waitForTimeout(500); };
+  const openProject = async (code) => { await go(pg, 'admin'); await side('overview'); await pg.locator('tr.row-h', { hasText: code }).first().click(); await pg.waitForTimeout(900); };
+  await signIn(1);
+  // P1 — nobody is invisible: a contractor account with no application is listed with the people, not in the queue
+  await side('users');
+  check('a contractor account with no application is listed under Users, marked «بلا طلب توثيق»', (await pg.locator('main tr', { hasText: 'مؤسسة البدر' }).locator('.tag', { hasText: 'بلا طلب توثيق' }).count()) === 1);
+  await side('verification');
+  check('…and is never put in the verification queue (only the real new application is, and the tab counts it alone)', (await pg.locator('main', { hasText: 'مؤسسة البدر' }).count()) === 0 && (await pg.locator('main', { hasText: 'مؤسسة جديدة' }).count()) === 1
+    && (await pg.locator('.side[data-tab="verification"] .tag').innerText().catch(() => '')) === '1');
+  await side('payments');
+  check('the payments tab with nothing held says so, instead of an empty box', (await pg.locator('main .pay-table tr.empty-row', { hasText: 'لا استثناءات دفع حاليًا.' }).count()) === 1);
+  await side('users');
+  await pg.locator(`button[data-id="U-${ID(4)}"]`).click(); await pg.waitForTimeout(900);
+  check('…and opening it shows who to call, and that there is no application', (await pg.locator('.modal.dv', { hasText: 'p4@example.com' }).count()) === 1 && (await pg.locator('.modal.dv', { hasText: '0500000104' }).count()) === 1
+    && (await pg.locator('.modal.dv', { hasText: 'بلا طلب توثيق' }).count()) >= 1, (await pg.locator('.modal.dv').innerText().catch(() => '-')).replace(/\s+/g, ' ').slice(0, 200));
+  await pg.locator('.modal.dv button', { hasText: 'إغلاق' }).click(); await pg.waitForTimeout(300);
+  // P2 — the team reads a project's messages, and cannot write or mark them read
+  await openProject('P-7002');
+  check('a signed project opened from the console shows the team\'s controls: mark completed, or cancel', (await pg.locator('.admin-controls button[data-act="complete"]', { hasText: 'تسجيل المشروع مكتملًا' }).count()) === 1
+    && (await pg.locator('.admin-controls button[data-act="cancel"]', { hasText: 'إلغاء المشروع' }).count()) === 1 && (await pg.locator('.admin-controls button[data-act="remove"]').count()) === 0);
+  await pg.locator('[role="tab"][data-tab="messages"]').click(); await pg.waitForTimeout(900);
+  const thread = (await pg.locator('.msg-card').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  check('the team reads the project\'s conversation as written, both sides named, marked read-only', thread.includes('تقرأ هذه المحادثة للاطلاع فقط') && thread.includes('متى تبدأون العمل؟') && thread.includes('نبدأ يوم الأحد') && thread.includes('صاحب المنزل') && thread.includes('مؤسسة الإتقان'), thread.slice(0, 240));
+  check('…with no box to write in, and nothing marked read or sent', (await pg.locator('.msg-card input').count()) === 0 && adb.messages.length === 2 && adb.messages.every((m) => !m.read_at));
+  // P3 — cancelling a signed project asks first, takes a note for the record, and can be called off
+  await pg.locator('.admin-controls button[data-act="cancel"]').click(); await pg.waitForTimeout(200);
+  check('cancelling asks first, and says it cannot be undone', (await pg.locator('.admin-controls', { hasText: 'إلغاء المشروع؟' }).count()) === 1 && (await pg.locator('.admin-controls', { hasText: 'لا يمكن التراجع' }).count()) === 1 && adb.projects.find((p) => p.id === PID(2)).status === 'active');
+  await pg.locator('.admin-controls button', { hasText: 'تراجع' }).click(); await pg.waitForTimeout(200);
+  check('…"go back" changes nothing', (await pg.locator('.admin-controls', { hasText: 'إلغاء المشروع؟' }).count()) === 0 && !(adb.statusChanges || []).length);
+  await pg.locator('.admin-controls button[data-act="cancel"]').click(); await pg.waitForTimeout(200);
+  await pg.locator('#adm-note').fill('أوقف الطرفان العمل باتفاقهما');
+  await pg.locator('.admin-controls .adm-yes').click(); await pg.waitForTimeout(1400);
+  const cancelled = (adb.statusChanges || []).slice(-1)[0];
+  check('…"yes" cancels it in the database (active → withdrawn), with the team\'s note, and says the parties were told', adb.projects.find((p) => p.id === PID(2)).status === 'withdrawn' && cancelled?.action === 'cancelled' && cancelled?.note === 'أوقف الطرفان العمل باتفاقهما'
+    && (await pg.locator('.sitenotice', { hasText: 'أُلغي المشروع' }).count()) === 1, JSON.stringify(cancelled || null));
+  check('…the project then reads «مسحوب», and has no controls left', (await pg.locator('main .tag', { hasText: 'مسحوب' }).count()) >= 1 && (await pg.locator('.admin-controls').count()) === 0);
+  // P4 — marking one completed; a refusal says why and changes nothing
+  await openProject('P-7003');
+  await pg.locator('.admin-controls button[data-act="complete"]').click(); await pg.waitForTimeout(200);
+  adb.failNext['POST /rest/v1/rpc/admin_set_project_status'] = { status: 403, body: { code: '42501', message: 'status_not_allowed: a project goes from active to completed or withdrawn, or from open to withdrawn' } };
+  await pg.locator('.admin-controls .adm-yes').click(); await pg.waitForTimeout(900);
+  check('a step the database refuses says why, and the project stays as it was', (await pg.locator('.admin-controls .autherr', { hasText: 'تغيّرت حالة المشروع' }).count()) === 1 && adb.projects.find((p) => p.id === PID(3)).status === 'active');
+  await pg.locator('.admin-controls .adm-yes').click(); await pg.waitForTimeout(1400);
+  check('…and "mark as completed" completes it (active → completed), and says so', adb.projects.find((p) => p.id === PID(3)).status === 'completed' && (await pg.locator('.sitenotice', { hasText: 'سُجّل المشروع مكتملًا' }).count()) === 1
+    && (await pg.locator('main .tag', { hasText: 'مكتمل' }).count()) >= 1 && (await pg.locator('.admin-controls').count()) === 0);
+  // P5 — removing an open project (spam)
+  await openProject('P-7001');
+  check('an open project offers one control: remove it', (await pg.locator('.admin-controls button').count()) === 1 && (await pg.locator('.admin-controls button[data-act="remove"]', { hasText: 'إزالة المشروع' }).count()) === 1);
+  await pg.locator('.admin-controls button[data-act="remove"]').click(); await pg.waitForTimeout(200);
+  await pg.locator('.admin-controls .adm-yes', { hasText: 'نعم، أزِله' }).click(); await pg.waitForTimeout(1400);
+  check('…which takes it off the site (open → withdrawn) with no note, and says its owner and bidders were told', adb.projects.find((p) => p.id === PID(1)).status === 'withdrawn' && (adb.statusChanges || []).slice(-1)[0]?.action === 'removed' && (adb.statusChanges || []).slice(-1)[0]?.note === null
+    && (await pg.locator('.sitenotice', { hasText: 'أُزيل المشروع' }).count()) === 1);
+  // P6 — analytics with nothing recorded yet: each card says so
+  adb.visits.length = 0; // (the sign-in page's own visit, before the team signed in)
+  await go(pg, 'admin'); await side('analytics'); await pg.waitForTimeout(700);
+  check('analytics with no visits yet: each empty card says so, in Arabic', (await pg.locator('main .an-empty').count()) === 5 && (await pg.locator('main .an-empty', { hasText: 'لا أحد على الموقع الآن' }).count()) === 1
+    && (await pg.locator('main .an-empty', { hasText: 'لا نشاط خلال آخر 30 دقيقة' }).count()) === 1 && (await pg.locator('main .an-empty', { hasText: 'لا زيارات مسجّلة في هذه الفترة بعد' }).count()) === 3);
+  // P7 — the inbox in the page's language
+  await go(pg, 'inbox'); await pg.waitForTimeout(900);
+  const inboxText = await pg.locator('main').innerText();
+  check('the inbox says statuses, the currency, the start date and the CR label in Arabic', inboxText.includes('ريال') && inboxText.includes('خلال شهر') && inboxText.includes('موثّق') && inboxText.includes('مرفوض') && inboxText.includes('جديد') && inboxText.includes('السجل التجاري')
+    && !/\b(SAR|CR|month|verified|declined|new)\b/.test(inboxText), (inboxText.match(/\b(SAR|CR|month|verified|declined|new)\b/g) || []).join(','));
+  // P8 — a phone: the "today" figures in two columns, every table's statuses and buttons in sight
+  await pg.setViewportSize({ width: 375, height: 800 });
+  await go(pg, 'admin'); await side('analytics'); await pg.waitForTimeout(600);
+  const columns = await pg.locator('.an-today').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
+  check('on a phone the six "today" figures sit in a 2×3 grid', columns === 2 && (await pg.locator('.an-today .qitem').count()) === 6, String(columns));
+  const cut = [];
+  for (const id of ['overview', 'verification', 'support', 'users']) {
+    await side(id);
+    cut.push(...(await pg.evaluate((tabId) => [...document.querySelectorAll('main .adm-t .btn, main .adm-t .tag')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && (r.left < -1 || r.right > document.documentElement.clientWidth + 1); }).map((el) => `${tabId}:${el.textContent.trim()}`), id)));
+    cut.push(...(await pg.evaluate((tabId) => (document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 ? [`${tabId}: page wider than the screen`] : []), id)));
+  }
+  check('…and every console table shows each row as a card: no status or button past the screen\'s edge, the header row hidden', !cut.length && (await pg.locator('main .adm-t thead').evaluate((el) => getComputedStyle(el).display)) === 'none', cut.join(' · '));
+  await side('users');
+  await pg.locator('button[data-kind="h"]').first().click(); await pg.waitForTimeout(1000);
+  const modalCut = await pg.evaluate(() => [...document.querySelectorAll('.modal.dv .dv-table td, .modal.dv .dv-table .tag, .modal.dv .dv-table button')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && (r.left < -1 || r.right > document.documentElement.clientWidth + 1); }).map((el) => el.textContent.trim()));
+  check('…and so do the person view\'s tables (a homeowner\'s projects), their counts named', (await pg.locator('.modal.dv .dv-table tr', { hasText: 'مشروع اختبار' }).count()) >= 1 && !modalCut.length
+    && (await pg.locator('.modal.dv .dv-table td[data-l]').first().evaluate((el) => getComputedStyle(el, '::before').content)).includes('العطاءات'), modalCut.join(' · '));
+  await pg.locator('.modal.dv button', { hasText: 'إغلاق' }).first().click(); await pg.waitForTimeout(300);
+  await go(pg, 'inbox'); await pg.waitForTimeout(900);
+  check('…the inbox\'s rows stack too, with nothing wider than the screen', (await pg.locator('.inbox-table td').first().evaluate((el) => getComputedStyle(el).display)) === 'block'
+    && (await pg.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)));
+  await pg.setViewportSize({ width: 1280, height: 1000 });
+  // P9 — the English console says the same in English
+  await pg.evaluate(() => { const st = JSON.parse(localStorage.getItem('tarmem-public-v1') || '{}'); st.lang = 'en'; localStorage.setItem('tarmem-public-v1', JSON.stringify(st)); });
+  await go(pg, 'admin'); await side('support');
+  check('in English the support column reads "Sender" and the first "ID"', (await pg.locator('main th', { hasText: 'Sender' }).count()) === 1 && (await pg.locator('main th').filter({ hasText: /^ID$/ }).count()) === 1);
+  // P10 — a declined contractor is told so, and can reach the team
+  await signOutOf(pg);
+  await signIn(5);
+  check('a declined contractor reads "Your application was not approved" (English), not "being verified"', (await pg.locator('main', { hasText: 'Your application was not approved' }).count()) >= 1 && (await pg.locator('main', { hasText: 'being verified' }).count()) === 0);
+  await pg.locator('header .langbtn').first().click(); await pg.waitForTimeout(500);
+  check('…and in Arabic «لم تتم الموافقة على طلبك», with a way to contact the team', (await pg.locator('main', { hasText: 'لم تتم الموافقة على طلبك' }).count()) >= 1 && (await pg.locator('main', { hasText: 'حسابك قيد التوثيق' }).count()) === 0);
+  await pg.locator('main button', { hasText: 'تواصل مع فريق ترميم' }).first().click();
+  await pg.waitForFunction(() => window.location.pathname === '/contact', null, { timeout: 8000 }).catch(() => undefined);
+  check('…whose button opens the contact page', (await pg.evaluate(() => location.pathname)) === '/contact');
+  // P11 — the controls are the team's alone
+  await signOutOf(pg);
+  await signIn(2);
+  await go(pg, 'project/P-7003'); await pg.waitForTimeout(700);
+  check('a homeowner never sees the team\'s controls', (await pg.locator('main h1').count()) >= 1 && (await pg.locator('.admin-controls').count()) === 0);
+  check('the console parts asked the database for nothing unknown', adb.unknown.length === 0, adb.unknown.join(' · '));
+  await ctx.close();
+}
 console.log(results.join('\n'));
 console.log(errors.length ? '\n' + errors.join('\n') : '\nno page errors');
 await browser.close();

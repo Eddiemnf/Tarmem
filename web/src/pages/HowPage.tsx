@@ -27,7 +27,7 @@ export default function HowPage({ vm }: { vm: VM }) {
                 <span className="hw-ic" dangerouslySetInnerHTML={p.icon}></span>
                 <span className="hw-num num">{p.n}</span>
               </div>
-              <div><h3 style={{ fontSize: '19px', color: '#1B1464', letterSpacing: '-.01em' }}>{p.t}</h3><span style={{ display: 'block', fontSize: '12.5px', color: '#B0612F', fontWeight: '600', marginTop: '3px' }}>{p.s}</span></div>
+              <div><h2 style={{ fontSize: '19px', color: '#1B1464', letterSpacing: '-.01em' }}>{p.t}</h2><span style={{ display: 'block', fontSize: '12.5px', color: '#B0612F', fontWeight: '600', marginTop: '3px' }}>{p.s}</span></div>
               <div className="hw-b">
       {((p.b) || []).map((x: any, _i1: number) => (
         <React.Fragment key={_i1}><span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>{x}</span></React.Fragment>
@@ -54,7 +54,7 @@ export default function HowPage({ vm }: { vm: VM }) {
           <p style={{ fontSize: '13.5px', color: '#5B4A3F', lineHeight: '1.7', maxWidth: '56ch' }}>{vm.t.how.payShort}</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '0' }}>
-          <span className="kick" style={{ color: '#7A7994' }}>{vm.t.how.splitTitle}</span>
+          <span className="kick" style={{ color: '#6B6986' }}>{vm.t.how.splitTitle}</span>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '22px minmax(0,1fr) auto', gap: '14px', alignItems: 'baseline', padding: '14px 0' }}>
               <span className="num" style={{ fontSize: '10.5px', fontWeight: '700', letterSpacing: '.1em', color: '#FF5A3C' }}>01</span>
@@ -92,12 +92,22 @@ export default function HowPage({ vm }: { vm: VM }) {
       <React.Fragment key={_i0}>
           <article className="tr-tile">
             <span className="tr-badge num">{x.n}</span>
-            <h4 style={{ fontSize: '16px', color: '#1B1464', lineHeight: '1.35', marginTop: '14px' }}>{x.title}</h4>
+            <h3 style={{ fontSize: '16px', color: '#1B1464', lineHeight: '1.35', marginTop: '14px' }}>{x.title}</h3>
             <p style={{ fontSize: '13px', color: '#5B5A7A', lineHeight: '1.7', marginTop: '8px' }}>{x.desc}</p>
           </article>
         </React.Fragment>
     ))}
     
+      </div>
+    </section>
+    <section className="wrap" style={{ paddingBlock: '0 88px' }}>
+      <div className="page-cta">
+        <h2 className="page-cta-h">{vm.t.home.closeTitle}</h2>
+        <p className="page-cta-p">{vm.t.home.closeSub}</p>
+        <div className="page-cta-row">
+          <button className="btn btn-p" type="button" data-route="post" onClick={vm.go}>{vm.t.how.ctaHo}</button>
+          <button className="btn btn-s" type="button" data-route="auth" data-signup="contractor" onClick={vm.goAuth}>{vm.t.how.ctaCo}</button>
+        </div>
       </div>
     </section>
   </>);

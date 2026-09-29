@@ -5,7 +5,7 @@
   "outputDirectory": "web/dist",
   "framework": null,
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
@@ -15,12 +15,33 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" }
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://rdqlnsqdmaosghpxexup.supabase.co; media-src 'self' blob: https://rdqlnsqdmaosghpxexup.supabase.co; connect-src 'self' https://rdqlnsqdmaosghpxexup.supabase.co wss://rdqlnsqdmaosghpxexup.supabase.co; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" }
       ]
     },
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/(.*)\\.(js|css)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/assets/(.*)\\.(png|jpg|jpeg|webp|gif|svg|ico|mp4|pdf|woff2)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    },
+    {
+      "source": "/(signin|dashboard|contractor|projects|admin|inbox|settings|profile|wallet|reset-password)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    },
+    {
+      "source": "/(project|firm)/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    },
+    {
+      "source": "/demo",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    },
+    {
+      "source": "/demo/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     }
   ]
 }
