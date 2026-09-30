@@ -171,6 +171,7 @@ const ROUTE_LABELS: Record<string, [string, string]> = {
   cdash: ['لوحة المقاول', 'Contractor dashboard'], browse: ['المشاريع المفتوحة', 'Open projects'], contractor: ['ملف مقاول', 'Contractor profile'],
   homeowner: ['ملف صاحب منزل', 'Homeowner profile'], settings: ['الإعدادات', 'Settings'], wallet: ['المحفظة', 'Wallet'], plan: ['خطة المشروع', 'Project plan'],
   contractors: ['المقاولون', 'Contractors'], admin: ['لوحة الإدارة', 'Admin console'], inbox: ['الوارد', 'Inbox'], reset: ['كلمة مرور جديدة', 'New password'],
+  listing: ['مشروع مفتوح (للعموم)', 'Open project (public)'],
 };
 const EVENT_LABELS: Record<string, [string, string]> = {
   view: ['يتصفح', 'Viewing'], signup: ['أنشأ حسابًا', 'Created an account'], signin: ['سجّل الدخول', 'Signed in'],

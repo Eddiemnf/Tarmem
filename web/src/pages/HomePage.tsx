@@ -4,6 +4,7 @@
 import React from 'react';
 import type { VM } from '../state/viewModel';
 import LaunchNotice from '../launch/LaunchNotice';
+import HeroBrowseLink from '../launch/HeroBrowseLink';
 import { routeHref } from '../launch/urls';
 
 export default function HomePage({ vm }: { vm: VM }) {
@@ -44,7 +45,7 @@ export default function HomePage({ vm }: { vm: VM }) {
             <span className="ph-livedot" aria-hidden="true"></span>
             <b className="ph-live-n">{vm.onlineNow}</b>
             {vm.t.hero2.liveNow}
-          </span>)}
+          </span>)}<HeroBrowseLink vm={vm} />
           <div className="ph-bar-end">
             
     {vm.heroMotion ? (<><button className="ph-pause" type="button" onClick={vm.toggleHeroVid} aria-label={vm.heroVidLabel} title={vm.heroVidLabel}>

@@ -27,6 +27,9 @@ export const SITE_ORIGIN = 'https://www.tarmem.sa';
 
 function routeFromLocation(): { route: string; known: boolean; curId?: string } {
   const rest = window.location.pathname.slice(BASE.length).replace(/\/+$/, '');
+  // (034) an open project as the public sees it
+  const listing = rest.match(/^projects\/([A-Za-z0-9-]{1,24})$/);
+  if (listing) return { route: 'listing', known: true, curId: listing[1].toUpperCase() };
   const project = rest.match(/^project\/([A-Za-z0-9-]{1,24})$/);
   if (project) return { route: 'project', known: true, curId: project[1] };
   const firm = rest.match(/^firm\/([A-Za-z0-9-]{1,24})$/);
@@ -39,6 +42,7 @@ function routeFromLocation(): { route: string; known: boolean; curId?: string } 
 
 function pathFor(state: { route: string; curId?: string | null }): string | undefined {
   if (state.route === 'project' && state.curId) return 'project/' + encodeURIComponent(state.curId);
+  if (state.route === 'listing' && state.curId) return 'projects/' + encodeURIComponent(state.curId);
   if (state.route === 'contractor' && state.curId) return 'firm/' + encodeURIComponent(state.curId);
   return PATHS[state.route];
 }
@@ -66,15 +70,19 @@ export function connectUrls(host: LogicHost): () => void {
   const landed = pathFor(host.logic.state as { route: string; curId?: string | null });
   if (landed !== undefined && window.location.pathname !== BASE + landed) window.history.replaceState(null, '', BASE + landed);
 
+  // While Back or Forward is being answered, a page the guard answers with instead replaces the entry rather than adding
+  // one: otherwise Back would land on the refused address again, be redirected again, and never get past it.
+  let popping = false;
   const unsubscribe = host.subscribe(() => {
     const path = pathFor(host.logic.state as { route: string; curId?: string | null });
     if (path === undefined) return;
     const target = BASE + path;
-    if (window.location.pathname !== target) window.history.pushState(null, '', target);
+    if (window.location.pathname !== target) window.history[popping ? 'replaceState' : 'pushState'](null, '', target);
   });
   const onPop = () => {
     const at = routeFromLocation();
-    host.setLogicState({ route: at.route, ...(at.curId ? { curId: at.curId } : {}), navOpen: false, menuOpen: false });
+    popping = true;
+    try { host.setLogicState({ route: at.route, ...(at.curId ? { curId: at.curId } : {}), navOpen: false, menuOpen: false }); } finally { popping = false; }
   };
   window.addEventListener('popstate', onPop);
   return () => {
@@ -89,7 +97,7 @@ export function titleFor(vm: LogicVals, route: string): string {
   const label: string | undefined = t && ({
     how: t.nav?.how, pricing: t.nav?.pricing, about: t.nav?.about, help: t.footer?.help, faq: t.nav?.faq,
     contact: t.footer?.contact, rules: t.footer?.rules, terms: t.footer?.terms, privacy: t.footer?.privacy,
-    post: t.nav?.post, join: t.footer?.join, auth: t.nav?.signIn, hdash: t.nav?.dashboard, cdash: t.nav?.dashboard, browse: t.nav?.browse, admin: t.nav?.admin, settings: t.nav?.settings, homeowner: t.hprofile?.myProfile, wallet: t.nav?.wallet, contractor: vm.prof?.name, project: vm.pj?.title,
+    post: t.nav?.post, join: t.footer?.join, auth: t.nav?.signIn, hdash: t.nav?.dashboard, cdash: t.nav?.dashboard, browse: t.nav?.browse, admin: t.nav?.admin, settings: t.nav?.settings, homeowner: t.hprofile?.myProfile, wallet: t.nav?.wallet, contractor: vm.prof?.name, project: vm.pj?.title, listing: t.nav?.browse,
   } as Record<string, string | undefined>)[route];
   return label ? `${label} · ${vm.dir === 'ltr' ? 'Tarmem' : 'ترميم'}` : 'ترميم · Tarmem';
 }

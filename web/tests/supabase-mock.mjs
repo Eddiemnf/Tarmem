@@ -365,6 +365,21 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (ok) { const p = db.profiles.find((x) => x.id === me); if (p) p.mobile_verified_at = new Date().toISOString(); db.otpCode = null; }
       return send(route, 200, Boolean(ok));
     }
+    // (034) the open projects as everyone sees them: the ten safe columns, contact details, district and owner name masked
+    if (path === '/rest/v1/rpc/public_projects' && method === 'POST') {
+      const mask = (t) => String(t ?? '').replace(/[A-Za-z0-9._%+-]+\s*@\s*[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/g, '•••').replace(/(https?:\/\/|www\.)\S+/gi, '•••')
+        .replace(/\+?[0-9٠-٩](?:[\s.()-]{0,2}[0-9٠-٩]){8,}/g, '•••');
+      const code = body?.p_code ? String(body.p_code).trim().toUpperCase() : null;
+      db.publicCalls = (db.publicCalls || 0) + 1;
+      if (db.publicDown) return send(route, 503, { code: 'PGRST000', message: 'the database cannot be reached (for the test)' });
+      return send(route, 200, db.projects.filter((p) => p.status === 'open' && canDeal(p.owner_id) && (!code || p.code === code))
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 300)
+        .map((p) => {
+          const hide = [p.district, db.profiles.find((x) => x.id === p.owner_id)?.full_name].filter((w) => w && String(w).trim().length >= 3);
+          const m = (t) => hide.reduce((acc, w) => acc.split(w).join('•••'), mask(t));
+          return { code: p.code, title: m(p.title), trade: p.trade, description: m(p.description), city: p.city, budget_min: p.budget_min, budget_max: p.budget_max, timing: p.timing, created_at: p.created_at, preview: Boolean(p.preview) };
+        }));
+    }
     if (path === '/rest/v1/rpc/mobile_taken' && method === 'POST') { const key = (m) => { const d = String(m || '').replace(/[^0-9]/g, ''); return !d ? null : d.startsWith('00') ? d.slice(2) : d.startsWith('0') ? '966' + d.slice(1) : d.length === 9 && d.startsWith('5') ? '966' + d : d; }; return send(route, 200, key(body.p_mobile) !== null && db.profiles.some((p) => key(p.mobile) === key(body.p_mobile))); }
     if (path === '/rest/v1/rpc/my_performance' && method === 'POST') { if (!me) return refuse(route, 'sign in first'); return send(route, 200, { views: (db.visits || []).filter((v) => v.path === '/firm/co-' + String(me).slice(0, 8) && v.user_id !== me).length, bids: (db.bids || []).filter((b) => b.contractor_id === me && b.status !== 'withdrawn').length, won: (db.bids || []).filter((b) => b.contractor_id === me && b.status === 'chosen').length }); }
     if (path === '/rest/v1/rpc/mark_messages_read' && method === 'POST') { let n = 0; for (const r of db.messages || []) if (r.project_id === body.p_project && r.contractor_id === body.p_contractor && r.from_id !== me && !r.read_at) { r.read_at = new Date().toISOString(); n += 1; } return send(route, 200, n); }

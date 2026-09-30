@@ -628,6 +628,8 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
   return dashVals(projectVals(bellVals(changeVals(messagesVals(profileVals(stageVals(accountPages(awardedVals(contractorVals(adminVals({
     ...vm,
     launch: true,
+    // (034) a public project page has its own way back to the list; the design's back link would lead elsewhere
+    showBack: vm.showBack && state.route !== 'listing',
     // the footer's legal line, once the owner fills site.config.json (the commercial registration and VAT numbers)
     legalLine: [site.legal?.cr ? `${vm.dir === 'ltr' ? 'CR' : 'س.ت.'} ${site.legal.cr}` : '', site.legal?.vat ? `${vm.dir === 'ltr' ? 'VAT' : 'الرقم الضريبي'} ${site.legal.vat}` : ''].filter(Boolean).join(' · '),
     /** Real accounts are connected: sign-in shows, and requests are saved instead of sent by WhatsApp. */

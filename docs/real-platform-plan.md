@@ -756,3 +756,27 @@ their own; the console and the inbox mark them «تجريبي».
   - 25 local database checks (`supabase/tests/local-preview-projects.mjs`): nothing is sent; the right people see the
     examples; a contractor can bid and message; nothing is withdrawn; removal is complete and quiet.
   - Browser section W in `tests/platform.mjs`: the note for contractors only, and the console and inbox marks.
+
+## Open projects for everyone — 30 September 2026 (supabase/034)
+
+The owner asked for two things: visitors should browse projects without registering (no homeowner details, and no bid or
+message without an account), and the team should see the projects as the public does.
+
+- **Database.** 034 adds `public_projects(p_code default null)`, callable by visitors and by accounts, and the same for
+  every caller.
+  - It returns only code, title, trade, description, city, budget, timing, date and the example mark.
+  - It lists only the open projects a verified contractor is shown.
+  - In the text, phone numbers, emails, links, handles, the project's district and its owner's name become `•••`.
+  - The table itself stays closed to visitors.
+  - Two example texts that named their district are reworded.
+  - 42 local checks: `supabase/tests/local-public-projects.mjs`.
+- **Site.**
+  - `/projects` and `/projects/P-…` (`src/launch/PublicProjects.tsx`) go to everyone except a verified contractor, who
+    gets the full list and the bid form. Signing in from a project's public page returns them there.
+  - The page tells a visitor to join or sign in, a homeowner to post, a contractor still being verified that bidding
+    opens after verification, and the team that this is the public view, with a link to open the project in the console.
+  - The early-access note about examples shows there too.
+  - A small «تصفّح المشاريع» pill sits in the hero's bar.
+  - The privacy policy says what the public sees.
+  - These pages stay out of search engines (noindex), like every other project address.
+- **Tests.** Section X in `tests/platform.mjs`. The sweep and CSP walks now include /projects and a public project.

@@ -1194,3 +1194,7 @@
   [data-launch] .inbox-table tr:last-child { border-bottom: 0; }
   [data-launch] .inbox-table td { display: block; border-bottom: 0 !important; padding: 3px 8px !important; }
 }
+
+/* (034) the hero's small way into the open projects (src/launch/HeroBrowseLink.tsx), in the .ph-replay pill's style */
+.ph-browse { text-decoration: none; cursor: pointer; padding: 7px 16px; }
+.ph-browse:hover { background: rgba(255,255,255,.22); }

@@ -13,9 +13,9 @@ const problems = []; let pages = 0;
 const U = (n) => `00000000-0000-4000-8000-00000000000${n}`;
 const now = new Date().toISOString();
 const people = [
-  { id: U(1), email: 'ho@example.com', role: 'homeowner', full_name: 'سارة عبدالرحمن العتيبي', paths: ['dashboard', 'project/P-2001', 'project/P-2003', 'post', 'signin'] },
+  { id: U(1), email: 'ho@example.com', role: 'homeowner', full_name: 'سارة عبدالرحمن العتيبي', paths: ['dashboard', 'project/P-2001', 'project/P-2003', 'post', 'signin', 'projects', 'projects/P-2002'] },
   { id: U(2), email: 'co@example.com', role: 'contractor', full_name: 'خالد', company: 'مؤسسة البناء المتقن للمقاولات العامة', paths: ['contractor', 'projects', 'project/P-2001', 'project/P-2002', 'project/P-2003'] },
-  { id: U(3), email: 'admin@example.com', role: 'admin', full_name: 'إياد', paths: ['admin', 'inbox', 'project/P-2001'] },
+  { id: U(3), email: 'admin@example.com', role: 'admin', full_name: 'إياد', paths: ['admin', 'inbox', 'project/P-2001', 'projects', 'projects/P-2003'] },
 ];
 const overflowOf = () => ({ wide: document.documentElement.scrollWidth - document.documentElement.clientWidth, text: document.querySelector('main')?.innerText.trim().length || 0,
   // the header's menu button and language switch must stay on the screen (a long name once pushed them off)
@@ -36,7 +36,7 @@ for (const width of [320, 360, 390]) for (const lang of ['ar', 'en']) {
   page.on('pageerror', (e) => problems.push(`visitor ${lang} ${width}: PAGE ERROR ${String(e).slice(0, 140)}`));
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' }); await page.waitForSelector('header');
   if (lang === 'en') { await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('tarmem-public-v1') || '{}'); s.lang = 'en'; localStorage.setItem('tarmem-public-v1', JSON.stringify(s)); }); await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForSelector('header'); }
-  for (const path of ['', 'how', 'pricing', 'about', 'faq', 'help', 'contact', 'rules', 'terms', 'privacy', 'post', 'join', 'signin']) {
+  for (const path of ['', 'how', 'pricing', 'about', 'faq', 'help', 'contact', 'rules', 'terms', 'privacy', 'post', 'join', 'signin', 'projects']) {
     await page.goto(BASE_URL + path, { waitUntil: 'domcontentloaded' }); await page.waitForSelector('header'); await page.waitForTimeout(600);
     pages += 1;
     const seen = await page.evaluate(overflowOf);

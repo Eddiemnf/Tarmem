@@ -141,7 +141,7 @@ check('before any bid, the messages tab says messaging opens with the first bid,
 check('…under a header that reads "Tarmem" alone, with no stray "·"', (await page.locator('main .msg-card > div > span.muted').first().innerText()).trim() === 'ترميم', await page.locator('main .msg-card > div > span.muted').first().innerText().catch(() => '-'));
 await page.locator('.tab[data-tab="bids"]').click();
 await settle(300);
-check('the bids tab says what happens next instead of "no bids"', (await page.locator('text=نُشر مشروعك ويراه المقاولون الموثّقون').count()) === 1);
+check('the bids tab says what happens next instead of "no bids" (and that the project is listed without the homeowner\'s details)', (await page.locator('text=نُشر مشروعك في المشاريع المفتوحة دون اسمك').count()) === 1);
 
 // C — the dashboard, and what is left out of it for now
 await page.locator('header [data-route="hdash"]').first().click({ timeout: 3000 }).catch(() => undefined);
@@ -209,7 +209,8 @@ check('a reload keeps them signed in, on the dashboard, with their project', (aw
 await open('signin');
 check('the sign-in page sends a signed-in person to their dashboard', (await pathname()) === '/dashboard');
 await open('project/P-9999');
-check("somebody else's project number opens nothing", (await pathname()) === '/dashboard');
+await settle(600);
+check("somebody else's project number opens nothing: its public page says it is not open (034)", (await pathname()) === '/projects/P-9999' && (await page.locator('.pub-gone').count()) === 1);
 
 // D — withdraw, sign out, sign back in
 await open('project/P-2001');
@@ -371,7 +372,8 @@ check('applying creates the contractor\'s account, their profile, and an applica
   JSON.stringify(db.applications[0] || null).slice(0, 140));
 check('…and lands on their dashboard, which says the account is being verified', (await pathname()) === '/contractor' && (await page.locator('text=حسابك قيد التوثيق').count()) === 1 && (await page.evaluate(() => window.__opened.length)) === 0);
 await open('projects');
-check('…open projects stay closed to them until then', (await pathname()) === '/contractor');
+check('…they may browse the open projects as the public does, and bidding opens once they are verified', (await pathname()) === '/projects'
+  && (await page.locator('.pub-browse').count()) === 1 && (await page.locator('.pub-next', { hasText: 'يفتح تقديم العروض' }).count()) === 1);
 await page.locator('button.acct').click();
 await page.locator('.acctmenu .acctitem').last().click();
 await settle();
@@ -1153,6 +1155,7 @@ const fresh = async () => {
 };
 const go = async (pg, path) => { await pg.goto(BASE_URL + path, { waitUntil: 'domcontentloaded' }); await pg.waitForSelector('header'); await pg.waitForTimeout(450); };
 const byLink = async (pg, path) => { await pg.goto('about:blank'); await pg.goto(BASE_URL + path, { waitUntil: 'domcontentloaded' }); await pg.waitForSelector('header'); await pg.waitForTimeout(1500); };
+const pathname2 = async (pg) => pg.evaluate(() => window.location.pathname);
 const signOutOf = async (pg) => { await pg.locator('button.acct').click(); await pg.locator('.acctmenu .acctitem').last().click(); await pg.waitForTimeout(500); };
 {
   const { ctx, cdb, pg } = await fresh();
@@ -1575,6 +1578,96 @@ const signOutOf = async (pg) => { await pg.locator('button.acct').click(); await
     && (await wp.locator('main tr', { hasText: 'P-9003' }).locator('.tag', { hasText: 'تجريبي' }).count()) === 0);
   check('W: the parts asked the database for nothing unknown', wdb.unknown.length === 0, wdb.unknown.join(' · '));
   await wctx.close();
+}
+
+// X — (034) the open projects, for everyone: a visitor browses them without learning who asked (no name, no district, no
+// number), is invited to join or sign in to bid; a verified contractor who signs in from a project lands on its bid form;
+// the team sees exactly the public page; the home page's hero leads there; the privacy policy says so
+{
+  const xctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+  const xdb = await installSupabaseMock(xctx, site.supabase.url);
+  xdb.verifyNewAccounts = true;
+  const now = new Date().toISOString(), ago = (d) => new Date(Date.now() - d * 864e5).toISOString();
+  const ID = (n) => `00000000-0000-4000-8000-0000000004${String(n).padStart(2, '0')}`;
+  const person = (n, role, name, extra = {}) => {
+    xdb.users.push({ id: ID(n), email: `x${n}@example.com`, password: 'public-pass-1', data: {}, created_at: now });
+    xdb.profiles.push({ id: ID(n), role, full_name: name, company: null, mobile: `05000004${String(n).padStart(2, '0')}`, city: 'riyadh', lang: 'ar', email: `x${n}@example.com`, created_at: now, ...extra });
+  };
+  person(1, 'admin', 'فريق ترميم'); person(2, 'homeowner', 'سارة القحطاني'); person(3, 'homeowner', 'منى المطيري', { email_verified_at: null }); person(4, 'contractor', 'ماجد', { company: 'مؤسسة الإتقان' });
+  person(5, 'homeowner', 'فهد العتيبي', { preview: true }); person(6, 'homeowner', 'ريم الشهري');
+  xdb.applications.push({ company: 'مؤسسة الإتقان', person: 'ماجد', mobile: '0500000404', email: 'x4@example.com', city: 'riyadh', trades: ['kitchen'], cr_number: null, note: null, lang: 'ar', user_id: ID(4), status: 'verified', created_at: now });
+  const proj = (n, owner, title, description, extra = {}) => xdb.projects.push({ id: `10000000-0000-4000-8000-00000000950${n}`, code: 'P-950' + n, owner_id: ID(owner), status: 'open', created_at: ago(n),
+    title, trade: 'kitchen', description, city: 'riyadh', district: 'حي الياسمين', budget_min: 15000, budget_max: 25000, timing: 'month', ...extra });
+  proj(1, 2, 'تجديد مطبخ شقة', 'مطبخ 3×4 م في حي الياسمين، تواصل معي على 0551234567 أو sara@example.com. أنا سارة القحطاني.');
+  proj(2, 3, 'دهان فيلا كاملة', 'دهان داخلي وخارجي لفيلا دورين.');
+  proj(3, 5, 'ستائر لسبع نوافذ', 'ستائر مخفية في الجبس لسبع نوافذ.', { preview: true });
+  proj(4, 2, 'حمام قديم', 'مسحوب.', { status: 'withdrawn' });
+  const xp = await xctx.newPage();
+  xp.setDefaultTimeout(8000);
+  xp.on('pageerror', (e) => errors.push('X: ' + String(e)));
+  const xsignIn = async (n) => { await go(xp, 'signin'); await xp.locator('#au-email').fill(`x${n}@example.com`); await xp.locator('#au-password').fill('public-pass-1'); await xp.locator('form.authcard button[type="submit"]').click(); await xp.waitForTimeout(1100); };
+  // the home page leads there
+  await go(xp, ''); await xp.waitForTimeout(400);
+  const heroLink = xp.locator('a.ph-browse');
+  check('X: the home page\'s hero has a small link to the open projects', (await heroLink.count()) === 1 && (await heroLink.innerText()).includes('تصفّح المشاريع') && (await heroLink.getAttribute('href')) === '/projects');
+  await heroLink.click(); await xp.waitForTimeout(900);
+  const main = async () => (await xp.locator('main').innerText()).replace(/\s+/g, ' ');
+  const listText = await main();
+  check('X: a visitor who has not registered browses the open projects', (await pathname2(xp)) === '/projects' && (await xp.locator('.pub-card').count()) === 2
+    && listText.includes('تجديد مطبخ شقة') && listText.includes('ستائر لسبع نوافذ'), listText.slice(0, 160));
+  check('X: …only open projects whose owner may deal (not one waiting for its owner\'s email, not a withdrawn one)', !listText.includes('دهان فيلا كاملة') && !listText.includes('حمام قديم'));
+  check('X: …never who asked: no name, no district, no phone number or email', !listText.includes('سارة') && !listText.includes('الياسمين') && !listText.includes('0551234567') && !listText.includes('sara@example.com') && listText.includes('•••'));
+  check('X: …the early-access notice says in small type that some are examples, while one is listed', (await xp.locator('.samples-note').count()) === 1);
+  check('X: …and a contractor is invited to join, or to sign in', (await xp.locator('.pub-next a.pub-join').count()) === 1 && (await xp.locator('.pub-next a.pub-signin').count()) === 1);
+  await xp.locator('.pub-card', { hasText: 'تجديد مطبخ شقة' }).locator('a').click(); await xp.waitForTimeout(700);
+  const oneText = await main();
+  check('X: a project opens at its own address, with the request, the city, the budget, the start and the date', (await pathname2(xp)) === '/projects/P-9501' && (await xp.locator('.pub-project').count()) === 1
+    && oneText.includes('مطبخ 3×4 م') && oneText.includes('الميزانية التقريبية') && oneText.includes('خلال شهر') && !oneText.includes('سارة') && !oneText.includes('0551234567'), oneText.slice(0, 200));
+  check('X: …and says the homeowner\'s name and contact details are not shown', oneText.includes('لا يظهر اسم صاحب المنزل'));
+  await go(xp, 'projects/P-9502'); await xp.waitForTimeout(900);
+  check('X: a project that is not open (its owner has not confirmed their email) reads "no longer open"', (await xp.locator('.pub-gone').count()) === 1);
+  await go(xp, 'projects/P-9501'); await xp.waitForTimeout(700);
+  await xp.locator('.pub-next a.pub-join').click(); await xp.waitForTimeout(600);
+  check('X: "join as a contractor" opens the contractor application', (await pathname2(xp)) === '/join');
+  await go(xp, 'projects/P-9501'); await xp.waitForTimeout(700);
+  await xp.locator('.pub-next a.pub-signin').click(); await xp.waitForTimeout(600);
+  check('X: "have an account? sign in" asks to sign in', (await pathname2(xp)) === '/signin');
+  await xp.locator('#au-email').fill('x4@example.com'); await xp.locator('#au-password').fill('public-pass-1'); await xp.locator('form.authcard button[type="submit"]').click(); await xp.waitForTimeout(1300);
+  check('X: …and a verified contractor who signs in there lands on that project\'s bid form', (await pathname2(xp)) === '/project/P-9501' && (await xp.locator('[role="tab"][data-tab="bids"][aria-selected="true"]').count()) === 1, await pathname2(xp));
+  await go(xp, 'projects/P-9501'); await xp.waitForTimeout(900);
+  check('X: a verified contractor opening the public address gets the full project instead', (await pathname2(xp)) === '/project/P-9501');
+  // "sign in" from the list comes back to the list: the full one, for a verified contractor
+  await signOutOf(xp); await go(xp, 'projects'); await xp.waitForTimeout(700);
+  await xp.locator('.pub-next a.pub-signin').click(); await xp.waitForTimeout(600);
+  check('X: "sign in" on the list opens the sign-in form (not sign-up)', (await pathname2(xp)) === '/signin' && (await xp.locator('#au-name').count()) === 0);
+  await xp.locator('#au-email').fill('x4@example.com'); await xp.locator('#au-password').fill('public-pass-1'); await xp.locator('form.authcard button[type="submit"]').click(); await xp.waitForTimeout(1300);
+  check('X: …and brings a verified contractor back to the open projects, the full list with bidding', (await pathname2(xp)) === '/projects' && (await xp.locator('.pub-browse').count()) === 0, await pathname2(xp));
+  await go(xp, 'projects'); await xp.waitForTimeout(700);
+  check('X: …and the full list, with bidding (the public page is for everyone else)', (await xp.locator('.pub-browse').count()) === 0 && (await xp.locator('main', { hasText: 'تجديد مطبخ شقة' }).count()) >= 1);
+  await signOutOf(xp); await xsignIn(6);
+  await go(xp, 'projects/P-9501'); await xp.waitForTimeout(800);
+  check('X: another homeowner sees the public page, with "post your project"', (await xp.locator('.pub-project').count()) === 1 && (await xp.locator('.pub-next', { hasText: 'انشر مشروعك' }).count()) === 1);
+  await go(xp, 'project/P-9501'); await xp.waitForTimeout(900);
+  check('X: …and a link to somebody else\'s project (/project/…) opens its public page, not their dashboard', (await pathname2(xp)) === '/projects/P-9501' && (await xp.locator('.pub-project').count()) === 1, await pathname2(xp));
+  await signOutOf(xp); await xsignIn(1); await passTwoStep(xp, xdb);
+  await go(xp, 'projects'); await xp.waitForTimeout(800);
+  check('X: the team sees the open projects exactly as the public does, and is told so', (await xp.locator('.pub-browse').count()) === 1 && (await xp.locator('.pub-card').count()) === 2 && (await xp.locator('.pub-admin-note').count()) === 1
+    && !(await main()).includes('0551234567'));
+  await xp.locator('.pub-card', { hasText: 'تجديد مطبخ شقة' }).locator('a').click(); await xp.waitForTimeout(700);
+  await xp.locator('.pub-next a.pub-console').click(); await xp.waitForTimeout(900);
+  check('X: …and from a project there opens it in the console', (await pathname2(xp)) === '/project/P-9501' && (await xp.locator('.admin-controls').count()) === 1);
+  // the database cannot be reached: a project's link says so, with a retry, never that the project is closed
+  await signOutOf(xp);
+  xdb.publicDown = true;
+  await go(xp, 'projects/P-9501'); await xp.waitForTimeout(1200);
+  check('X: when the database cannot be reached, a project link says so and offers to try again (never "no longer open")', (await xp.locator('.pub-unreachable [role="alert"]').count()) === 1 && (await xp.locator('.pub-gone').count()) === 0);
+  xdb.publicDown = false;
+  await xp.locator('.pub-unreachable button').click(); await xp.waitForTimeout(1200);
+  check('X: …and "try again" then shows it', (await xp.locator('.pub-project').count()) === 1);
+  await go(xp, 'privacy'); await xp.waitForTimeout(500);
+  check('X: the privacy policy says what the public sees of a project', (await xp.locator('main', { hasText: 'تظهر المشاريع المفتوحة للعروض لكل زوار ترميم' }).count()) === 1 && (await xp.locator('main', { hasText: 'آخر تحديث 30 سبتمبر 2026' }).count()) === 1);
+  check('X: the parts asked the database for nothing unknown', xdb.unknown.length === 0, xdb.unknown.join(' · '));
+  await xctx.close();
 }
 console.log(results.join('\n'));
 console.log(errors.length ? '\n' + errors.join('\n') : '\nno page errors');

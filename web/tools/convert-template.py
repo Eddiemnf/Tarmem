@@ -495,6 +495,9 @@ LAUNCH_INSERTS = {
     "agr-card": ("<ConfirmComplete vm={vm} />", "import { AcceptedBid, ConfirmComplete, PlannedStages } from '../platform/SignedProject';"),
     # the team's controls on a project opened from the console: complete, cancel, or remove it (supabase/030 A)
     "pj-head": ("<AdminProjectControls vm={vm} />", "import AdminProjectControls from '../platform/AdminProjectControls';"),
+    # (034) in the hero's bar, where the design's invented live-visitor counter sits (hidden on the public site): a small
+    # way into the open projects, which everyone may now browse
+    "ph-live": ("<HeroBrowseLink vm={vm} />", "import HeroBrowseLink from '../launch/HeroBrowseLink';"),
 }
 _launch_inserts_applied: set[str] = set()
 

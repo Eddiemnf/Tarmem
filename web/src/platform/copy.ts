@@ -5,6 +5,16 @@
 export const PLATFORM_COPY = {
   ar: {
     notice: 'إطلاق مبكر: انشر مشروعك، واستقبل عروض مقاولين موثّقين، ووقّع الاتفاقية عبر الموقع. يوثّق فريق ترميم المقاولين يدويًا حاليًا، والدفع عبر الموقع قيد التفعيل.',
+    // (034) the open projects as everyone sees them (/projects and /projects/P-…), without the homeowner
+    pubKicker: 'مفتوحة للعروض الآن', pubSub: 'طلبات ترميم نشرها أصحاب منازل على ترميم، دون أسمائهم أو أحيائهم أو بيانات تواصلهم. يقدّم العروض المقاولون الموثّقون.',
+    pubAdminNote: 'تشاهد هذه الصفحة كما يراها الزوار.', pubJoinQ: 'هل أنت مقاول؟ انضم إلى ترميم وقدّم عرضك على هذا المشروع.', pubJoinListQ: 'هل أنت مقاول؟ انضم إلى ترميم وقدّم عروضك على هذه المشاريع.',
+    pubJoin: 'انضم كمقاول', pubSignIn: 'لديك حساب؟ سجّل الدخول', pubHomeowner: 'يقدّم العروض المقاولون الموثّقون. لديك مشروع أنت أيضًا؟', pubPost: 'انشر مشروعك',
+    pubPending: 'يفتح تقديم العروض بعد أن يوثّق فريق ترميم حسابك.', pubMyDash: 'لوحتي', pubAdmin: 'هكذا يرى الزوار هذا المشروع.', pubAdminOpen: 'افتحه في لوحة الإدارة',
+    pubGone: 'لم يعد هذا المشروع مفتوحًا للعروض.', pubBack: 'كل المشاريع المفتوحة', pubLoading: 'جارٍ التحميل…', pubBrief: 'تفاصيل الطلب',
+    pubBudget: 'الميزانية التقريبية', pubTiming: 'موعد البدء', pubPosted: 'تاريخ النشر', pubCity: 'المدينة',
+    pubNoOwner: 'لا يظهر اسم صاحب المنزل ولا حيّه ولا بيانات تواصله.',
+    pubVerified: 'حسابك موثّق: قدّم عرضك على هذا المشروع.', pubBid: 'قدّم عرضك', pubRetry: 'حاول مجددًا',
+    pubCount: (n: number) => (n === 1 ? 'مشروع واحد' : n === 2 ? 'مشروعان' : n >= 3 && n <= 10 ? `${n} مشاريع` : `${n} مشروعًا`),
     // (033) shown to contractors, in small type after the notice, while example projects are listed
     samplesNote: 'بعض المشاريع المعروضة نماذج توضيحية خلال الإطلاق المبكر.',
     signInTitle: 'سجّل دخولك', signUpTitle: 'أنشئ حسابك',
@@ -53,7 +63,7 @@ export const PLATFORM_COPY = {
       statusNotAllowed: 'تغيّرت حالة المشروع ولم تعد تسمح بهذه الخطوة. حدّث الصفحة.', adminsOnly: 'هذه الخطوة لفريق ترميم فقط.',
     },
     posted: 'نُشر مشروعك. يراجعه فريق ترميم ويتواصل معك على جوالك خلال يوم عمل.',
-    postedNoBids: 'نُشر مشروعك ويراه المقاولون الموثّقون الآن. تظهر عروضهم هنا فور وصولها، ويصلك بريد مع كل عرض جديد.',
+    postedNoBids: 'نُشر مشروعك في المشاريع المفتوحة دون اسمك أو حيّك أو بيانات تواصلك، ويستطيع المقاولون الموثّقون تقديم عروضهم عليه. تظهر عروضهم هنا فور وصولها، ويصلك بريد مع كل عرض جديد.',
     publish: 'نشر المشروع',
     contactSent: 'وصلتنا رسالتك. نرد عليك خلال يوم عمل.', contactFailed: 'تعذّر إرسال الرسالة. حاول مجددًا.',
     verifiedMessage: (person: string, company: string, link: string, hasAccount: boolean) => hasAccount
@@ -68,7 +78,7 @@ export const PLATFORM_COPY = {
     stagesSoon: 'تبدأ المراحل بعد ترتيب الدفعة الأولى. اعتماد المراحل وصرف دفعاتها عبر الموقع يُفعَّل مع الدفع.',
     settingsMobileNote: 'يُستخدم للتواصل معك ولرسائل واتساب.', settingsEmail: 'البريد الإلكتروني (لتسجيل الدخول)',
     protectNoNafath: 'يراجع فريق ترميم بيانات المنشأة وسجلها التجاري قبل ظهور الملف.',
-    postedNoBidsWa: 'نُشر مشروعك ويراه المقاولون الموثّقون الآن. تظهر عروضهم هنا فور وصولها، ويصلك بريد ورسالة واتساب مع كل عرض جديد.',
+    postedNoBidsWa: 'نُشر مشروعك في المشاريع المفتوحة دون اسمك أو حيّك أو بيانات تواصلك، ويستطيع المقاولون الموثّقون تقديم عروضهم عليه. تظهر عروضهم هنا فور وصولها، ويصلك بريد ورسالة واتساب مع كل عرض جديد.',
     msgsNoThread: 'تفتح المراسلة مع المقاول عند وصول أول عطاء على مشروعك.', msgsEmpty: 'لا رسائل بعد. اكتب أول رسالة، ويصل الطرف الآخر تنبيه بالبريد وواتساب.', msgsWith: 'المحادثة مع', msgFailed: 'تعذّر إرسال الرسالة. حاول مجددًا.', msgsHomeowner: 'صاحب المنزل', msgsContractor: 'المقاول',
     msgsSoon: 'المراسلة داخل المشروع قيد التفعيل. حتى ذلك الحين يتواصل معكما فريق ترميم بالبريد وواتساب، وتبقى العروض والاتفاقية والملفات هنا.', msgsFrom: 'ترميم',
     waSub: 'ترسل ترميم تحديثات مشروعك إلى واتساب: العروض الجديدة، وقبول العرض، وتوقيع الاتفاقية، والمراحل. في كل رسالة زر يفتح المشروع مباشرة.', waNumberNote: 'هذا رقم جوال حسابك؛ تغييره هنا يغيّره في حسابك أيضًا.',
@@ -173,6 +183,15 @@ export const PLATFORM_COPY = {
   en: {
     notice: 'Early access: post your project, receive bids from verified contractors, and sign the agreement on the site. The Tarmem team verifies contractors by hand for now, and payment on the site is being set up.',
     samplesNote: 'Some projects shown are examples during early access.',
+    pubKicker: 'Open for bids now', pubSub: 'Renovation requests posted by homeowners on Tarmem, without their names, districts or contact details. Verified contractors submit the bids.',
+    pubAdminNote: 'You are seeing this page as visitors see it.', pubJoinQ: 'Are you a contractor? Join Tarmem and bid on this project.', pubJoinListQ: 'Are you a contractor? Join Tarmem and bid on these projects.',
+    pubJoin: 'Join as a contractor', pubSignIn: 'Have an account? Sign in', pubHomeowner: 'Bids come from verified contractors. Have a project of your own?', pubPost: 'Post your project',
+    pubPending: 'Bidding opens once the Tarmem team verifies your account.', pubMyDash: 'My dashboard', pubAdmin: 'This is how visitors see this project.', pubAdminOpen: 'Open it in the console',
+    pubGone: 'This project is no longer open for bids.', pubBack: 'All open projects', pubLoading: 'Loading…', pubBrief: 'The request',
+    pubBudget: 'Approximate budget', pubTiming: 'Start', pubPosted: 'Posted', pubCity: 'City',
+    pubNoOwner: 'The homeowner\'s name, district and contact details are not shown.',
+    pubVerified: 'Your account is verified: bid on this project.', pubBid: 'Submit your bid', pubRetry: 'Try again',
+    pubCount: (n: number) => (n === 1 ? '1 project' : `${n} projects`),
     signInTitle: 'Sign in', signUpTitle: 'Create your account',
     signInLede: 'Use your email and password to follow your projects.',
     signUpLede: 'One account to post and follow your projects. It takes a minute.',
@@ -219,7 +238,7 @@ export const PLATFORM_COPY = {
       statusNotAllowed: 'The project\'s status has changed and no longer allows this step. Refresh the page.', adminsOnly: 'Only the Tarmem team can do this.',
     },
     posted: 'Your project is posted. Tarmem\'s team reviews it and contacts you on your mobile within one working day.',
-    postedNoBids: 'Your project is posted and verified contractors can see it now. Their bids appear here as they arrive, and you get an email with each one.',
+    postedNoBids: 'Your project is posted among the open projects, without your name, district or contact details, and verified contractors can bid on it. Their bids appear here as they arrive, and you get an email with each one.',
     publish: 'Post project',
     contactSent: 'We have your message. We reply within one working day.', contactFailed: 'The message could not be sent. Please try again.',
     verifiedMessage: (person: string, company: string, link: string, hasAccount: boolean) => hasAccount
@@ -234,7 +253,7 @@ export const PLATFORM_COPY = {
     stagesSoon: 'Stages start once the first payment is arranged. Approving stages and releasing their payments on the site goes live together with payment.',
     settingsMobileNote: 'Used to reach you, and for WhatsApp updates.', settingsEmail: 'Email (you sign in with it)',
     protectNoNafath: 'The Tarmem team reviews the business details and its commercial registration before the profile goes live.',
-    postedNoBidsWa: 'Your project is posted and verified contractors can see it now. Their bids appear here as they arrive, and you get an email and a WhatsApp with each new bid.',
+    postedNoBidsWa: 'Your project is posted among the open projects, without your name, district or contact details, and verified contractors can bid on it. Their bids appear here as they arrive, and you get an email and a WhatsApp with each new bid.',
     msgsNoThread: 'Messaging with a contractor opens with the first bid on your project.', msgsEmpty: 'No messages yet. Write the first one; the other side is told by email and WhatsApp.', msgsWith: 'Conversation with', msgFailed: 'The message could not be sent. Try again.', msgsHomeowner: 'The homeowner', msgsContractor: 'The contractor',
     msgsSoon: 'Messaging inside the project is being set up. Until then the Tarmem team reaches you both by email and WhatsApp; the bids, the agreement and the files stay here.', msgsFrom: 'Tarmem',
     waSub: 'Tarmem sends your project updates to WhatsApp: new bids, an accepted bid, the signed agreement and stages. Each message has a button that opens the project.', waNumberNote: 'This is your account\'s mobile number; changing it here changes it on your account too.',

@@ -20,7 +20,10 @@ import { LAUNCH_COPY } from './copy';
 import { openWhatsApp } from './deliver';
 
 /** Pages that need a real, signed-in account. They exist only once the database is connected. */
-const ACCOUNT_ROUTES = new Set(['hdash', 'cdash', 'browse', 'project', 'admin', 'inbox', 'settings', 'homeowner', 'contractor', 'wallet']);
+const ACCOUNT_ROUTES = new Set(['hdash', 'cdash', 'project', 'admin', 'inbox', 'settings', 'homeowner', 'contractor', 'wallet']);
+/** (034) The open projects, as everyone may see them (supabase/034): the list, and one project by its code. They exist only
+    once the database is connected; a verified contractor gets the full versions instead (below, and App.tsx). */
+const OPEN_ROUTES = new Set(['browse', 'listing']);
 
 /** Work the guard starts but cannot finish inside a click: it needs the network (src/platform/bind.ts). */
 export interface GuardEffects {
@@ -113,7 +116,8 @@ function isAllowed(state: LogicState, user: User): boolean {
     // the wallet opens with payments
     || (state.route === 'wallet' && (user?.role === 'homeowner' || user?.role === 'contractor') && Boolean(currentAccount()?.paymentsLive))
     || (state.route === 'cdash' && user?.role === 'contractor')
-    || (state.route === 'browse' && user?.role === 'contractor' && Boolean(user.nafath))
+    || (state.route === 'browse')
+    || (state.route === 'listing' && Boolean(state.curId))
     || (state.route === 'project' && Boolean(user) && state.projects?.some((p: LogicState) => p.id === state.curId))
     // the designed admin console, and the plain contact list beside it: only for an account marked admin in the database
     || ((state.route === 'admin' || state.route === 'inbox') && user?.role === 'admin')));
@@ -130,6 +134,8 @@ export function landingAfterSignIn(state: LogicState, user: User = currentAccoun
   if (back) {
     const wanted = { ...state, route: back.route, ...(back.curId ? { curId: back.curId } : {}), ...(back.tab ? { tab: back.tab } : {}) };
     if (isAllowed(wanted, user)) return { route: wanted.route, curId: wanted.curId, tab: wanted.tab };
+    // (034) a project they may not act on (a homeowner, a contractor not verified yet): shown as the public sees it
+    if (platformOn && back.route === 'project' && back.curId) return { route: 'listing', curId: back.curId };
   }
   return { route: ownHomeOf(user) };
 }
@@ -146,7 +152,9 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
   if (state.user !== user) patch({ user });
   if (platformOn && !user && state.projects?.length) patch({ projects: [] });
   // a visitor who went on to another public page no longer wants the one they were asked to sign in for
-  if (!user && state.route !== prev.route && PUBLIC_ROUTES.has(state.route)) authReturn = null;
+  if (!user && state.route !== prev.route && (PUBLIC_ROUTES.has(state.route) || OPEN_ROUTES.has(state.route))) authReturn = null;
+  // (034) "sign in" from the public list comes back to the list (a verified contractor then gets the full one, with bidding)
+  if (platformOn && !user && prev.route === 'browse' && state.route === 'auth') authReturn = { route: 'browse' };
 
   // "Withdraw project" removes it from the list. For a real project that is a change of status in the database.
   if (effects && user && prev.user && prev.withdrawAsk && !state.withdrawAsk && prev.projects?.length === (state.projects?.length ?? 0) + 1) {
@@ -175,6 +183,11 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
   const wantsContractorSignup = state.route === 'auth' && state.auth?.mode === 'signup' && state.auth?.role === 'contractor';
   const allowed = isAllowed(state, user);
   const ownHome = ownHomeOf(user);
+  // (034) a verified contractor opening a project's public page gets the full project, with the bid form
+  if (platformOn && state.route === 'listing' && user?.role === 'contractor' && user.nafath && state.projects?.some((p: LogicState) => p.id === state.curId)) {
+    patch({ route: 'project', tab: 'bids' });
+    return state;
+  }
 
   if (!allowed) {
     const target = state.route;
@@ -191,7 +204,9 @@ export function guardLaunchState(prev: LogicState, next: LogicState, initialPost
       // signed out: sign in first, and come back here afterwards. Signed in, but not their page (somebody else's project,
       // the team's console): their own home.
       if (!user) authReturn = { route: target, curId: state.curId ?? null, tab: state.tab };
-      patch(user ? { route: ownHome } : { route: 'auth', auth: { ...state.auth, mode: 'signin', role: 'homeowner', error: '' } });
+      // (034) signed in, a project they may not act on opens as the public sees it (from an email or a shared link)
+      const asPublic = user && target === 'project' && state.curId ? { route: 'listing', curId: String(state.curId).toUpperCase() } : null;
+      patch(asPublic || (user ? { route: ownHome } : { route: 'auth', auth: { ...state.auth, mode: 'signin', role: 'homeowner', error: '' } }));
     } else if (target === 'auth' && state.pendingPost) {
       // A guest pressed "publish" on the last step of the project form.
       const message = projectMessage(state);

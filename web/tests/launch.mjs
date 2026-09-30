@@ -70,7 +70,8 @@ check('the footer keeps "join as a contractor" and drops "browse contractors"',
 // B — the demo's saved state cannot follow a visitor here, and private pages cannot be opened
 await load({ key: 'tarmem-state-v3', value: { route: 'admin', user: { role: 'admin', name: 'Operations' } } });
 check('a demo sign-in does not carry over to the public site', (await page.locator('text=Operations').count()) === 0 && (await route()) !== 'admin');
-for (const target of ['admin', 'wallet', 'hdash', 'cdash', 'project', 'browse', 'settings']) {
+// (034) with real accounts the open projects are public (tests/platform.mjs section X); without them /projects stays closed
+for (const target of ['admin', 'wallet', 'hdash', 'cdash', 'project', ...(accounts ? [] : ['browse']), 'settings']) {
   // neither a saved page nor its address gets a visitor in
   await load({ key: 'tarmem-public-v1', value: { route: target, user: { role: 'admin', name: 'x' } } }, target);
   const at = await route();

@@ -252,7 +252,8 @@ async function loadAccount(user: User): Promise<Account | null> {
     const verified = application?.status === 'verified';
     // Open projects reach a contractor only once an admin has verified them; the database returns none before that.
     // (the database returns a contractor the open projects, plus any they have bid on)
-    const open = verified ? await supabase.from('projects').select('*').in('status', ['open', 'active', 'completed']).order('created_at', { ascending: false }).limit(200) : null;
+    // (as many as the public list shows, 034, so a project opened from there is always the contractor's full one)
+    const open = verified ? await supabase.from('projects').select('*').in('status', ['open', 'active', 'completed']).order('created_at', { ascending: false }).limit(300) : null;
     const mine = verified ? await supabase.from('bids').select('*').neq('status', 'withdrawn') : null;
     return {
       profile, application, twoStep: null, projects: (open?.data as ProjectRow[]) || [], bids: (mine?.data as BidRow[]) || [], bidders: [], agreements: await loadAgreements(), ...(await loadStages()),
@@ -337,6 +338,19 @@ export async function twoStepCheck(code: string, factorId?: string): Promise<Res
     }
     return { error: problem };
   } catch (e) { return { error: twoStepFailure(e as Error, 'tsWrong') }; }
+}
+
+/** (034) An open project as everyone may see it: what is wanted, where (the city only) and for how much — never who asks.
+    Phone numbers, emails, links, the district and the owner's name are masked in the text by the database itself. */
+export interface PublicProject { code: string; title: string; trade: string; description: string; city: string; budget_min: number; budget_max: number; timing: 'asap' | 'month' | 'flexible'; created_at: string; preview: boolean }
+
+/** The open projects (newest first), or one by its code; null when the database cannot be reached. */
+export async function loadPublicProjects(code?: string): Promise<PublicProject[] | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.rpc('public_projects', code ? { p_code: code } : {});
+    return error ? null : ((data as PublicProject[]) || []);
+  } catch { return null; }
 }
 
 /** Restore a saved sign-in before the site first renders. Never blocks for long: a visitor who is

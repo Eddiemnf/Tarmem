@@ -33,7 +33,7 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     },
     {
-      "source": "/(project|firm)/(.*)",
+      "source": "/(project|projects|firm)/(.*)",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     },
     {

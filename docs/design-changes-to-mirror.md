@@ -467,3 +467,28 @@ all of it too (the design's seed data has an introduction and payment rows, so i
 >   typed.
 > - The homeowner's profile says "Member since September 2026" (month and year), and a contractor sees the homeowner's full
 >   name in the project's details once both have signed, as the agreement card above it does.
+
+### Open projects for everyone — 30 September 2026 (supabase/034)
+
+> Please make these changes to Tarmem, in both Arabic and English:
+>
+> **Privacy policy**
+> 1. «ما يراه الآخرون» / "What others can see": replace the paragraph with the wording now in `project/tarmem-i18n.js`
+>    (pages.privacy). It says that open projects are listed for every visitor (title, type of work, city, approximate
+>    budget, start, posting date and description) without the homeowner's name, district or contact details, that phone
+>    numbers, emails and links typed in a description are hidden, and that only verified contractors bid or message.
+> 2. "Last updated 30 September 2026" (`privacyUpdated`).
+>
+> **Post a project**
+> 3. The description's placeholder (`post.descPh`) ends: «لا تكتب اسمك أو رقمك أو عنوانك: يظهر الوصف في المشاريع المفتوحة دون
+>    بياناتك.» / "Leave out your name, number and address: the description is shown on the open projects page without
+>    your details."
+> 4. The confirmation after posting (`post.doneLede`) says the project is listed among the open projects without the
+>    homeowner's name, district or contact details, and that verified contractors bid on it.
+
+> Site only (not the design):
+> - **/projects is public** for everyone except a verified contractor, who keeps the design's own list with bidding. Its
+>   public version and a project's public page at `/projects/P-…` are `src/launch/PublicProjects.tsx`. They show what
+>   `public_projects()` returns, and a card inviting the visitor to join or sign in. The team sees exactly this page.
+> - **The hero's bar** shows a small «تصفّح المشاريع» pill (`src/launch/HeroBrowseLink.tsx`). It sits where the design puts
+>   its live-visitor counter, which stays hidden on the public site.

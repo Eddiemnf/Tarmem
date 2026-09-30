@@ -126,7 +126,7 @@ for (const lang of ['ar', 'en']) {
     await p.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 700) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 60)); } window.scrollTo(0, 0); });
     await p.waitForTimeout(600);
   });
-  for (const path of ['how', 'pricing', 'about', 'faq', 'help', 'rules', 'terms', 'privacy', 'join', 'signin', 'reset-password']) await visit(page, `visitor ${lang}`, path);
+  for (const path of ['how', 'pricing', 'about', 'faq', 'help', 'rules', 'terms', 'privacy', 'join', 'signin', 'reset-password', 'projects']) await visit(page, `visitor ${lang}`, path);
   await visit(page, `visitor ${lang}`, 'post', async (p) => {
     await p.locator('input[name="title"]').fill('تجديد مطبخ صغير');
     await p.locator('textarea[name="desc"]').fill('تغيير الخزائن والرخام، المساحة 3×4 م.');

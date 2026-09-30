@@ -38,6 +38,8 @@ import { useLaunchActions, useLogicState, useViewModel, type VM } from './state/
 const InboxPage = lazy(() => import('./platform/InboxPage'));
 const ResetPage = lazy(() => import('./platform/ResetPage'));
 const AdminTwoStep = lazy(() => import('./platform/AdminTwoStep'));
+// (034) the open projects as everyone sees them: the list for all but verified contractors, and one project by its code
+const PublicProjects = lazy(() => import('./launch/PublicProjects'));
 
 type Page = ComponentType<{ vm: VM }> | LazyExoticComponent<ComponentType<{ vm: VM }>>;
 
@@ -45,7 +47,7 @@ type Page = ComponentType<{ vm: VM }> | LazyExoticComponent<ComponentType<{ vm: 
 const LAUNCH_PAGES: Record<string, Page> = {
   join: JoinPage, sent: SentPage,
   // real accounts (src/platform/): email sign-in stands in for the design's mobile code and Nafath
-  ...(platformOn ? { auth: RealAuthPage, inbox: InboxPage, reset: ResetPage } : {}),
+  ...(platformOn ? { auth: RealAuthPage, inbox: InboxPage, reset: ResetPage, listing: PublicProjects } : {}),
 };
 
 /** Only the public content pages are for search engines; sign-in and every signed-in page are not. */
@@ -171,7 +173,9 @@ export default function App() {
 
   // (032) the console and the inbox open only once this session has passed the team's second step: the code from the app
   const secondStep = isLaunch && platformOn && (state.route === 'admin' || state.route === 'inbox') && twoStepPending();
-  const Page: Page = (secondStep && AdminTwoStep) || (isLaunch && LAUNCH_PAGES[state.route]) || PAGES[state.route as Route] || PAGES.home;
+  // (034) /projects: a verified contractor gets the full list, with bidding; everyone else, the team included, the public one
+  const publicBrowse = isLaunch && platformOn && state.route === 'browse' && !(state.user?.role === 'contractor' && state.user?.nafath);
+  const Page: Page = (secondStep && AdminTwoStep) || (publicBrowse && PublicProjects) || (isLaunch && LAUNCH_PAGES[state.route]) || PAGES[state.route as Route] || PAGES.home;
   const skip = LAUNCH_COPY[lang].skip;
 
   return (

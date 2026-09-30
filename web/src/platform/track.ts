@@ -73,7 +73,7 @@ export function trackRoutes(host: LogicHost): () => void {
   let last = '';
   const record = () => {
     const state = host.logic.state;
-    const key = state.route === 'project' ? `project/${state.curId}` : String(state.route);
+    const key = state.route === 'project' || state.route === 'listing' ? `${state.route}/${state.curId}` : String(state.route);
     if (!state.ready || key === last) return;
     last = key;
     track('view', state.route);
