@@ -115,6 +115,9 @@ export const PLATFORM_COPY = {
     // a contractor whose application the team declined (supabase/030 E6)
     coDeclinedTitle: 'لم تتم الموافقة على طلبك', coDeclinedNote: 'راجع فريق ترميم طلب انضمامك ولم تتم الموافقة عليه. إن كان لديك سؤال أو معلومات جديدة عن منشأتك، راسلنا وسنعيد النظر فيه.', coDeclinedContact: 'تواصل مع فريق ترميم',
     // the team's console (supabase/030): labels in the page's language, and the team's controls on a project
+    admPayOffCodes: 'الدفع عبر الموقع غير مفعّل بعد: الأكواد تُحفظ وتُدار هنا، ويبدأ استخدامها عند تفعيله.',
+    admPayOffPartners: 'نقرات روابط الشركاء وتسجيلاتهم لا تُحتسب بعد، لذا تظهر أرقامها «—» حتى تفعيل الدفع عبر الموقع.',
+    admPayOffLate: 'يُسجَّل التأخير والاسترداد هنا عند بدء الدفعات المرحلية عبر الموقع؛ لا شيء مسجّل حتى الآن.',
     admSender: 'المرسل', admNoApplication: 'بلا طلب توثيق', admApp: { new: 'جديد', contacted: 'تم التواصل', verified: 'موثّق', declined: 'مرفوض' } as Record<string, string>,
     admSar: 'ريال', admCr: 'السجل التجاري', admDays: 'يومًا', admChosen: 'اختاره العميل',
     adminCtlTitle: 'إجراءات فريق ترميم',
@@ -241,6 +244,9 @@ export const PLATFORM_COPY = {
     completeSent: 'Your confirmation is recorded, and the other party has been asked to confirm too.',
     completeDone: 'The project is recorded as complete. Share your review of the contractor.', completeDoneCo: 'The project is recorded as complete. Thank you for working with Tarmem.',
     coDeclinedTitle: 'Your application was not approved', coDeclinedNote: 'The Tarmem team reviewed your application and did not approve it. If you have a question or new information about your business, message us and we will look at it again.', coDeclinedContact: 'Contact the Tarmem team',
+    admPayOffCodes: 'Payment on the site is not live yet: codes are saved and managed here, and can be used once it is.',
+    admPayOffPartners: 'Clicks and sign-ups from partner links are not counted yet, so those figures show “—” until payment on the site is live.',
+    admPayOffLate: 'Late deliveries and refunds are recorded here once stage payments start on the site; nothing is recorded yet.',
     admSender: 'Sender', admNoApplication: 'No application', admApp: { new: 'New', contacted: 'Contacted', verified: 'Verified', declined: 'Declined' } as Record<string, string>,
     admSar: 'SAR', admCr: 'CR', admDays: 'days', admChosen: 'chosen by the customer',
     adminCtlTitle: 'Tarmem team actions',

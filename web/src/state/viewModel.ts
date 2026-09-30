@@ -98,10 +98,10 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
   const when = (iso: string) => new Date(iso).toLocaleDateString(ar ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const applicants = new Map<string, LogicState>((state.contractors || []).map((c: LogicState) => [c.id, c]));
   const senders = new Map<string, LogicState>((state.cases || []).map((c: LogicState) => [c.id, c]));
-  // while payment on the site is off, codes and partners have nothing to apply to (and late stages and refunds nothing to record):
-  // those tabs wait for it, and a console reopened on one of them opens on the overview
-  const hiddenTabs = currentAccount()?.paymentsLive ? [] : ['late', 'promos', 'affiliates'];
-  const tabNow = hiddenTabs.includes(String(state.atab)) ? 'overview' : String(state.atab || 'overview');
+  // every tab of the console shows (the owner uses codes and partners before payment on the site is live); while it is off,
+  // the tabs whose figures depend on it say so under their title
+  const payOff = !currentAccount()?.paymentsLive;
+  const tabNow = String(state.atab || 'overview');
   // a contractor account with no application is one of the people, never an application to decide
   const unapplied = (id: string) => Boolean(applicants.get(id)?.noApp);
   const queue = ((vm.verifQueue as LogicState[]) || []).filter((row) => !unapplied(row.id));
@@ -158,15 +158,19 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
     userRows: ((vm.userRows as LogicState[]) || []).map((row) => (row.kind === 'c' && unapplied(row.id) ? { ...row, status: copy.admNoApplication, cls: 'tag-w' } : row)),
     // a support case here is a message from the contact form: there is no project, there is a sender
     cases: (vm.cases || []).map((row: LogicState) => ({ ...row, project: senders.get(row.id)?.from || row.project })),
-    /* Codes and partners, once payment is on: nothing on the site applies a code or counts a partner's clicks yet, so the
-       figures that would need that read "—" instead of a number (the design fills them with made-up ones). */
-    pm: vm.pm?.kpis ? { ...vm.pm, kpis: vm.pm.kpis.map((k: LogicState, i: number) => (i === 0 ? k : { ...k, v: '—' })),
-      rows: ((vm.pm.rows as LogicState[]) || []).map((r) => ({ ...r, usesL: String(r.usesL || '').replace(/^[^/]*\//, '— /'), usePct: 0 })) } : vm.pm,
+    /* Codes are saved for real (admin_state) and their uses and discounts are true counts (nothing redeems a code before payment
+       on the site). The design types a made-up "average project with a code"; no project has used a code, so it reads "—". */
+    pm: vm.pm?.kpis ? { ...vm.pm, kpis: vm.pm.kpis.map((k: LogicState, i: number) => (i === 3 ? { ...k, v: '—' } : k)) } : vm.pm,
+    /* Partners are saved for real too, but nothing counts the clicks and sign-ups from their links yet: those figures read "—". */
     af: vm.af?.kpis ? { ...vm.af, kpis: vm.af.kpis.map((k: LogicState, i: number) => (i === 0 ? k : { ...k, v: '—' })),
       rows: ((vm.af.rows as LogicState[]) || []).map((r) => ({ ...r, clicks: '—', signups: '—', projects: '—', earned: '—', owed: '—', owedC: '#7A7994', canPay: false })) } : vm.af,
-    t: { ...vm.t, admin: { ...vm.t.admin, hCaseFrom: copy.admSender, an: { ...vm.t.admin.an,
+    t: { ...vm.t, admin: { ...vm.t.admin, hCaseFrom: copy.admSender,
+      ...(payOff && vm.t.admin.pm ? { pm: { ...vm.t.admin.pm, sub: `${vm.t.admin.pm.sub} ${copy.admPayOffCodes}` } } : {}),
+      ...(payOff && vm.t.admin.af ? { af: { ...vm.t.admin.af, sub: `${vm.t.admin.af.sub} ${copy.admPayOffPartners}` } } : {}),
+      ...(payOff && vm.t.admin.lr ? { lr: { ...vm.t.admin.lr, sub: `${vm.t.admin.lr.sub} ${copy.admPayOffLate}` } } : {}),
+      an: { ...vm.t.admin.an,
       sub: ar ? 'الزوار الآن وأرقام اليوم، من سجل زيارات الموقع نفسه: بلا ملفات تعريف ارتباط وبلا عناوين IP.' : 'Live visitors and daily figures, from the site\'s own visit record: no cookies, no IP addresses.' } } },
-    adminTabs: ((vm.adminTabs as LogicState[]) || []).filter((tab) => !hiddenTabs.includes(tab.id))
+    adminTabs: ((vm.adminTabs as LogicState[]) || [])
       .map((tab) => ({ ...tab, cur: tab.id === tabNow ? 'page' : 'false', ...(tab.id === 'verification' ? { count: queue.length } : {}) })),
     ...(tabNow !== state.atab && vm.atab ? { atab: { [tabNow]: true } } : {}),
     // a project the team removed or cancelled reads "withdrawn" on its own page too (the design's logic has no such status)

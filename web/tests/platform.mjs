@@ -459,25 +459,26 @@ check('analytics says its figures are real, and shows the recorded visits', (awa
   && (await page.locator('main', { hasText: 'يتصفح' }).count()) === 1,
   `real=${await page.locator('main', { hasText: 'بيانات حقيقية' }).count()} demo=${await page.locator('main', { hasText: 'بيانات تجريبية' }).count()} feed=${(await page.locator('main').innerText()).includes('يتصفح')}`);
 check('…and the design\u2019s "connect Google Analytics" box, which installed nothing, is not shown', (await page.locator('main', { hasText: 'Google Analytics' }).count()) === 0);
-check('the delays and refunds tab waits for payments: it would describe a record that does not exist yet', (await page.locator('.side[data-tab="late"]').count()) === 0 && (await page.locator('.side[data-tab="analytics"]').count()) === 1);
-check('…and so do the promo-code and partner tabs: nothing can apply a code or pay a partner while payment on the site is off', (await page.locator('.side[data-tab="promos"], .side[data-tab="affiliates"]').count()) === 0);
-db.paymentsLive = true;
-await open('admin'); await settle(700);
+check('every console tab shows while payment on the site is off: late deliveries, promo codes and partners included', (await page.locator('.side[data-tab="late"]').count()) === 1 && (await page.locator('.side[data-tab="promos"]').count()) === 1
+  && (await page.locator('.side[data-tab="affiliates"]').count()) === 1 && (await page.locator('.side[data-tab="analytics"]').count()) === 1);
+await tab('late');
+check('…the late-deliveries tab says nothing is recorded until stage payments start', (await page.locator('main', { hasText: 'لا شيء مسجّل حتى الآن' }).count()) === 1);
 await tab('promos');
+check('…the promo-code tab says codes are kept here and apply once payment is live', (await page.locator('main', { hasText: 'الأكواد تُحفظ وتُدار هنا' }).count()) === 1);
 await page.locator('button', { hasText: /كود جديد|إنشاء كود|New code/ }).first().click().catch(() => undefined);
 await settle(300);
 await page.locator('#pm-code').fill('WELCOME10');
 await page.locator('#pm-value').fill('10');
 await page.locator('.btn-p', { hasText: /حفظ|إنشاء|Save|Create/ }).last().click();
 await settle();
-check('with payment on, a promo code made in the console is saved to the database', db.adminState.promos?.[0]?.code === 'WELCOME10' && db.adminState.promos.length === 1, JSON.stringify(db.adminState.promos || null).slice(0, 120));
+check('a promo code made in the console is saved to the database, with payment still off', db.adminState.promos?.[0]?.code === 'WELCOME10' && db.adminState.promos.length === 1, JSON.stringify(db.adminState.promos || null).slice(0, 120));
 const pmFigures = await page.locator('main .qstrip .qv').allInnerTexts();
-check('…and the figures nothing on the site measures yet (uses, discounts, average value with a code) read "—", never a made-up number', pmFigures.length === 4 && pmFigures[0] === '1' && pmFigures.slice(1).every((v) => v === '—')
+check('…its figures are true counts (1 active, 0 uses, 0 discounted) and the average value with a code reads "—", never a made-up number', pmFigures.length === 4 && pmFigures[0] === '1' && pmFigures[1] === '0' && pmFigures[2] === '0' && pmFigures[3] === '—'
   && (await page.locator('main', { hasText: '46,800' }).count()) === 0, pmFigures.join(' | '));
 await tab('affiliates');
 const afFigures = await page.locator('main .qstrip .qv').allInnerTexts();
-check('…the same on the partners tab: clicks, sign-ups, projects and commissions are not measured, so they read "—"', afFigures.length === 5 && afFigures.slice(1).every((v) => v === '—'), afFigures.join(' | '));
-db.paymentsLive = false;
+check('…on the partners tab, clicks, sign-ups, projects and commissions are not measured yet, so they read "—", and the tab says why', afFigures.length === 5 && afFigures.slice(1).every((v) => v === '—')
+  && (await page.locator('main', { hasText: 'لا تُحتسب بعد' }).count()) === 1, afFigures.join(' | '));
 await open('admin'); await settle(700);
 check('nothing invented is left: no seeded strikes, refunds or affiliates', !(await saved()).strikes?.length && !(await saved()).refunds?.length && !(await saved()).affiliates?.length);
 check("the team's own browsing is not counted as traffic", db.visits.length === before, `${before} → ${db.visits.length}`);
