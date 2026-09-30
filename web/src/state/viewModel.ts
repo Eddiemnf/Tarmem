@@ -29,7 +29,7 @@ import { bindPlatform, guardEffects, uploadToProject } from '../platform/bind';
 import { VIDEO_MAX_BYTES, VIDEO_TYPES, acceptFiles, holdFiles, uploadFile } from '../platform/files';
 import { platformOn } from '../platform/client';
 import { PLATFORM_COPY } from '../platform/copy';
-import { approveChange, currentAccount, deleteMyAccount, proposeChange, refreshAccount, saudiMobile, sendMessage, sendWhatsAppTest, stageStep, updateProfile, type MessageRow } from '../platform/session';
+import { approveChange, canInteract, currentAccount, deleteMyAccount, proposeChange, refreshAccount, saudiMobile, sendMessage, sendWhatsAppTest, stageStep, updateProfile, type MessageRow } from '../platform/session';
 import Component from './designLogic.generated';
 import { LogicHost, type LogicState, type LogicVals } from './designRuntime';
 
@@ -664,12 +664,18 @@ function launchVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVal
       // Without storage the photo step explains where photos go instead of offering a picker that uploads nothing.
       post: { ...vm.t.post, ...(real ? {} : { filesIntro: copy.filesIntro, fileTypes: '' }) },
       // an open project with no bids yet: say what actually happens next
-      ...(real ? { ws: { ...vm.t.ws, noBids: currentAccount()?.whatsappLive ? real.postedNoBidsWa : real.postedNoBids } } : {}),
+      // (031) a homeowner who has not confirmed their email yet: the project is saved and waits for that, not for bids
+      ...(real ? { ws: { ...vm.t.ws, noBids: currentAccount()?.profile.role === 'homeowner' && !canInteract() ? real.postedHeld
+        : currentAccount()?.whatsappLive ? real.postedNoBidsWa : real.postedNoBids } } : {}),
     },
     // the floating WhatsApp button sat on top of "open WhatsApp again" on the page that follows a request, and on a phone it
     // covers the end of a form's fields and buttons, so it stays off the form pages there
     showWaFab: vm.showWaFab && !vm.r?.sent && !(PHONE() && ['post', 'join', 'contact', 'auth'].includes(String(state.route))),
     post: vm.post?.step4 ? { ...vm.post, nextLabel: real ? real.publish : copy.sendWhatsApp } : vm.post,
+    // (031) the page after publishing, for a homeowner who has not confirmed their email: the first thing that happens next
+    // is their confirming it, then contractors see the project
+    ...(real && vm.post?.done && currentAccount()?.profile.role === 'homeowner' && !canInteract() && Array.isArray(vm.post.doneSteps)
+      ? { post: { ...vm.post, doneSteps: [{ ...(vm.post.doneSteps[0] || { n: 1 }), text: real.postedHeld }, ...vm.post.doneSteps.slice(1)] } } : {}),
   }, state, host), state, host), state, host), state, host), state, host), state, host), state, host), state, host)), state, host));
 }
 

@@ -24,6 +24,9 @@ export interface LaunchCopy {
     /** The terms checkbox (as on the homeowner's sign-up), and what joining costs. */
     agree: string; terms: string; and: string; privacy: string; agreeError: string;
     costTitle: string; cost: string; costLink: string;
+    /** The three-step form: the steps' names and headings, moving between them, the grouped trades, the optional note. */
+    steps: string[]; stepTitles: string[]; next: string; back: string; stepOf: (n: number, of: number) => string;
+    picked: (n: number, max: number) => string; remove: string; addNote: string; showPassword: string; hidePassword: string; costShort: string;
   };
   /** The skip link at the top of every page. */
   skip: string;
@@ -61,6 +64,11 @@ export const LAUNCH_COPY: Record<'ar' | 'en', LaunchCopy> = {
       costTitle: 'التكلفة',
       cost: 'الانضمام وتقديم العروض مجانًا. وعلى المشاريع التي تفوز بها، تُخصم رسوم خدمة 9% من قيمة العمل المتفق عليها، مع ضريبة القيمة المضافة على الرسوم، من كل دفعة تُصرف لك.',
       costLink: 'تفاصيل الأسعار',
+      steps: ['المنشأة', 'الحساب', 'التخصصات'], stepTitles: ['عن منشأتك', 'حسابك في ترميم', 'ما الأعمال التي تنفّذونها؟'],
+      next: 'التالي', back: 'رجوع', stepOf: (n, of) => `الخطوة ${n} من ${of}`,
+      picked: (n, max) => `اخترت ${n} من ${max}`, remove: 'إزالة', addNote: '+ أضف نبذة عن أعمالكم (اختياري)',
+      showPassword: 'إظهار', hidePassword: 'إخفاء',
+      costShort: 'الانضمام وتقديم العروض مجانًا، و9% فقط على المشاريع التي تفوز بها.',
     },
     skip: 'تخطَّ إلى المحتوى',
     meta: {
@@ -114,6 +122,11 @@ export const LAUNCH_COPY: Record<'ar' | 'en', LaunchCopy> = {
       costTitle: 'What it costs',
       cost: 'Joining and bidding are free. On work you win, a 9% commission on the agreed work value, plus VAT on the commission, is deducted from each payment released to you.',
       costLink: 'See pricing',
+      steps: ['Business', 'Account', 'Trades'], stepTitles: ['About your business', 'Your Tarmem account', 'What work do you do?'],
+      next: 'Next', back: 'Back', stepOf: (n, of) => `Step ${n} of ${of}`,
+      picked: (n, max) => `${n} of ${max} chosen`, remove: 'Remove', addNote: '+ Add a note about your work (optional)',
+      showPassword: 'Show', hidePassword: 'Hide',
+      costShort: 'Joining and bidding are free; 9% only on the work you win.',
     },
     skip: 'Skip to content',
     meta: {

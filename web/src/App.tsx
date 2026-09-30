@@ -28,6 +28,8 @@ import { SITE_ORIGIN, routeHref, titleFor } from './launch/urls';
 import RealAuthPage from './platform/AuthPage';
 import { platformOn } from './platform/client';
 import { PLATFORM_COPY } from './platform/copy';
+import VerifyBanner from './platform/VerifyBanner';
+import { confirmEmailVerification, currentAccount, refreshAccount } from './platform/session';
 import { PAGES, type Route } from './routes';
 import { LAUNCH_COPY } from './launch/copy';
 import { useLaunchActions, useLogicState, useViewModel, type VM } from './state/viewModel';
@@ -141,6 +143,28 @@ export default function App() {
     return () => { cancel(); document.removeEventListener('keydown', onKey); };
   }, [navOpen, host]);
 
+  // (031) the link in the "confirm your email" mail: https://www.tarmem.sa/?verify=<token>. It works signed in or not;
+  // the address loses the token at once, and the page says what happened.
+  useEffect(() => {
+    if (!isLaunch || !platformOn) return;
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('verify');
+    if (!token) return;
+    url.searchParams.delete('verify');
+    window.history.replaceState(window.history.state, '', url.pathname + (url.search || '') + url.hash);
+    const copy = PLATFORM_COPY[lang];
+    void confirmEmailVerification(token).then(async (r) => {
+      if (r.ok) {
+        if (currentAccount()) await refreshAccount();
+        host.setLogicState({ siteNotice: currentAccount() ? copy.verifiedNow : copy.verifiedSignIn, siteNoticeTone: 'ok' });
+        return;
+      }
+      host.setLogicState({ siteNotice: r.error === 'expired' ? copy.verifyExpired : r.error === 'network' ? copy.err.network : copy.verifyInvalid, siteNoticeTone: 'warn' });
+    });
+    // once, as the page opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // The logic seeds itself when it mounts; until then there is nothing to bind to.
   if (!vm.t) return null;
 
@@ -156,6 +180,7 @@ export default function App() {
         <ShellBlocks vm={vm} />
         <main id="main" tabIndex={-1} style={{ flex: 1 }}>
           {isLaunch ? <LaunchNotice vm={vm} /> : null}
+          {isLaunch && platformOn ? <VerifyBanner vm={vm} /> : null}
           {/* a sentence for the whole page (an account erased, a project that could not be withdrawn): it sits just below the
               fixed header — lower while the header floats over the home page's film — never under it */}
           {isLaunch && state.siteNotice ? (

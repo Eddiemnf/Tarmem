@@ -93,8 +93,12 @@ check('join as a contractor opens the application form, not sign-up', (await rou
 check('no demo account switcher anywhere on it', (await page.locator('text=تصفّح المنصة بصفتك').count()) === 0);
 if (!accounts) {
 await page.locator('#join-company').fill('مؤسسة البناء المتقن');
+await page.locator('.join-card button', { hasText: 'التالي' }).click(); await page.waitForTimeout(150);
 await page.locator('#join-person').fill('خالد العتيبي');
-await page.locator('button.tchip').first().click();
+await page.locator('.join-card button', { hasText: 'التالي' }).click(); await page.waitForTimeout(150);
+await page.locator('.join-groups button[aria-expanded]').first().click(); await page.waitForTimeout(100);
+await page.locator('.join-groups .tchip').first().click();
+await page.locator('#join-agree').check();
 await page.locator('button', { hasText: 'أرسل الطلب عبر واتساب' }).click();
 await page.waitForTimeout(300);
 let joinUrls = await opened();
@@ -285,6 +289,14 @@ await page.waitForTimeout(300);
 check('a message without a topic is refused, and says so where a screen reader hears it',
   (await page.locator('#ct-err[role="alert"]').count()) === 1 && (await page.locator('select[name="topic"]').getAttribute('aria-invalid')) === 'true' && (await page.locator('input[name="name"]').getAttribute('aria-invalid')) === 'false');
 await load(null, 'join');
+// the three steps: the business, the account, then the trades with the consent
+await page.locator('#join-company').fill('مؤسسة البناء المتقن');
+await page.locator('.join-card button', { hasText: 'التالي' }).click(); await page.waitForTimeout(150);
+await page.locator('#join-person').fill('خالد العتيبي');
+if (await page.locator('#join-mobile').count()) {
+  await page.locator('#join-mobile').fill('0501112223'); await page.locator('#join-email').fill('khalid@build.example'); await page.locator('#join-password').fill('contractor-pass-1');
+}
+await page.locator('.join-card button', { hasText: 'التالي' }).click(); await page.waitForTimeout(150);
 const join = await page.evaluate(() => ({ agree: !!document.querySelector('#join-agree[required]'), terms: document.querySelector('main label a[data-route="terms"]')?.getAttribute('href'),
   cost: document.querySelector('main')?.innerText.includes('9%'), pricing: document.querySelector('main a[data-route="pricing"]')?.getAttribute('href') }));
 check('the application asks to accept the terms and privacy policy, and says what joining costs', join.agree && join.terms === '/terms' && join.cost && join.pricing === '/pricing', JSON.stringify(join));

@@ -102,6 +102,9 @@ export async function installSupabaseMock(context, supabaseUrl) {
 
     const admin = db.profiles.some((p) => p.id === me && p.role === 'admin');
     const isVerified = (id) => db.profiles.some((p) => p.id === id && p.role === 'contractor') && db.applications.some((a) => a.user_id === id && a.status === 'verified');
+    // (031) a confirmed email (a profile from before 031, with no such field, counts as confirmed)
+    const confirmedEmail = (id) => { const p = db.profiles.find((x) => x.id === id); return !p || p.role === 'admin' || !('email_verified_at' in p) || Boolean(p.email_verified_at && String(p.email_verified_email || '').toLowerCase() === String(p.email || '').toLowerCase()); };
+    const canDeal = (id) => confirmedEmail(id);
     // storage: a private bucket, <owner>/<project>/<file>; owners add to their own projects, owners and admins read
     const BUCKET = '/storage/v1/object/';
     const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
@@ -159,15 +162,18 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (method === 'POST') {
         if (!me || body.id !== me || !['homeowner', 'contractor'].includes(body.role)) return refuse(route, 'profiles: not your own row, or not an allowed role');
         const rule = broken('profiles', body); if (rule) return checkError(route, rule, 'profiles');
-        const row = { company: null, ...body, email: db.users.find((u) => u.id === me).email, created_at: new Date().toISOString() };
+        const row = { company: null, ...body, email: db.users.find((u) => u.id === me).email, created_at: new Date().toISOString(),
+          // (031) with db.verifyNewAccounts on, a new account starts unconfirmed and the "confirm your email" mail goes out
+          ...(db.verifyNewAccounts ? { email_verified_at: null, email_verified_email: null } : {}) };
         db.profiles.push(row);
+        if (db.verifyNewAccounts) (db.verifyMails ||= []).push({ user: me, email: row.email });
         return wantsRows ? rows([row]) : send(route, 201);
       }
     }
     if (path === '/rest/v1/projects') {
       const verifiedContractor = db.profiles.some((p) => p.id === me && p.role === 'contractor') && db.applications.some((a) => a.user_id === me && a.status === 'verified');
       const inProj = (url.searchParams.get('id') || '').startsWith('in.(') ? url.searchParams.get('id').slice(4, -1).split(',') : null;
-      if (method === 'GET') return rows(db.projects.filter((p) => (!inProj || inProj.includes(p.id)) && (admin || p.owner_id === me || (verifiedContractor && (p.status === 'open' || db.bids.some((b) => b.project_id === p.id && b.contractor_id === me)))) && (url.searchParams.get('status') !== 'neq.withdrawn' || p.status !== 'withdrawn')).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      if (method === 'GET') return rows(db.projects.filter((p) => (!inProj || inProj.includes(p.id)) && (admin || p.owner_id === me || (verifiedContractor && ((p.status === 'open' && canDeal(p.owner_id)) || p.contractor_id === me || db.bids.some((b) => b.project_id === p.id && b.contractor_id === me)))) && (url.searchParams.get('status') !== 'neq.withdrawn' || p.status !== 'withdrawn')).sort((a, b) => b.created_at.localeCompare(a.created_at)));
       if (method === 'POST') {
         const assigned = ['id', 'code', 'owner_id', 'status', 'created_at'].filter((k) => k in body);
         if (assigned.length) return refuse(route, 'projects: the database assigns ' + assigned.join(', '));
@@ -192,6 +198,28 @@ export async function installSupabaseMock(context, supabaseUrl) {
       return send(route, 201);
     }
     if (path === '/rest/v1/platform_flags') return rows(me ? [{ key: 'payments_live', enabled: Boolean(db.paymentsLive) }, { key: 'whatsapp_live', enabled: Boolean(db.whatsappLive) }, { key: 'otp_live', enabled: Boolean(db.otpLive) }] : []);
+    // (031) explore first, verify before dealing
+    const gateError = (r) => send(r, 403, { code: '42501', details: null, hint: null, message: 'verify your account first: confirm your email and add your name and mobile' });
+    if (path === '/rest/v1/rpc/request_email_verification' && method === 'POST') {
+      if (!me) return refuse(route, 'sign in first');
+      const n = (db.verifyMails || []).filter((m) => m.user === me).length;
+      if (confirmedEmail(me)) return send(route, 200, { ok: true, status: 'already' });
+      if (n >= 3) return send(route, 200, { ok: false, status: 'too_many' });
+      (db.verifyMails ||= []).push({ user: me, email: db.profiles.find((p) => p.id === me)?.email });
+      return send(route, 200, { ok: true, status: 'sent' });
+    }
+    if (path === '/rest/v1/rpc/confirm_email_verification' && method === 'POST') {
+      const hit = (db.verifyTokens || {})[body.p_token];
+      if (!hit) return send(route, 200, { ok: false, error: 'invalid' });
+      if (hit === 'expired') return send(route, 200, { ok: false, error: 'expired' });
+      const p = db.profiles.find((x) => x.id === hit);
+      if (!p) return send(route, 200, { ok: false, error: 'invalid' });
+      p.email_verified_at = new Date().toISOString(); p.email_verified_email = p.email;
+      return send(route, 200, { ok: true, role: p.role });
+    }
+    if (method === 'POST' && me && !canDeal(me) && (path === '/rest/v1/bids' || path === '/rest/v1/project_messages' || /^\/rest\/v1\/rpc\/(sign_agreement_(homeowner|contractor)|change_request_(create|approve))$/.test(path))) return gateError(route);
+    if (method === 'PATCH' && me && !canDeal(me) && path === '/rest/v1/bids') return gateError(route);
+    // a verified contractor does not see the open project of a homeowner who has not confirmed their email
     if (path === '/rest/v1/project_messages') {
       // the two parties read their thread; the team reads every message (supabase/030: "admins read project messages")
       const mine = (r) => me && (admin || db.projects.some((p) => p.id === r.project_id && p.owner_id === me) || r.contractor_id === me);

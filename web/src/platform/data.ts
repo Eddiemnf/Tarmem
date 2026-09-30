@@ -18,6 +18,9 @@ export interface Profile {
   email: string | null;
   city: string;
   mobile_verified_at?: string | null;
+  /** (031) set only by the link in Tarmem's "confirm your email" mail, for the address it was sent to. */
+  email_verified_at?: string | null;
+  email_verified_email?: string | null;
   deleted_at?: string | null;
   company: string | null;
   lang: 'ar' | 'en';

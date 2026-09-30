@@ -161,6 +161,8 @@ function failure(error: Failure): PlatformError {
   const code = String(error?.code || '');
   const text = `${code} ${error?.message || ''} ${error?.details || ''}`.toLowerCase();
   if (/invalid login|invalid_credentials/.test(text)) return 'wrong';
+  // (031) the database's "verify before dealing": bids, messages, choosing, signing, change requests
+  if (/verify your account first|people who can deal/.test(text)) return 'verifyFirst';
   if (/not confirmed|email_not_confirmed|confirm your email first/.test(text)) return 'unconfirmed';
   // the database no longer accepts this sign-in (it expired, or ended on another device)
   if (/jwt|pgrst30[0-9]|refresh_token_not_found|session_not_found|invalid refresh token/.test(text) || (error?.status === 401 && !/password|credentials/.test(text))) { endSession(); return 'session'; }
@@ -425,6 +427,45 @@ export async function deleteMyAccount(): Promise<Result> {
 /** Whether the person who just signed up still has to confirm their mobile by WhatsApp code. The guard reads this the
     moment the account appears, so the sign-in page is not swapped for the dashboard before the step shows. */
 let codeSkipped = false;
+/** (031) The account has confirmed its email with Tarmem's own link, for the address it still signs in with. A database
+    from before 031 (no such column) counts every account as confirmed, as it did then; the team always is. */
+export function emailConfirmed(a: Account | null = account): boolean {
+  if (!a) return false;
+  if (a.profile.role === 'admin' || !('email_verified_at' in a.profile)) return true;
+  const sent = String(a.profile.email_verified_email || '').toLowerCase(), now = String(a.profile.email || '').toLowerCase();
+  return Boolean(a.profile.email_verified_at && sent && sent === now);
+}
+
+/** (031) May this account deal with the other side (bid, message, choose, sign, change requests)? The database decides the
+    same thing (can_interact); this only lets the site say so before asking. */
+export function canInteract(a: Account | null = account): boolean {
+  if (!a) return false;
+  if (a.profile.role === 'admin') return true;
+  return emailConfirmed(a) && Boolean(a.profile.full_name?.trim()) && Boolean(a.profile.mobile?.trim()) && (!a.otpLive || Boolean(a.profile.mobile_verified_at));
+}
+
+/** (031) "Send the link again": at most three an hour, the database says. */
+export async function requestEmailVerification(): Promise<Result<'sent' | 'already'>> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const { data, error } = await supabase.rpc('request_email_verification');
+    if (error) return { error: failure(error) };
+    const r = (data || {}) as { ok?: boolean; status?: string };
+    if (r.status === 'too_many') return { error: 'rate' };
+    return r.ok ? { ok: r.status === 'already' ? 'already' : 'sent' } : { error: 'generic' };
+  } catch { return { error: 'network' }; }
+}
+
+/** (031) The link in the mail: the token is the proof, so it works signed in or not. */
+export async function confirmEmailVerification(token: string): Promise<{ ok: boolean; error?: 'invalid' | 'expired' | 'used' | 'network'; already?: boolean }> {
+  if (!supabase) return { ok: false, error: 'invalid' };
+  try {
+    const { data, error } = await supabase.rpc('confirm_email_verification', { p_token: token });
+    if (error) return { ok: false, error: 'network' };
+    return (data || { ok: false, error: 'invalid' }) as { ok: boolean; error?: 'invalid' | 'expired' | 'used'; already?: boolean };
+  } catch { return { ok: false, error: 'network' }; }
+}
+
 export function needsMobileCode(): boolean {
   return Boolean(account?.otpLive && !account.profile.mobile_verified_at && !codeSkipped);
 }
