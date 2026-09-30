@@ -12,11 +12,12 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { installSupabaseMock } from './supabase-mock.mjs';
+import { installSupabaseMock, passTwoStep } from './supabase-mock.mjs';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const vercel = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
-const CSP = vercel.headers.flatMap((h) => (h.source === '/(.*)' ? h.headers : [])).find((h) => h.key === 'Content-Security-Policy')?.value;
+const EVERY_PAGE = vercel.headers.flatMap((h) => (h.source === '/(.*)' ? h.headers : []));
+const CSP = EVERY_PAGE.find((h) => h.key === 'Content-Security-Policy')?.value;
 if (!CSP) { console.log('FAIL  vercel.json sends no Content-Security-Policy on every page'); process.exit(1); }
 const directives = Object.fromEntries(CSP.split(';').map((d) => d.trim().split(/\s+/)).filter((d) => d[0]).map(([k, ...v]) => [k, v]));
 const site = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
@@ -27,6 +28,19 @@ const results = [];
 const check = (name, ok, detail = '') => results.push(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
 check('script-src is \'self\' alone: no inline scripts, no eval, no other host', (directives['script-src'] || []).join(' ') === "'self'", (directives['script-src'] || []).join(' '));
 check('the policy has no \'unsafe-eval\' anywhere, and objects are off', !CSP.includes('unsafe-eval') && (directives['object-src'] || []).join(' ') === "'none'");
+// the hosting rules beside the policy: a window the site opens elsewhere keeps its link to it (a payment page may need it),
+// while a page elsewhere that opens the site gets none; hidden files are never answered with the site; security.txt
+check('every page is sent with Cross-Origin-Opener-Policy: same-origin-allow-popups', EVERY_PAGE.some((h) => h.key === 'Cross-Origin-Opener-Policy' && h.value === 'same-origin-allow-popups'));
+const spa = vercel.rewrites.find((r) => r.destination === '/index.html');
+const spaMatches = (path) => new RegExp(`^${spa.source}$`).test(path);
+check('a hidden path (/.env, /.git/config, /.well-known/…) is not answered with the site, so it is a 404; every page still is',
+  ['/.env', '/.git/config', '/.git/HEAD', '/.well-known/anything', '/project/.hidden', '/assets/app.js', '/api/x'].every((p) => !spaMatches(p))
+  && ['/', '/admin', '/project/P-2001', '/firm/some-firm', '/signin', '/reset-password'].every(spaMatches), spa.source);
+const securityTxt = readFileSync(new URL('../public/.well-known/security.txt', import.meta.url), 'utf8');
+const expires = new Date(/^Expires: (.+)$/m.exec(securityTxt)?.[1] || 0);
+check('/.well-known/security.txt names the team\'s address and expires within a year, with at least 30 days left (RFC 9116: renew it before then)',
+  /^Contact: mailto:support@tarmem\.sa$/m.test(securityTxt) && /^Canonical: https:\/\/www\.tarmem\.sa\/\.well-known\/security\.txt$/m.test(securityTxt)
+  && expires - new Date() > 30 * 864e5 && expires - new Date() < 366 * 864e5, expires.toISOString());
 
 // ---------------------------------------------------------------- the build, served as Vercel would
 const answers = async () => { try { return (await fetch(BASE_URL)).ok; } catch { return false; } };
@@ -50,7 +64,7 @@ async function newContext(label, viewport = { width: 1280, height: 900 }) {
   // Vercel's header on every response from the site; the database's host is answered by the stand-in
   await context.route(`${ORIGIN}/**`, async (route) => {
     const response = await route.fetch();
-    await route.fulfill({ response, headers: { ...response.headers(), 'content-security-policy': CSP } });
+    await route.fulfill({ response, headers: { ...response.headers(), ...Object.fromEntries(EVERY_PAGE.map((h) => [h.key.toLowerCase(), h.value])) } });
   });
   const db = await installSupabaseMock(context, site.supabase.url);
   await context.addInitScript(() => {
@@ -92,6 +106,8 @@ const clickAll = async (page, selector) => {
   const response = await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('header');
   check('the preview answers with the exact header vercel.json sends', response.headers()['content-security-policy'] === CSP);
+  const txt = await fetch(BASE_URL + '.well-known/security.txt').then(async (r) => (r.ok ? r.text() : ''), () => '');
+  check('the build serves /.well-known/security.txt', txt.includes('Contact: mailto:support@tarmem.sa'));
   const ran = await page.evaluate(() => { const s = document.createElement('script'); s.textContent = 'window.__inlineRan = true'; document.head.appendChild(s); return window.__inlineRan === true; });
   await page.waitForTimeout(200);
   const caught = await page.evaluate(() => (window.__csp || []).some((v) => v.directive === 'script-src-elem' || v.directive === 'script-src'));
@@ -164,6 +180,8 @@ for (const person of people) {
   await page.locator('form.authcard button[type="submit"]').click();
   await page.waitForTimeout(1200);
   await collect(page, `${label} /signin`);
+  // (032) the team's second step: the app's set-up, with its QR code (an image the page makes itself, img-src data:)
+  if (person.role === 'admin') { check('the team\'s two-step set-up works under the policy', await passTwoStep(page, db).catch(() => false)); views += 1; await collect(page, `${label} two-step`); }
   const projectTabs = async (p) => clickAll(p, 'main [role="tab"]');
   if (person.role === 'homeowner') {
     await visit(page, label, 'dashboard');

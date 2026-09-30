@@ -702,3 +702,31 @@ see), so they should be erased before launch from the console (Users → view �
 in 028: `erase_account` now withdraws the person's open projects and waiting bids, and deletes their contractor
 application (matched by account or email), so an erased contractor no longer shows as verified. 8 local checks
 (`supabase/tests/local-erasure-cleanup.mjs`); 022's 38 still pass.
+
+## Two-step sign-in for the team, and the hosting polish — 30 September 2026 (supabase/032)
+
+After a security comparison with well-run sites, the owner asked for the remaining gaps to be closed:
+
+- **The admin console asks for a second step.** After the password, an admin types the six-digit code an authenticator
+  app on their phone shows (Google Authenticator, Microsoft Authenticator or any other). The first sign-in sets the app
+  up: a QR code to scan, or a key to type (`web/src/platform/AdminTwoStep.tsx`); every later sign-in asks only for the
+  code, on the console and the inbox alike. It is Supabase Auth's own TOTP factor, switched on for the project
+  (Authentication → Multi-Factor: TOTP enabled, up to 10 per account).
+- **The database insists on it (032).** `is_admin()` is true only for a session that has passed both steps (`aal2` in
+  its token). With the password alone the account is an ordinary one: every row rule and function that asks
+  `is_admin()` — the console's lists, the team's actions, the private files, analytics — answers as it does for a
+  customer. Run 032 only once the site with the step is live. 16 local checks (`supabase/tests/local-admin-two-step.mjs`);
+  the browser tests set the app up, refuse a wrong code, accept one typed in Arabic digits, and sign in again with the
+  code alone (`tests/platform.mjs` T and T2, the phone sweep, the CSP walk).
+- **A lost phone:** Supabase → Authentication → Users → the admin's account → *Remove MFA factors* (or in the SQL Editor:
+  `delete from auth.mfa_factors where user_id = (select id from auth.users where email = '…');`). The next sign-in on
+  the site sets the app up again.
+- **Hosting:** `/.well-known/security.txt` says where to report a security problem (support@tarmem.sa; renew its
+  `Expires` date before 1 September 2027 — `tests/csp.mjs` fails when fewer than 30 days are left); hidden paths such as
+  `/.env` and `/.git/config` answer 404 instead of the home page; every page carries
+  `Cross-Origin-Opener-Policy: same-origin-allow-popups` (a page elsewhere that opens Tarmem gets no handle on it, while a
+  window Tarmem opens, such as a future payment page, keeps working).
+- **Email authentication, waiting on the owner:** Gmail for tarmem.sa has no DKIM signature yet (Resend's is in place),
+  and DMARC only reports (`p=none`). Google Admin → Apps → Google Workspace → Gmail → Authenticate email → tarmem.sa →
+  Generate new record (2048-bit, prefix `google`) gives a TXT record for `google._domainkey`; once it is added at T2 and
+  "Start authentication" is pressed, DMARC can move to `p=quarantine`.

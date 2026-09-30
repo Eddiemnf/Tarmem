@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { confirmLink, expiredFragment, installSupabaseMock, recoveryFragment } from './supabase-mock.mjs';
+import { confirmLink, expiredFragment, installSupabaseMock, passTwoStep, recoveryFragment, totp } from './supabase-mock.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:5173/').replace(/demo\/?$/, '');
 const site = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
@@ -402,7 +402,39 @@ db.profiles[0].role = 'admin'; // what the owner does in the SQL editor
 const before = db.visits.length;
 await open('dashboard');
 await settle(900);
+// T — the team's second step (supabase/032). The first time, the console asks for an authenticator app to be set up; the
+// database gives the account no admin powers until the app's code is in (the stand-in imitates 032)
+const gate = page.locator('.twostep');
+const factorOf = () => db.factors.filter((f) => f.user_id === db.users[0].id);
+const keyOnPage = async () => { await page.locator('#ts-secret').waitFor({ timeout: 8000 }).catch(() => undefined); return (await page.locator('#ts-secret').textContent().catch(() => '')).replace(/\s+/g, ''); };
+const firstKey = await keyOnPage();
+check('an admin lands on the two-step set-up first: three steps, a QR code and its key — no console and no team bar behind it',
+  (await pathname()) === '/admin' && (await gate.getAttribute('data-mode').catch(() => null)) === 'setup' && (await page.locator('.twostep ol > li').count()) === 3
+  && (await page.locator('.twostep img.ts-qr').evaluate((img) => img.complete && img.naturalWidth > 0).catch(() => false)) && /^[A-Z2-7]{32}$/.test(firstKey)
+  && (await page.locator('.side[data-tab]').count()) === 0 && (await page.locator('[data-route="inbox"]').count()) === 0, `${await pathname()} key=${firstKey.length}`);
+check('…the key is the one Supabase Auth made for this account, for "Tarmem", waiting to be confirmed', factorOf().length === 1 && factorOf()[0].secret === firstKey && factorOf()[0].issuer === 'Tarmem' && factorOf()[0].status === 'unverified');
+await open('admin');
+const secondKey = await keyOnPage();
+check('opening the page again starts afresh: the unfinished set-up is removed, so only one ever waits', factorOf().length === 1 && factorOf()[0].secret === secondKey && secondKey !== firstKey);
+await page.locator('header a.brand[data-route="home"]').click(); await settle(400);
+await page.locator('header .mainnav a[data-route="admin"]').click(); await settle(400);
+check('…but leaving it and coming back within the visit shows the same code, so a scan already made still counts', (await keyOnPage()) === secondKey && factorOf().length === 1);
+const near = [-30000, 0, 30000].map((d) => totp(secondKey, Date.now() + d));
+let wrong = 123456; while (near.includes(String(wrong))) wrong += 1;
+await page.locator('#ts-code').fill(String(wrong));
+await page.locator('.twostep button[type="submit"]').click(); await settle(700);
+check('a wrong code is refused with a sentence, and nothing opens', (await page.locator('.twostep .autherr').innerText().catch(() => '')).includes('الرمز غير صحيح')
+  && factorOf()[0].status === 'unverified' && (await page.locator('.side[data-tab]').count()) === 0);
+const rightCode = totp(secondKey);
+await page.locator('#ts-code').fill(rightCode.replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]));
+const typed = await page.locator('#ts-code').inputValue();
+await page.locator('.twostep button[type="submit"]').click();
+await page.waitForSelector('.side[data-tab]', { timeout: 8000 }).catch(() => undefined); await settle(500);
+check('the right code (typed in Arabic digits, kept as digits) turns it on: the console opens, with a note that the code is now asked at every sign-in',
+  typed === rightCode && factorOf()[0].status === 'verified' && (await gate.count()) === 0 && (await page.locator('.sitenotice', { hasText: 'تم تفعيل التحقق بخطوتين' }).count()) === 1, typed);
 check('an admin lands on the designed console', (await pathname()) === '/admin' && (await page.locator('.side[data-tab="analytics"]').count()) === 1, await pathname());
+await open('admin');
+check('the session keeps both steps: opening the console again asks for nothing', (await gate.count()) === 0 && (await page.locator('.side[data-tab="analytics"]').count()) === 1);
 await page.locator('button.acct').click();
 await page.locator('.acctmenu .acctitem', { hasText: 'الإعدادات' }).click();
 await settle(600);
@@ -897,6 +929,24 @@ db.paymentsLive = true;
 db.wallet = [{ id: 7, user_id: db.users[0].id, project_id: db.projects.find((p) => p.code === 'P-9001').id, type: 'deposit', method: 'mada', amount: 24000, status: 'pending', created_at: new Date().toISOString() }];
 db.profiles[0].role = 'admin';
 await open('admin');
+// T2 — signed in again (the password alone): the console and the inbox ask only for the code
+await page.locator('.twostep').waitFor({ timeout: 8000 }).catch(() => undefined);
+check('signed in again, the console asks only for the code: no QR, no key, and how to recover from a lost phone', (await page.locator('.twostep').getAttribute('data-mode').catch(() => null)) === 'code'
+  && (await page.locator('.twostep img, #ts-secret').count()) === 0 && (await page.locator('.twostep', { hasText: 'Remove MFA factors' }).count()) === 1 && (await page.locator('.side[data-tab]').count()) === 0);
+await open('inbox');
+check('…and so does the inbox, with none of its lists behind it', (await page.locator('.twostep[data-mode="code"]').count()) === 1 && (await page.locator('main table').count()) === 0);
+const tries = db.twoStepTries.length;
+await page.locator('#ts-code').fill('12');
+await page.locator('.twostep button[type="submit"]').click(); await settle(300);
+check('a code that is not six digits is refused on the page, without asking Supabase', (await page.locator('.twostep .autherr').count()) === 1 && db.twoStepTries.length === tries);
+await page.locator('.twostep .ts-signout').click(); await settle(600);
+check('"Sign out" on the step signs out and goes home', (await pathname()) === '/' && (await page.locator('header [data-route="auth"]:not([data-signup])').count()) >= 1);
+await open('signin'); await page.locator('#au-email').fill('sara@example.com'); await page.locator('#au-password').fill('long-enough-1'); await submit.click(); await settle(900);
+check('signing in lands on the step (the second half of signing in)', (await pathname()) === '/admin' && (await page.locator('.twostep[data-mode="code"]').count()) === 1);
+check('the code from the app opens the console', (await passTwoStep(page, db)) && (await page.locator('.side[data-tab]').count()) > 0 && db.twoStepTries.length === tries + 1);
+await open('inbox');
+check('…and the inbox, for the rest of the session', (await page.locator('.twostep').count()) === 0 && (await page.locator('main table').count()) > 0);
+await open('admin');
 await page.locator('.side[data-tab="payments"]').click();
 await settle(900);
 check('with payments on, the admin\'s payments tab lists the deposit awaiting confirmation, with who and which project', (await page.locator('main', { hasText: 'طلبات بانتظار التأكيد' }).count()) === 1 && (await page.locator('main', { hasText: 'سارة العتيبي' }).count()) === 1 && (await page.locator('main', { hasText: 'P-9001' }).count()) === 1);
@@ -1298,6 +1348,7 @@ const signOutOf = async (pg) => { await pg.locator('button.acct').click(); await
   const side = async (id) => { await pg.locator(`.side[data-tab="${id}"]`).click(); await pg.waitForTimeout(500); };
   const openProject = async (code) => { await go(pg, 'admin'); await side('overview'); await pg.locator('tr.row-h', { hasText: code }).first().click(); await pg.waitForTimeout(900); };
   await signIn(1);
+  await passTwoStep(pg, adb);
   // P1 — nobody is invisible: a contractor account with no application is listed with the people, not in the queue
   await side('users');
   check('a contractor account with no application is listed under Users, marked «بلا طلب توثيق»', (await pg.locator('main tr', { hasText: 'مؤسسة البدر' }).locator('.tag', { hasText: 'بلا طلب توثيق' }).count()) === 1);

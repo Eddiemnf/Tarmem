@@ -29,7 +29,7 @@ import RealAuthPage from './platform/AuthPage';
 import { platformOn } from './platform/client';
 import { PLATFORM_COPY } from './platform/copy';
 import VerifyBanner from './platform/VerifyBanner';
-import { confirmEmailVerification, currentAccount, refreshAccount } from './platform/session';
+import { confirmEmailVerification, currentAccount, refreshAccount, twoStepPending } from './platform/session';
 import { PAGES, type Route } from './routes';
 import { LAUNCH_COPY } from './launch/copy';
 import { useLaunchActions, useLogicState, useViewModel, type VM } from './state/viewModel';
@@ -37,6 +37,7 @@ import { useLaunchActions, useLogicState, useViewModel, type VM } from './state/
 // signed-in only: loaded when first opened
 const InboxPage = lazy(() => import('./platform/InboxPage'));
 const ResetPage = lazy(() => import('./platform/ResetPage'));
+const AdminTwoStep = lazy(() => import('./platform/AdminTwoStep'));
 
 type Page = ComponentType<{ vm: VM }> | LazyExoticComponent<ComponentType<{ vm: VM }>>;
 
@@ -168,7 +169,9 @@ export default function App() {
   // The logic seeds itself when it mounts; until then there is nothing to bind to.
   if (!vm.t) return null;
 
-  const Page: Page = (isLaunch && LAUNCH_PAGES[state.route]) || PAGES[state.route as Route] || PAGES.home;
+  // (032) the console and the inbox open only once this session has passed the team's second step: the code from the app
+  const secondStep = isLaunch && platformOn && (state.route === 'admin' || state.route === 'inbox') && twoStepPending();
+  const Page: Page = (secondStep && AdminTwoStep) || (isLaunch && LAUNCH_PAGES[state.route]) || PAGES[state.route as Route] || PAGES.home;
   const skip = LAUNCH_COPY[lang].skip;
 
   return (

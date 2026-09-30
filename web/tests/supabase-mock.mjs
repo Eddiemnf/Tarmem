@@ -7,9 +7,47 @@
    and the two public forms cannot be read back. The rules themselves are tested against the real
    database by supabase/tests (they cannot be proven from here). */
 
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
-const jwt = (sub) => `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.test`;
-const subOf = (header) => { try { return JSON.parse(Buffer.from(String(header || '').split('.')[1], 'base64url').toString()).sub || null; } catch { return null; } };
+/** A session's token. `aal2` is a session that has passed the second step as well as the password (supabase/032). */
+const jwt = (sub, aal = 'aal1') => `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600,
+  aal, amr: [{ method: aal === 'aal2' ? 'totp' : 'password', timestamp: Math.floor(Date.now() / 1000) }] })}.test`;
+const claimsOf = (header) => { try { return JSON.parse(Buffer.from(String(header || '').split('.')[1], 'base64url').toString()) || {}; } catch { return {}; } };
+const subOf = (header) => claimsOf(header).sub || null;
+const aalOf = (header) => claimsOf(header).aal || null;
+
+/* An authenticator app, as far as the tests need one: its key in base32, and the six digits it shows (RFC 6238: SHA-1,
+   thirty seconds). The stand-in checks codes the way Supabase Auth does, a step either side of now. */
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const base32 = (buf) => { let bits = 0, value = 0, out = ''; for (const byte of buf) { value = ((value << 8) | byte) & 0xffffff; bits += 8; while (bits >= 5) { out += B32[(value >>> (bits - 5)) & 31]; bits -= 5; } } return bits ? out + B32[(value << (5 - bits)) & 31] : out; };
+const unbase32 = (text) => { let bits = 0, value = 0; const out = []; for (const ch of String(text).replace(/[\s=]/g, '').toUpperCase()) { value = ((value << 5) | B32.indexOf(ch)) & 0xffffff; bits += 5; if (bits >= 8) { out.push((value >>> (bits - 8)) & 255); bits -= 8; } } return Buffer.from(out); };
+/** The code an authenticator app shows for this key at this moment. */
+export function totp(secret, at = Date.now()) {
+  const counter = Buffer.alloc(8); counter.writeBigUInt64BE(BigInt(Math.floor(at / 30000)));
+  const h = createHmac('sha1', unbase32(secret)).update(counter).digest();
+  return String((h.readUInt32BE(h[h.length - 1] & 15) & 0x7fffffff) % 1000000).padStart(6, '0');
+}
+/** The team's second step (supabase/032), as an admin does it: when the console or the inbox asks, the code their app shows
+    now is typed in — the app is set up first, from the key on the page, if the account has none yet. Says whether it asked. */
+export async function passTwoStep(page, db) {
+  await page.waitForFunction(() => document.querySelector('.twostep, .side[data-tab]') || (document.querySelector('main h1') && !document.querySelector('main [aria-busy="true"]')), null, { timeout: 8000 }).catch(() => undefined);
+  const gate = page.locator('.twostep');
+  if (!(await gate.count())) return false;
+  let secret;
+  if ((await gate.getAttribute('data-mode')) === 'setup') {
+    await page.locator('#ts-secret').waitFor({ timeout: 8000 });
+    secret = (await page.locator('#ts-secret').textContent()).replace(/\s+/g, '');
+  } else {
+    // whose app: the account of the session the page keeps (under the site's own storage key, src/platform/client.ts)
+    const who = await page.evaluate(() => { for (const k of Object.keys(localStorage)) { try { const v = JSON.parse(localStorage.getItem(k)); if (v?.access_token && v.user?.id) return v.user.id; } catch { /* not a session */ } } return null; });
+    secret = db.factors.find((f) => f.user_id === who && f.status === 'verified')?.secret;
+  }
+  await page.locator('#ts-code').fill(totp(secret));
+  await page.locator('.twostep button[type="submit"]').click();
+  await gate.waitFor({ state: 'detached', timeout: 8000 });
+  return true;
+}
 
 /** A signed-in session for `userId`, as the fragment a "reset your password" email link carries. */
 export const recoveryFragment = (userId) => `#access_token=${jwt(userId)}&refresh_token=refresh-${userId}&expires_in=3600&token_type=bearer&type=recovery`;
@@ -46,14 +84,18 @@ export async function installSupabaseMock(context, supabaseUrl) {
     /** Requests that fail once, as `METHOD /path` → { status, body }: for the tests of what the site says when something is refused. */
     failNext: {},
     /** An account whose session the database no longer accepts (its sign-in expired): its requests answer 401 until it signs in again. */
-    expired: null };
+    expired: null,
+    /** (032) authenticator apps set up (`secret` is the app's key), open challenges, and every code typed, as { user_id, code }. */
+    factors: [], challenges: [], twoStepTries: [] };
   let nextCode = 2001;
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*' };
   const send = (route, status, body) => route.fulfill({ status, headers: { ...cors, 'content-type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
   const publicUser = (u) => ({ id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, user_metadata: u.data, app_metadata: { provider: 'email' }, created_at: u.created_at,
-    email_confirmed_at: u.confirmed === false ? null : (u.confirmed_at || u.created_at), identities: [{ id: u.id, provider: 'email', identity_data: { email: u.email, sub: u.id } }] });
+    email_confirmed_at: u.confirmed === false ? null : (u.confirmed_at || u.created_at), identities: [{ id: u.id, provider: 'email', identity_data: { email: u.email, sub: u.id } }],
+    factors: db.factors.filter((f) => f.user_id === u.id).map((f) => ({ id: f.id, friendly_name: f.friendly_name, factor_type: 'totp', status: f.status, created_at: f.created_at, updated_at: f.updated_at })) });
   const checkError = (route, rule, table) => send(route, 400, { code: '23514', details: 'Failing row contains (…).', hint: null, message: `new row for relation "${table}" violates check constraint "${rule}"` });
-  const session = (u) => ({ access_token: jwt(u.id), token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'refresh-' + u.id, user: publicUser(u) });
+  // a session keeps the level it reached: renewing an aal2 session gives an aal2 token again, as Supabase Auth does
+  const session = (u, aal = 'aal1') => ({ access_token: jwt(u.id, aal), token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: (aal === 'aal2' ? 'refresh2-' : 'refresh-') + u.id, user: publicUser(u) });
   const refuse = (route, why) => { db.refused.push(why); return send(route, 403, { code: '42501', message: why }); };
 
   await context.route(supabaseUrl.replace(/\/$/, '') + '/**', async (route) => {
@@ -88,19 +130,59 @@ export async function installSupabaseMock(context, supabaseUrl) {
     }
     if (path === '/auth/v1/resend' && method === 'POST') { db.resent.push({ email: body.email, type: body.type, redirect: url.searchParams.get('redirect_to') }); return send(route, 200, {}); }
     if (path === '/auth/v1/token' && method === 'POST') {
-      const user = url.searchParams.get('grant_type') === 'refresh_token'
-        ? db.users.find((u) => 'refresh-' + u.id === body.refresh_token)
+      const renewing = url.searchParams.get('grant_type') === 'refresh_token';
+      const user = renewing
+        ? db.users.find((u) => 'refresh-' + u.id === body.refresh_token || 'refresh2-' + u.id === body.refresh_token)
         : db.users.find((u) => u.email === body.email && u.password === body.password);
       if (user && user.confirmed === false) return send(route, 400, { code: 400, error_code: 'email_not_confirmed', msg: 'Email not confirmed' });
       if (user && db.expired === user.id && url.searchParams.get('grant_type') === 'password') db.expired = null; // a new sign-in is a new session
-      return user ? send(route, 200, session(user)) : send(route, 400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
+      return user ? send(route, 200, session(user, renewing && String(body.refresh_token).startsWith('refresh2-') ? 'aal2' : 'aal1')) : send(route, 400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
     }
     if (path === '/auth/v1/logout') { db.logouts.push(url.searchParams.get('scope') || 'global'); return route.fulfill({ status: 204, headers: cors }); }
     if (path === '/auth/v1/recover' && method === 'POST') { (db.recoveries ||= []).push({ email: body.email, redirect: url.searchParams.get('redirect_to') }); return send(route, 200, {}); }
+    // (032) the second step: an authenticator app set up (enrolled), challenged and verified as Supabase Auth does it
+    const aal = aalOf(headers.authorization);
+    if (path === '/auth/v1/factors' && method === 'POST') {
+      const user = db.users.find((u) => u.id === me); if (!user) return send(route, 401, { msg: 'no session' });
+      const mine = db.factors.filter((f) => f.user_id === me);
+      if (mine.some((f) => f.status === 'verified') && aal !== 'aal2') return send(route, 422, { code: 422, error_code: 'insufficient_aal', msg: 'AAL2 required to enroll a new factor' });
+      if (body.friendly_name && mine.some((f) => f.friendly_name === body.friendly_name)) return send(route, 422, { code: 422, error_code: 'mfa_factor_name_conflict', msg: `A factor with the friendly name "${body.friendly_name}" for this user already exists` });
+      const at = new Date().toISOString();
+      const factor = { id: randomUUID(), user_id: me, friendly_name: body.friendly_name || '', issuer: body.issuer || '', status: 'unverified', secret: base32(randomBytes(20)), created_at: at, updated_at: at };
+      db.factors.push(factor);
+      const uri = `otpauth://totp/${encodeURIComponent(factor.issuer)}:${encodeURIComponent(user.email)}?secret=${factor.secret}&issuer=${encodeURIComponent(factor.issuer)}`;
+      // (a picture standing in for the QR code: raw SVG, as Supabase Auth sends it)
+      return send(route, 200, { id: factor.id, type: 'totp', friendly_name: factor.friendly_name, totp: { qr_code: '<svg xmlns="http://www.w3.org/2000/svg" width="176" height="176" viewBox="0 0 8 8"><rect width="8" height="8" fill="white"/><path d="M0 0h3v3H0zM5 0h3v3H5zM0 5h3v3H0z" fill="black"/></svg>', secret: factor.secret, uri } });
+    }
+    const factorPath = /^\/auth\/v1\/factors\/([^/]+)(?:\/(challenge|verify))?$/.exec(path);
+    if (factorPath) {
+      const factor = db.factors.find((f) => f.id === factorPath[1] && f.user_id === me);
+      if (!factor) return send(route, 404, { code: 404, error_code: 'mfa_factor_not_found', msg: 'Factor not found' });
+      if (factorPath[2] === 'challenge' && method === 'POST') {
+        const challenge = { id: randomUUID(), factor_id: factor.id, expires_at: Math.floor(Date.now() / 1000) + 300 };
+        db.challenges.push(challenge);
+        return send(route, 200, { id: challenge.id, type: 'totp', expires_at: challenge.expires_at });
+      }
+      if (factorPath[2] === 'verify' && method === 'POST') {
+        const challenge = db.challenges.find((c) => c.id === body.challenge_id && c.factor_id === factor.id);
+        if (!challenge || challenge.expires_at < Date.now() / 1000) return send(route, 422, { code: 422, error_code: 'mfa_challenge_expired', msg: 'MFA challenge has expired, verify against another challenge or create a new challenge.' });
+        db.challenges = db.challenges.filter((c) => c !== challenge);
+        db.twoStepTries.push({ user_id: me, code: String(body.code) });
+        if (![-30000, 0, 30000].some((d) => totp(factor.secret, Date.now() + d) === String(body.code))) return send(route, 422, { code: 422, error_code: 'mfa_verification_failed', msg: 'Invalid TOTP code entered' });
+        factor.status = 'verified'; factor.updated_at = new Date().toISOString();
+        return send(route, 200, session(db.users.find((u) => u.id === me), 'aal2'));
+      }
+      if (!factorPath[2] && method === 'DELETE') {
+        if (factor.status === 'verified' && aal !== 'aal2') return send(route, 422, { code: 422, error_code: 'insufficient_aal', msg: 'AAL2 required to unenroll a verified factor' });
+        db.factors = db.factors.filter((f) => f !== factor);
+        return send(route, 200, { id: factor.id });
+      }
+    }
     if (path === '/auth/v1/user' && method === 'PUT') { const user = db.users.find((u) => u.id === me); if (!user) return send(route, 401, { msg: 'no session' }); if (body.password) user.password = body.password; return send(route, 200, publicUser(user)); }
     if (path === '/auth/v1/user') { const user = db.users.find((u) => u.id === me); return user ? send(route, 200, publicUser(user)) : send(route, 401, { msg: 'no session' }); }
 
-    const admin = db.profiles.some((p) => p.id === me && p.role === 'admin');
+    // (032) an admin's powers need a session with both steps: with the password alone the account is an ordinary one
+    const admin = db.profiles.some((p) => p.id === me && p.role === 'admin') && aal === 'aal2';
     const isVerified = (id) => db.profiles.some((p) => p.id === id && p.role === 'contractor') && db.applications.some((a) => a.user_id === id && a.status === 'verified');
     // (031) a confirmed email (a profile from before 031, with no such field, counts as confirmed)
     const confirmedEmail = (id) => { const p = db.profiles.find((x) => x.id === id); return !p || p.role === 'admin' || !('email_verified_at' in p) || Boolean(p.email_verified_at && String(p.email_verified_email || '').toLowerCase() === String(p.email || '').toLowerCase()); };

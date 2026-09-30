@@ -51,6 +51,8 @@ export interface Account {
   /** The `user` object the design's logic sees. One identity per sign-in, so state comparisons stay cheap. */
   /** A contractor's application: `verified` is what an admin's approval sets, and what opens the projects to them. */
   application: Application | null;
+  /** (032) An admin's second step: whether this session has passed it, and whether their authenticator app is set up. Null for everyone else. */
+  twoStep: { passed: boolean; enrolled: boolean } | null;
   logicUser: { role: 'homeowner' | 'admin' | 'contractor'; name: string; nafath: boolean; admin: boolean };
 }
 
@@ -252,7 +254,7 @@ async function loadAccount(user: User): Promise<Account | null> {
     const open = verified ? await supabase.from('projects').select('*').in('status', ['open', 'active', 'completed']).order('created_at', { ascending: false }).limit(200) : null;
     const mine = verified ? await supabase.from('bids').select('*').neq('status', 'withdrawn') : null;
     return {
-      profile, application, projects: (open?.data as ProjectRow[]) || [], bids: (mine?.data as BidRow[]) || [], bidders: [], agreements: await loadAgreements(), ...(await loadStages()),
+      profile, application, twoStep: null, projects: (open?.data as ProjectRow[]) || [], bids: (mine?.data as BidRow[]) || [], bidders: [], agreements: await loadAgreements(), ...(await loadStages()),
       // the design's "verified through Nafath" flag stands for Tarmem's own verification until Nafath is connected
       logicUser: { role: 'contractor', name: application?.company || profile.company || profile.full_name, nafath: verified, admin: false },
     };
@@ -261,12 +263,79 @@ async function loadAccount(user: User): Promise<Account | null> {
   const received = profile.role === 'homeowner' ? await supabase.from('bids').select('*').neq('status', 'withdrawn').order('created_at', { ascending: true }) : null;
   const bids = (received?.data as BidRow[]) || [];
   const who = bids.length ? await supabase.from('verified_contractors').select('*') : null;
+  const twoStep = profile.role === 'admin' ? await twoStepOf() : null;
   return {
-    profile, application: null, projects: (rows.data as ProjectRow[]) || [], bids, agreements: await loadAgreements(), ...(await loadStages()),
+    profile, application: null, twoStep, projects: (rows.data as ProjectRow[]) || [], bids, agreements: await loadAgreements(), ...(await loadStages()),
     bidders: ((who?.data as Bidder[]) || []).filter((b) => bids.some((x) => x.contractor_id === b.user_id)),
-    // An account the owner marked admin in the database gets the design's admin role, and with it the console.
-    logicUser: { role: profile.role === 'admin' ? 'admin' : 'homeowner', name: profile.full_name, nafath: false, admin: profile.role === 'admin' },
+    // An account the owner marked admin in the database gets the design's admin role, and with it the console — once this
+    // session has passed the second step too (supabase/032); until then the console and the inbox ask for the code.
+    logicUser: { role: profile.role === 'admin' ? 'admin' : 'homeowner', name: profile.full_name, nafath: false, admin: profile.role === 'admin' && Boolean(twoStep?.passed) },
   };
+}
+
+/* (032) The team's second step. An admin signs in with their password, then types a six-digit code from an authenticator
+   app on their phone; a session without the code has no admin powers in the database (is_admin() asks for aal2), and the
+   console asks for it first (src/platform/AdminTwoStep.tsx). The app is set up there once, at the first sign-in. */
+async function twoStepOf(): Promise<Account['twoStep']> {
+  if (!supabase) return null;
+  try {
+    const [level, factors] = await Promise.all([supabase.auth.mfa.getAuthenticatorAssuranceLevel(), supabase.auth.mfa.listFactors()]);
+    // the app set up on another device counts too: the factors are asked of the server, not taken from this device's session
+    const enrolled = factors.data ? factors.data.totp.length > 0 : level.data?.nextLevel === 'aal2';
+    return { passed: level.data?.currentLevel === 'aal2', enrolled };
+  } catch { return { passed: false, enrolled: false }; }
+}
+
+/** An admin whose session has not passed the second step: the console and the inbox ask for the code before they open. */
+export function twoStepPending(a: Account | null = account): boolean {
+  return Boolean(a && a.profile.role === 'admin' && !a.twoStep?.passed);
+}
+
+const twoStepFailure = (e: { message?: string; status?: number; code?: string } | null | undefined, fallback: PlatformError): PlatformError => {
+  const text = `${e?.code || ''} ${e?.message || ''}`.toLowerCase();
+  if (e?.status === 429 || /rate.?limit|too many/.test(text)) return 'rate';
+  if (/failed to fetch|network|load failed|fetch failed/.test(text)) return 'network';
+  return fallback;
+};
+
+export interface TwoStepSetup { factorId: string; qr: string; secret: string }
+/** The set-up on screen in this visit: the page left and opened again shows the same QR code, so a scan already made counts. */
+let setupShown: TwoStepSetup | null = null;
+
+/** Start setting up the authenticator app: one left unfinished earlier is removed first, so an account never collects them. */
+export async function twoStepBegin(): Promise<Result<TwoStepSetup>> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const listed = await supabase.auth.mfa.listFactors();
+    const waiting = (listed.data?.all || []).filter((f) => f.status === 'unverified');
+    if (setupShown && waiting.some((f) => f.id === setupShown?.factorId)) return { ok: setupShown };
+    for (const f of waiting) await supabase.auth.mfa.unenroll({ factorId: f.id }).catch(() => undefined);
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Tarmem admin', issuer: 'Tarmem' });
+    if (error || !data || data.type !== 'totp') return { error: twoStepFailure(error, 'tsFailed') };
+    // the library hands the QR code over as raw SVG after "data:image/svg+xml;utf-8,"; encoded, it is a safe image address
+    const svg = data.totp.qr_code.replace(/^data:image\/svg\+xml;utf-8,/, '');
+    setupShown = { factorId: data.id, qr: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, secret: data.totp.secret };
+    return { ok: setupShown };
+  } catch (e) { return { error: twoStepFailure(e as Error, 'tsFailed') }; }
+}
+
+/** Check a code from the app — for the set-up in progress (`factorId`), or else the account's own app. The session then has
+    both steps, and the account is read again, which opens the console. */
+export async function twoStepCheck(code: string, factorId?: string): Promise<Result> {
+  if (!supabase) return { error: 'generic' };
+  try {
+    const ids = factorId ? [factorId] : ((await supabase.auth.mfa.listFactors()).data?.totp || []).map((f) => f.id);
+    // the app was removed meanwhile (from the Supabase dashboard, after a lost phone): read again, and the page offers the set-up
+    if (!ids.length) { await refreshAccount(); return { error: 'tsWrong' }; }
+    let problem: PlatformError = 'tsWrong';
+    for (const id of ids) {
+      const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: id, code });
+      if (!error) { setupShown = null; await refreshAccount(); return { ok: true }; }
+      problem = twoStepFailure(error, 'tsWrong');
+      if (problem !== 'tsWrong') break;
+    }
+    return { error: problem };
+  } catch (e) { return { error: twoStepFailure(e as Error, 'tsWrong') }; }
 }
 
 /** Restore a saved sign-in before the site first renders. Never blocks for long: a visitor who is

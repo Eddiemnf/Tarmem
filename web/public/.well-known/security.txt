@@ -1,0 +1,6 @@
+# Tarmem (ترميم) — to report a security problem with www.tarmem.sa, write to the address below.
+# Please do not test against other people's accounts or data.
+Contact: mailto:support@tarmem.sa
+Expires: 2027-09-01T00:00:00.000Z
+Preferred-Languages: ar, en
+Canonical: https://www.tarmem.sa/.well-known/security.txt

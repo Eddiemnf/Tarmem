@@ -4,7 +4,7 @@
    the stand-in (tests/supabase-mock.mjs), seeded with one of everything.   npm run dev, then: node tests/sweep.mjs */
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { installSupabaseMock } from './supabase-mock.mjs';
+import { installSupabaseMock, passTwoStep } from './supabase-mock.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:5173/').replace(/demo\/?$/, '');
 const site = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
@@ -73,6 +73,25 @@ for (const width of [320, 360, 390]) for (const lang of ['ar', 'en']) for (const
   await page.locator('#au-email').fill(person.email); await page.locator('#au-password').fill('password-123');
   await page.locator('form.authcard button[type="submit"]').click();
   await page.waitForTimeout(900);
+  // (032) the team's second step, as a phone shows it: the app's set-up at the first sign-in, then only the code at the next
+  if (person.role === 'admin') {
+    for (const mode of ['setup', 'code']) {
+      if (mode === 'code') {
+        await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('tarmem-auth')) localStorage.removeItem(k); }); // signed out on this device
+        await page.goto(BASE_URL + 'signin', { waitUntil: 'domcontentloaded' }); await page.waitForSelector('#au-email');
+        await page.locator('#au-email').fill(person.email); await page.locator('#au-password').fill('password-123');
+        await page.locator('form.authcard button[type="submit"]').click(); await page.waitForTimeout(900);
+      }
+      const shown = await page.locator(mode === 'setup' ? '.twostep #ts-secret' : '.twostep[data-mode="code"]').waitFor({ timeout: 8000 }).then(() => true, () => false);
+      if (!shown) problems.push(`admin ${lang} ${width}: no two-step ${mode} page`);
+      pages += 1;
+      const seen = await page.evaluate(overflowOf);
+      if (seen.wide > 1) problems.push(`admin ${lang} ${width} two-step ${mode}: ${seen.wide}px wider than the screen (${seen.worst.join(', ')})`);
+      if (seen.offscreen.length) problems.push(`admin ${lang} ${width} two-step ${mode}: header controls off the screen (${seen.offscreen.join(', ')})`);
+      if (seen.text < 40) problems.push(`admin ${lang} ${width} two-step ${mode}: nearly empty page`);
+      if (shown && !(await passTwoStep(page, db))) problems.push(`admin ${lang} ${width}: the two-step ${mode} page did not open the console`);
+    }
+  }
   for (const path of person.paths) {
     if (path === 'signin') continue;
     await page.goto(BASE_URL + path, { waitUntil: 'domcontentloaded' });
