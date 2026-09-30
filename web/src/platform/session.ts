@@ -190,6 +190,7 @@ function failure(error: Failure): PlatformError {
   if (/already signed by both/.test(text)) return 'signedAlready';
   if (/status_not_allowed/.test(text)) return 'statusNotAllowed';
   if (/admins only/.test(text)) return 'adminsOnly';
+  if (/example project/.test(text)) return 'exampleProject';
   if (/not_active|not_signed|payments_on/.test(text)) return 'cannotComplete';
   if (/only the project's|only a verified contractor|only a contractor account|only its owner|not your project/.test(text)) return 'notYours';
   if (/failed to fetch|network|load failed|fetch failed/.test(text)) return 'network';

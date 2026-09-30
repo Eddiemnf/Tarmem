@@ -730,3 +730,29 @@ After a security comparison with well-run sites, the owner asked for the remaini
   and DMARC only reports (`p=none`). Google Admin → Apps → Google Workspace → Gmail → Authenticate email → tarmem.sa →
   Generate new record (2048-bit, prefix `google`) gives a TXT record for `google._domainkey`; once it is added at T2 and
   "Start authentication" is pressed, DMARC can move to `p=quarantine`.
+
+## Example projects for the early-access launch — 30 September 2026 (supabase/033)
+
+The owner asked for 30 homeowner projects so that contractors he invites see an active platform. They are examples,
+and the site says so in one place: while any is listed, a contractor's early-access notice ends, in small type, with
+"بعض المشاريع المعروضة نماذج توضيحية خلال الإطلاق المبكر" (`web/src/launch/LaunchNotice.tsx`). The projects carry no tag of
+their own; the console and the inbox mark them «تجريبي».
+
+- **What 033 adds.** 14 invented homeowners (Riyadh, Jeddah, the Eastern Province) and 30 projects across 28 trades,
+  1,500–450,000 SAR, dated over the last three weeks. Every verified contractor sees them as open projects and may bid
+  and message. Homeowners never see other people's projects, and visitors see none.
+- **Nobody real is written to.**
+  - The invented homeowners have dotless `@tarmem-preview` addresses, which `send_email` drops.
+  - Their numbers are fictional `+1 202 555 01xx`, so WhatsApp never sends.
+  - Their notifications are off, and they are banned from signing in.
+  - The seed holds back the team alert and the "project posted" notice.
+  - The team still gets the usual "new bid" alert when a contractor bids on an example.
+- **Removal, from the SQL Editor only.** `select public.preview_clear();` removes everything: projects, bids,
+  messages and accounts. `select public.preview_clear('P-2105');` removes one project. It deletes rather than
+  withdraws, so no contractor who bid is emailed. For the same reason, the console cannot withdraw an example: it says
+  to use `preview_clear`. Once cleared, running 033 again adds nothing. Clear the examples before switching mobile
+  codes on (`set_otp`).
+- **Tests.**
+  - 25 local database checks (`supabase/tests/local-preview-projects.mjs`): nothing is sent; the right people see the
+    examples; a contractor can bid and message; nothing is withdrawn; removal is complete and quiet.
+  - Browser section W in `tests/platform.mjs`: the note for contractors only, and the console and inbox marks.

@@ -96,7 +96,7 @@ export async function adminDeleteUser(id: string): Promise<{ ok: boolean; error?
   if (!supabase) return { ok: false, error: 'generic' };
   try {
     const { error } = await supabase.rpc('admin_delete_user', { p_user: id });
-    return error ? { ok: false, error: /active_project/.test(error.message || '') ? 'activeProject' : 'generic' } : { ok: true };
+    return error ? { ok: false, error: /active_project/.test(error.message || '') ? 'activeProject' : /example project/.test(error.message || '') ? 'exampleProject' : 'generic' } : { ok: true };
   } catch { return { ok: false, error: 'generic' }; }
 }
 /** Everything the team may need about one account (supabase/021). */
@@ -130,7 +130,9 @@ export function adminLogicState(data: AdminData): LogicState {
   const unapplied = data.profiles.filter((p) => p.role === 'contractor' && !p.deleted_at && !applied.has(p.id));
   return {
     // a withdrawn project stays visible to the team, marked as such (the view model relabels it)
-    projects: data.projects.map((row) => ({ ...toLogicProject(row, row.owner_id), withdrawn: row.status === 'withdrawn' })),
+    projects: data.projects.map((row) => ({ ...toLogicProject(row, row.owner_id), withdrawn: row.status === 'withdrawn', preview: Boolean(row.preview) })),
+    // (033) the example homeowners made for the early-access launch: marked in the console, never hidden from it
+    previewIds: data.profiles.filter((p) => p.preview).map((p) => p.id),
     contractors: data.applications.map((a): LogicState => ({
       id: 'A-' + a.id, dbId: a.id, name: both(a.company), city: a.city, trades: a.trades || [], rating: 0, reviews: 0, done: 0,
       verified: a.status === 'verified', since: a.created_at.slice(0, 4), onTime: '—', response: '—', bio: both(a.note || ''),

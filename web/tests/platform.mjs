@@ -1524,6 +1524,58 @@ const signOutOf = async (pg) => { await pg.locator('button.acct').click(); await
   check('V: the parts asked the database for nothing unknown', same.unknown.length === 0 && hdb.unknown.length === 0, [...same.unknown, ...hdb.unknown].join(' · '));
   await c2.close();
 }
+
+// W — (033) example projects for the early-access launch: a verified contractor sees them among the open projects, the
+// notice says in small type that some are examples, and the team's console and inbox mark them «تجريبي»
+{
+  const wctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+  const wdb = await installSupabaseMock(wctx, site.supabase.url);
+  const now = new Date().toISOString(), ago = (d) => new Date(Date.now() - d * 864e5).toISOString();
+  const ID = (n) => `00000000-0000-4000-8000-0000000003${String(n).padStart(2, '0')}`;
+  const person = (n, role, name, extra = {}) => {
+    wdb.users.push({ id: ID(n), email: `w${n}@example.com`, password: 'sample-pass-1', data: {}, created_at: now });
+    wdb.profiles.push({ id: ID(n), role, full_name: name, company: null, mobile: `05000003${String(n).padStart(2, '0')}`, city: 'riyadh', lang: 'ar', email: `w${n}@example.com`, created_at: now, ...extra });
+  };
+  person(1, 'admin', 'فريق ترميم'); person(2, 'homeowner', 'فهد العتيبي', { preview: true }); person(3, 'homeowner', 'نورة الشمري'); person(4, 'contractor', 'ماجد', { company: 'مؤسسة الإتقان' });
+  wdb.applications.push({ company: 'مؤسسة الإتقان', person: 'ماجد', mobile: '0500000304', email: 'w4@example.com', city: 'riyadh', trades: ['kitchen'], cr_number: null, note: null, lang: 'ar', user_id: ID(4), status: 'verified', created_at: now });
+  const proj = (n, owner, title, preview) => wdb.projects.push({ id: `10000000-0000-4000-8000-00000000900${n}`, code: 'P-900' + n, owner_id: ID(owner), status: 'open', created_at: ago(n), title, trade: 'kitchen',
+    description: 'تجديد المطبخ بالكامل مع الخزائن والسطح.', city: 'riyadh', district: 'النرجس', budget_min: 15000, budget_max: 25000, timing: 'month', ...(preview ? { preview: true } : {}) });
+  proj(1, 2, 'تفصيل مطبخ جديد على شكل L', true); proj(2, 2, 'ستائر لسبع نوافذ في الشقة', true); proj(3, 3, 'ترميم حمام رئيسي', false);
+  const wp = await wctx.newPage();
+  wp.setDefaultTimeout(8000);
+  wp.on('pageerror', (e) => errors.push('W: ' + String(e)));
+  const wsignIn = async (n) => { await go(wp, 'signin'); await wp.locator('#au-email').fill(`w${n}@example.com`); await wp.locator('#au-password').fill('sample-pass-1'); await wp.locator('form.authcard button[type="submit"]').click(); await wp.waitForTimeout(1100); };
+  await wsignIn(4);
+  await go(wp, 'projects'); await wp.waitForTimeout(400);
+  check('W: a verified contractor sees the example projects among the open ones, beside the real one', (await wp.locator('main', { hasText: 'تفصيل مطبخ جديد على شكل L' }).count()) >= 1
+    && (await wp.locator('main', { hasText: 'ترميم حمام رئيسي' }).count()) >= 1);
+  const note = wp.locator('.samples-note');
+  check('W: …and the early-access notice says, in small type, that some projects are examples', (await note.count()) === 1 && (await note.innerText()).includes('نماذج توضيحية')
+    && parseFloat(await note.evaluate((el) => getComputedStyle(el).fontSize)) <= 11.5);
+  check('W: …with no mark on the projects themselves', (await wp.locator('main', { hasText: 'تجريبي' }).count()) === 0);
+  await signOutOf(wp); await wsignIn(3);
+  check('W: a homeowner never sees the note, nor anyone else\'s projects', (await wp.locator('.samples-note').count()) === 0 && (await wp.locator('main', { hasText: 'تفصيل مطبخ جديد' }).count()) === 0);
+  await signOutOf(wp); await wsignIn(1); await passTwoStep(wp, wdb);
+  await go(wp, 'admin'); await wp.locator('.side[data-tab="overview"]').click(); await wp.waitForTimeout(500);
+  check('W: the console marks an example project «تجريبي» in the projects table, and not a real one', (await wp.locator('tr.row-h', { hasText: 'P-9001' }).filter({ hasText: 'تجريبي' }).count()) === 1
+    && (await wp.locator('tr.row-h', { hasText: 'P-9003' }).filter({ hasText: 'تجريبي' }).count()) === 0);
+  // removing an example from the console is refused, with the reason (a withdrawal emails everyone who bid)
+  await wp.locator('tr.row-h', { hasText: 'P-9001' }).first().click();
+  await wp.waitForFunction(() => window.location.pathname === '/project/P-9001', null, { timeout: 8000 }).catch(() => undefined); await wp.waitForTimeout(700);
+  await wp.locator('.admin-controls button[data-act="remove"]').click(); await wp.waitForTimeout(200);
+  await wp.locator('.admin-controls .adm-yes').click(); await wp.waitForTimeout(900);
+  check('W: removing an example from the console is refused, saying why and how it is removed instead', (await wp.locator('.admin-controls .autherr', { hasText: 'مشروع توضيحي' }).count()) === 1
+    && wdb.projects.find((p) => p.code === 'P-9001').status === 'open' && !(wdb.statusChanges || []).some((c) => c.id === wdb.projects.find((p) => p.code === 'P-9001').id));
+  await go(wp, 'admin'); await wp.locator('.side[data-tab="users"]').click(); await wp.waitForTimeout(500);
+  check('W: …and its invented homeowner in the users table', (await wp.locator('main tr', { hasText: 'فهد العتيبي' }).locator('.tag', { hasText: 'تجريبي' }).count()) === 1
+    && (await wp.locator('main tr', { hasText: 'نورة الشمري' }).locator('.tag', { hasText: 'تجريبي' }).count()) === 0);
+  check('W: the team sees no note (it is for contractors)', (await wp.locator('.samples-note').count()) === 0);
+  await go(wp, 'inbox'); await wp.waitForTimeout(700);
+  check('W: the inbox marks them too', (await wp.locator('main tr', { hasText: 'P-9001' }).locator('.tag', { hasText: 'تجريبي' }).count()) === 1
+    && (await wp.locator('main tr', { hasText: 'P-9003' }).locator('.tag', { hasText: 'تجريبي' }).count()) === 0);
+  check('W: the parts asked the database for nothing unknown', wdb.unknown.length === 0, wdb.unknown.join(' · '));
+  await wctx.close();
+}
 console.log(results.join('\n'));
 console.log(errors.length ? '\n' + errors.join('\n') : '\nno page errors');
 await browser.close();

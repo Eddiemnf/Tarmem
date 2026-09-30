@@ -22,6 +22,8 @@ export interface Profile {
   email_verified_at?: string | null;
   email_verified_email?: string | null;
   deleted_at?: string | null;
+  /** (033) an example homeowner made for the early-access launch, removed with preview_clear(). */
+  preview?: boolean;
   company: string | null;
   lang: 'ar' | 'en';
   created_at: string;
@@ -45,6 +47,8 @@ export interface ProjectRow {
   budget_max: number;
   timing: 'asap' | 'month' | 'flexible';
   status: 'open' | 'active' | 'completed' | 'withdrawn';
+  /** (033) an example project for the early-access launch: contractors see it like any other, and the notice says examples are shown. */
+  preview?: boolean;
   created_at: string;
   /** When the project's first payment was confirmed (supabase/007). Stages wait for it. */
   funded_at?: string | null;

@@ -111,7 +111,7 @@ export default function InboxPage({ vm }: { vm: VM }) {
         <div className="card" style={{ padding: '4px 8px', overflowX: 'auto' }}><table className="inbox-table" style={{ width: '100%', borderCollapse: 'collapse' }}><tbody>
           {inbox.projects.map((p) => (
             <tr key={p.id}>
-              <td style={cell} className="num">{p.code}<br /><span className="muted">{when(p.created_at)}</span><br /><span className="tag tag-n">{statusWord(p.status, Boolean(p.funded_at))}</span></td>
+              <td style={cell} className="num">{p.code}<br /><span className="muted">{when(p.created_at)}</span><br /><span className="tag tag-n">{statusWord(p.status, Boolean(p.funded_at))}</span>{p.preview ? <><br /><span className="tag tag-w">{PLATFORM_COPY[ar ? 'ar' : 'en'].admPreview}</span></> : null}</td>
               <td style={cell}><strong style={{ color: '#1B1464' }}>{p.title}</strong><br />{label(vm.trades, p.trade)} · {label(vm.cities, p.city)}{p.district ? ` · ${p.district}` : ''}<br /><span className="num">{money(`${n(p.budget_min)} – ${n(p.budget_max)}`)}</span> · {timing(p.timing)}<br /><span style={{ whiteSpace: 'pre-wrap', color: '#3A385C' }}>{p.description}</span><br /><ProjectFiles ownerId={p.owner_id} projectId={p.id} ar={ar} />
                 {currentAccount()?.paymentsLive && p.status === 'active' ? (p.funded_at
                   ? <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#0F7B4B' }}>{ar ? '✔ الدفعة مستلمة' : '✔ Payment received'}</div>

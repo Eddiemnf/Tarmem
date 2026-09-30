@@ -126,13 +126,17 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
       if (!viewedId || state.eraseBusy) return;
       host.setLogicState({ eraseBusy: true, eraseError: '' });
       void adminDeleteUser(viewedId).then(async (r) => {
-        if (!r.ok) return host.setLogicState({ eraseBusy: false, eraseError: copy.err[(r.error as 'activeProject' | 'generic') || 'generic'] });
+        if (!r.ok) return host.setLogicState({ eraseBusy: false, eraseError: copy.err[(r.error as 'activeProject' | 'exampleProject' | 'generic') || 'generic'] });
         const data = await loadAdminData();
         host.setLogicState({ ...(data ? adminLogicState(data) : {}), eraseBusy: false, eraseAsk: false, adminView: null, adminDetail: null, siteNotice: copy.erased });
       });
     },
     // a withdrawn project reads as such in the console (the design's logic has no status for it)
-    allProjects: (vm.allProjects || []).map((row: LogicState) => ((state.projects || []).find((p: LogicState) => p.id === row.id)?.withdrawn ? { ...row, statusLabel: vm.t.admin.dv?.statuses?.withdrawn || 'withdrawn', tagClass: 'tag-w' } : row)),
+    allProjects: (vm.allProjects || []).map((row: LogicState) => {
+      const p = (state.projects || []).find((x: LogicState) => x.id === row.id);
+      const marked = p?.preview ? { ...row, title: `${row.title} · ${copy.admPreview}` } : row; // (033) an example project, for the team's eyes
+      return p?.withdrawn ? { ...marked, statusLabel: vm.t.admin.dv?.statuses?.withdrawn || 'withdrawn', tagClass: 'tag-w' } : marked;
+    }),
     openUser: (e: { currentTarget: HTMLElement }) => {
       const id = e.currentTarget.dataset.id || ''; const kind = e.currentTarget.dataset.kind || 'h';
       const uuid = kind === 'h' ? id : (applicants.get(id)?.userId as string | null) || null;
@@ -155,7 +159,8 @@ function adminVals(vm: LogicVals, state: LogicState, host: LogicHost): LogicVals
       return c ? { ...row, name: `${row.name} — ${c.person}`, city: `${row.city} · ${c.mobile}`, date: when(c.appliedAt) } : row;
     }),
     noVerif: !queue.length,
-    userRows: ((vm.userRows as LogicState[]) || []).map((row) => (row.kind === 'c' && unapplied(row.id) ? { ...row, status: copy.admNoApplication, cls: 'tag-w' } : row)),
+    userRows: ((vm.userRows as LogicState[]) || []).map((row) => (row.kind === 'c' && unapplied(row.id) ? { ...row, status: copy.admNoApplication, cls: 'tag-w' }
+      : row.kind === 'h' && ((state.previewIds as string[] | undefined) || []).includes(row.id) ? { ...row, status: copy.admPreview, cls: 'tag-w' } : row)),
     // a support case here is a message from the contact form: there is no project, there is a sender
     cases: (vm.cases || []).map((row: LogicState) => ({ ...row, project: senders.get(row.id)?.from || row.project })),
     /* Codes are saved for real (admin_state) and their uses and discounts are true counts (nothing redeems a code before payment

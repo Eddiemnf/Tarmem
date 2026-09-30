@@ -5,6 +5,8 @@
 export const PLATFORM_COPY = {
   ar: {
     notice: 'إطلاق مبكر: انشر مشروعك، واستقبل عروض مقاولين موثّقين، ووقّع الاتفاقية عبر الموقع. يوثّق فريق ترميم المقاولين يدويًا حاليًا، والدفع عبر الموقع قيد التفعيل.',
+    // (033) shown to contractors, in small type after the notice, while example projects are listed
+    samplesNote: 'بعض المشاريع المعروضة نماذج توضيحية خلال الإطلاق المبكر.',
     signInTitle: 'سجّل دخولك', signUpTitle: 'أنشئ حسابك',
     signInLede: 'ادخل ببريدك الإلكتروني وكلمة المرور لمتابعة مشاريعك.',
     signUpLede: 'حساب واحد لنشر مشاريعك ومتابعتها. يستغرق دقيقة.',
@@ -31,6 +33,7 @@ export const PLATFORM_COPY = {
       mobileTaken: 'رقم الجوال هذا مسجّل لحساب آخر. سجّل الدخول إليه، أو استخدم رقمًا آخر.', passwordMatch: 'كلمتا المرور غير متطابقتين.',
       caseReply: 'تعذّر إرسال الرد. حاول مرة أخرى.', activeProject: 'لديك مشروع جارٍ. أكمله أو تواصل مع الفريق أولًا.', otpOff: 'توثيق الجوال غير مفعّل حاليًا.', otpWrong: 'الرمز غير صحيح أو انتهت صلاحيته. اطلب رمزًا جديدًا.',
       verifyFirst: 'أكّد بريدك الإلكتروني أولًا من الرابط الذي أرسلناه إليك، ثم تستطيع ذلك.',
+      exampleProject: 'هذا مشروع توضيحي: لا يُسحب من هنا، لأن سحبه يرسل رسالة لكل من قدّم عليه. تُزال الأمثلة بهدوء من Supabase بالأمر preview_clear.',
       tsWrong: 'الرمز غير صحيح أو انتهت صلاحيته. اكتب الرمز الظاهر الآن في التطبيق.', tsFailed: 'تعذّر بدء إعداد التحقق بخطوتين الآن. حاول مرة أخرى بعد قليل.',
       unconfirmed: 'فعّل حسابك أولًا من الرابط الذي أرسلناه إلى بريدك، ثم سجّل دخولك.', rate: 'محاولات كثيرة. انتظر دقيقة ثم حاول مجددًا.',
       rateHour: 'وصلت إلى الحد المسموح خلال ساعة. حاول مجددًا لاحقًا، أو راسلنا عبر واتساب.', rateNow: 'الطلبات كثيرة الآن. حاول مجددًا بعد دقائق.',
@@ -147,7 +150,7 @@ export const PLATFORM_COPY = {
     admPayOffCodes: 'الدفع عبر الموقع غير مفعّل بعد: الأكواد تُحفظ وتُدار هنا، ويبدأ استخدامها عند تفعيله.',
     admPayOffPartners: 'نقرات روابط الشركاء وتسجيلاتهم لا تُحتسب بعد، لذا تظهر أرقامها «—» حتى تفعيل الدفع عبر الموقع.',
     admPayOffLate: 'يُسجَّل التأخير والاسترداد هنا عند بدء الدفعات المرحلية عبر الموقع؛ لا شيء مسجّل حتى الآن.',
-    admSender: 'المرسل', admNoApplication: 'بلا طلب توثيق', admApp: { new: 'جديد', contacted: 'تم التواصل', verified: 'موثّق', declined: 'مرفوض' } as Record<string, string>,
+    admSender: 'المرسل', admNoApplication: 'بلا طلب توثيق', admPreview: 'تجريبي', admApp: { new: 'جديد', contacted: 'تم التواصل', verified: 'موثّق', declined: 'مرفوض' } as Record<string, string>,
     admSar: 'ريال', admCr: 'السجل التجاري', admDays: 'يومًا', admChosen: 'اختاره العميل',
     adminCtlTitle: 'إجراءات فريق ترميم',
     adminCtlOpen: 'المشروع مفتوح للعروض. أزِله إن كان مكررًا أو مزعجًا أو مخالفًا للقواعد: يُسحب من الموقع، ويُبلَّغ صاحبه ومن قدّم عليه عرضًا بالبريد.',
@@ -169,6 +172,7 @@ export const PLATFORM_COPY = {
   },
   en: {
     notice: 'Early access: post your project, receive bids from verified contractors, and sign the agreement on the site. The Tarmem team verifies contractors by hand for now, and payment on the site is being set up.',
+    samplesNote: 'Some projects shown are examples during early access.',
     signInTitle: 'Sign in', signUpTitle: 'Create your account',
     signInLede: 'Use your email and password to follow your projects.',
     signUpLede: 'One account to post and follow your projects. It takes a minute.',
@@ -195,6 +199,7 @@ export const PLATFORM_COPY = {
       mobileTaken: 'This mobile number belongs to another account. Sign in to it, or use a different number.', passwordMatch: 'The two passwords do not match.',
       caseReply: 'The reply could not be sent. Try again.', activeProject: 'You have a project in progress. Finish it, or contact the team first.', otpOff: 'Mobile verification is not switched on right now.', otpWrong: 'The code is wrong or has expired. Request a new one.',
       verifyFirst: 'Confirm your email first with the link we sent you, then you can do this.',
+      exampleProject: 'This is an example project: it is not withdrawn from here, because a withdrawal emails everyone who bid. Examples are removed quietly in Supabase with preview_clear.',
       tsWrong: 'That code is wrong or has expired. Type the code the app shows now.', tsFailed: 'Two-step set-up could not start right now. Try again in a moment.',
       unconfirmed: 'Activate your account first with the link we emailed you, then sign in.', rate: 'Too many attempts. Wait a minute and try again.',
       rateHour: 'You have reached the hourly limit. Try again later, or message us on WhatsApp.', rateNow: 'We are receiving a lot right now. Try again in a few minutes.',
@@ -304,7 +309,7 @@ export const PLATFORM_COPY = {
     admPayOffCodes: 'Payment on the site is not live yet: codes are saved and managed here, and can be used once it is.',
     admPayOffPartners: 'Clicks and sign-ups from partner links are not counted yet, so those figures show “—” until payment on the site is live.',
     admPayOffLate: 'Late deliveries and refunds are recorded here once stage payments start on the site; nothing is recorded yet.',
-    admSender: 'Sender', admNoApplication: 'No application', admApp: { new: 'New', contacted: 'Contacted', verified: 'Verified', declined: 'Declined' } as Record<string, string>,
+    admSender: 'Sender', admNoApplication: 'No application', admPreview: 'Sample', admApp: { new: 'New', contacted: 'Contacted', verified: 'Verified', declined: 'Declined' } as Record<string, string>,
     admSar: 'SAR', admCr: 'CR', admDays: 'days', admChosen: 'chosen by the customer',
     adminCtlTitle: 'Tarmem team actions',
     adminCtlOpen: 'This project is open for bids. Remove it if it is a duplicate, spam or against the rules: it comes off the site, and its owner and everyone who bid are told by email.',

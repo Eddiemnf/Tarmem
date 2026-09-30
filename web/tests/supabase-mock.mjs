@@ -464,6 +464,8 @@ export async function installSupabaseMock(context, supabaseUrl) {
       if (!['completed', 'withdrawn'].includes(body.p_status)) return send(route, 400, { code: '22023', message: 'unknown status: use completed or withdrawn' });
       const p = db.projects.find((x) => x.id === body.p_project);
       if (!p) return send(route, 400, { code: '22023', message: 'no such project' });
+      // (033) an example project is never withdrawn (that would email everyone who bid): preview_clear removes it instead
+      if (p.preview && body.p_status === 'withdrawn') return refuse(route, `example project ${p.code}: remove it with select public.preview_clear('${p.code}') — a withdrawal would email everyone who bid`);
       const move = `${p.status}>${body.p_status}`;
       if (!['active>completed', 'active>withdrawn', 'open>withdrawn'].includes(move)) return refuse(route, 'status_not_allowed: a project goes from active to completed or withdrawn, or from open to withdrawn');
       (db.statusChanges ||= []).push({ id: p.id, from: p.status, to: body.p_status, note: body.p_note ?? null, action: move === 'active>completed' ? 'completed' : move === 'active>withdrawn' ? 'cancelled' : 'removed' });
