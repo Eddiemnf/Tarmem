@@ -74,11 +74,20 @@ check('visitor: cannot record a payment', Boolean((await anon.rpc('mark_funded',
 const walletProbe = await anon.rpc('wallet_request', { p_type: 'deposit', p_amount: 1, p_method: 'mada' });
 check('008 is installed: wallet requests exist, and are closed to visitors', Boolean(walletProbe.error) && !/PGRST202|could not find/i.test(`${walletProbe.error?.code} ${walletProbe.error?.message}`), `${walletProbe.error?.code} ${walletProbe.error?.message}`);
 check('visitor: cannot read wallets, bank accounts, contractor profiles or reviews', denied(await anon.from('wallet_txns').select('*')) && denied(await anon.from('payout_accounts').select('*')) && denied(await anon.from('verified_contractors').select('*')) && denied(await anon.from('contractor_reviews').select('*')));
-// 1i — 029: a visitor calls only what the public pages need (is_admin, mobile_taken, wa_webhook)
+// 1i — 029: a visitor calls only what the public pages need (is_admin, mobile_taken, wa_webhook; 031 adds
+// confirm_email_verification and 034 public_projects)
 const helper = await anon.rpc('wa_template_specs');
 check('029 is installed: a visitor cannot call the internal helpers', Boolean(helper.error), helper.error ? `${helper.error.code} ${helper.error.message}` : 'answered');
 const takenProbe = await anon.rpc('mobile_taken', { p_mobile: '0500000000' });
 check('visitor: the sign-up form can still ask whether a mobile number is taken', !takenProbe.error && typeof takenProbe.data === 'boolean', takenProbe.error?.message);
+// 1i' — 034: the open projects, as a visitor sees them: only the ten safe columns; an unknown code gives nothing
+const pub = await anon.rpc('public_projects');
+check('visitor: the open projects list answers with only the safe columns', !pub.error && Array.isArray(pub.data)
+  && pub.data.every((r) => Object.keys(r).sort().join() === 'budget_max,budget_min,city,code,created_at,description,preview,timing,title,trade'), pub.error?.message);
+const pubNone = await anon.rpc('public_projects', { p_code: 'P-0' });
+check('visitor: an unknown project code gives nothing', !pubNone.error && Array.isArray(pubNone.data) && pubNone.data.length === 0, pubNone.error?.message);
+const maskProbe = await anon.rpc('public_mask', { p_text: 'x' });
+check('visitor: cannot call the masking helper', Boolean(maskProbe.error), maskProbe.error ? maskProbe.error.code : 'answered');
 // 1j — 030: finishing a project, the console's status change and claiming an application exist, and are closed to visitors
 const NOBODY = '00000000-0000-4000-8000-000000000001';
 const doneProbe = await anon.rpc('homeowner_confirm_complete', { p_project: NOBODY });
