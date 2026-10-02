@@ -78,7 +78,9 @@ export default function PricingPage({ vm }: { vm: VM }) {
           <div className="bignote"><span>{vm.t.pricing2.calcBig}</span><button className="btn btn-s btn-sm" data-route="contact" onClick={vm.go}>{vm.t.faq.contact}</button></div>
         </>) : null}
     
-        <div className="g2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '16px', marginTop: '8px' }}>
+        <div className="g2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '16px 28px', marginTop: '8px', alignItems: 'center' }}>
+          
+    {vm.prIsHo ? (<>
           <div className="calcbox">
             <span className="kick" style={{ color: '#6B6986' }}>{vm.t.roles.homeowner}</span>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}><span className="muted">{vm.t.pricing2.calcWork}</span><span className="num" style={{ color: '#1B1464' }}>{vm.curPre}{vm.calc.value}{vm.curPost}</span></div>
@@ -87,6 +89,10 @@ export default function PricingPage({ vm }: { vm: VM }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span className="muted">{vm.t.pricing2.calcVat}</span><span className="num" style={{ color: '#5B5A7A' }}>+ {vm.curPre}{vm.calc.feeVat}{vm.curPost}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', paddingTop: '10px', borderTop: '1px solid #EEEDF5' }}><span style={{ fontWeight: '600', color: '#1B1464', fontSize: '14.5px' }}>{vm.t.pricing2.calcHoPays}</span><span className="num" style={{ fontSize: '22px', fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.hoPays}{vm.curPost}</span></div>
           </div>
+          </>) : null}
+    
+          
+    {vm.prIsCo ? (<>
           <div className="calcbox">
             <span className="kick" style={{ color: '#6B6986' }}>{vm.t.roles.contractor}</span>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}><span className="muted">{vm.t.pricing2.calcWork}</span><span className="num" style={{ color: '#1B1464' }}>{vm.curPre}{vm.calc.value}{vm.curPost}</span></div>
@@ -95,22 +101,24 @@ export default function PricingPage({ vm }: { vm: VM }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span className="muted">{vm.t.pricing2.calcCommVat}</span><span className="num" style={{ color: '#8A5A00' }}>− {vm.curPre}{vm.calc.commVat}{vm.curPost}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', paddingTop: '10px', borderTop: '1px solid #EEEDF5' }}><span style={{ fontWeight: '600', color: '#1B1464', fontSize: '14.5px' }}>{vm.t.pricing2.calcCoGets}</span><span className="num" style={{ fontSize: '22px', fontWeight: '600', color: '#15703A' }}>{vm.curPre}{vm.calc.coGets}{vm.curPost}</span></div>
           </div>
-        </div>
-        <div style={{ marginTop: '12px', paddingTop: '18px', borderTop: '1px solid #EEEDF5' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '10px' }}>
-            <span className="kick" style={{ color: '#6B6986' }}>{vm.t.pricing2.calcBeforeVat}</span>
-            <span className="num" style={{ fontSize: '18px', fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.beforeVat}{vm.curPost}</span>
+          </>) : null}
+    
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '10px' }}>
+              <span className="kick" style={{ color: '#6B6986' }}>{vm.calc.split.head}</span>
+              <span className="num" style={{ fontSize: '18px', fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.split.total}{vm.curPost}</span>
+            </div>
+            <div style={{ display: 'flex', height: '10px', borderRadius: '6px', overflow: 'hidden', background: '#EEEDF5', gap: '2px' }}>
+              <span style={{ width: `${vm.calc.split.aPct}%`, background: '#1B7A3E', transition: 'width .35s ease' }}></span>
+              <span style={{ width: `${vm.calc.split.bPct}%`, background: '#FF5A3C', transition: 'width .35s ease' }}></span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px', fontSize: '13px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '9px', height: '9px', borderRadius: '3px', background: '#1B7A3E', flex: 'none' }}></span><span style={{ minWidth: '0' }}>{vm.calc.split.a}</span><span className="num" style={{ fontWeight: '600', color: '#1B1464', marginInlineStart: 'auto' }}>{vm.curPre}{vm.calc.split.aVal}{vm.curPost}</span></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '9px', height: '9px', borderRadius: '3px', background: '#FF5A3C', flex: 'none' }}></span><span style={{ minWidth: '0' }}>{vm.calc.split.b}</span><span className="num" style={{ fontWeight: '600', color: '#1B1464', marginInlineStart: 'auto' }}>{vm.curPre}{vm.calc.split.bVal}{vm.curPost}</span></span>
+            </div>
+            <p className="muted" style={{ fontSize: '12px', marginTop: '12px', lineHeight: '1.7' }}>{vm.calc.split.note}</p>
+            <p className="muted" style={{ fontSize: '12px', marginTop: '6px', lineHeight: '1.7' }}>{vm.calc.split.note2}</p>
           </div>
-          <div style={{ display: 'flex', height: '10px', borderRadius: '6px', overflow: 'hidden', background: '#EEEDF5', gap: '2px' }}>
-            <span style={{ width: `${vm.calc.coPct}%`, background: '#1B7A3E', transition: 'width .35s ease' }}></span>
-            <span style={{ width: `${vm.calc.tmPct}%`, background: '#FF5A3C', transition: 'width .35s ease' }}></span>
-          </div>
-          <div style={{ display: 'flex', gap: '10px 24px', marginTop: '12px', fontSize: '13px', flexWrap: 'wrap' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '9px', height: '9px', borderRadius: '3px', background: '#1B7A3E', flex: 'none' }}></span>{vm.t.pricing2.barCo}<span className="num" style={{ fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.coBeforeVat}{vm.curPost}</span></span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '9px', height: '9px', borderRadius: '3px', background: '#FF5A3C', flex: 'none' }}></span>{vm.t.pricing2.barTarmem}<span className="num" style={{ fontWeight: '600', color: '#1B1464' }}>{vm.curPre}{vm.calc.tmFees}{vm.curPost}</span></span>
-          </div>
-          <p className="muted" style={{ fontSize: '12px', marginTop: '10px' }}>{vm.t.pricing2.barBase}</p>
-          <p className="muted" style={{ fontSize: '12px', marginTop: '6px', lineHeight: '1.7' }}>{vm.t.pricing2.barBase2}</p>
         </div>
       </div>
     </section>

@@ -1583,7 +1583,8 @@
         <sc-if value="{{ calc.big }}">
           <div class="bignote"><span>{{ t.pricing2.calcBig }}</span><button class="btn btn-s btn-sm" data-route="contact" onClick="{{ go }}">{{ t.faq.contact }}</button></div>
         </sc-if>
-        <div class="g2" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:8px">
+        <div class="g2" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 28px;margin-top:8px;align-items:center">
+          <sc-if value="{{ prIsHo }}">
           <div class="calcbox">
             <span class="kick" style="color:#6B6986">{{ t.roles.homeowner }}</span>
             <div style="display:flex;justify-content:space-between;font-size:14px"><span class="muted">{{ t.pricing2.calcWork }}</span><span class="num" style="color:#1B1464">{{ curPre }}{{ calc.value }}{{ curPost }}</span></div>
@@ -1592,6 +1593,8 @@
             <div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">{{ t.pricing2.calcVat }}</span><span class="num" style="color:#5B5A7A">+ {{ curPre }}{{ calc.feeVat }}{{ curPost }}</span></div>
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-top:10px;border-top:1px solid #EEEDF5"><span style="font-weight:600;color:#1B1464;font-size:14.5px">{{ t.pricing2.calcHoPays }}</span><span class="num" style="font-size:22px;font-weight:600;color:#1B1464">{{ curPre }}{{ calc.hoPays }}{{ curPost }}</span></div>
           </div>
+          </sc-if>
+          <sc-if value="{{ prIsCo }}">
           <div class="calcbox">
             <span class="kick" style="color:#6B6986">{{ t.roles.contractor }}</span>
             <div style="display:flex;justify-content:space-between;font-size:14px"><span class="muted">{{ t.pricing2.calcWork }}</span><span class="num" style="color:#1B1464">{{ curPre }}{{ calc.value }}{{ curPost }}</span></div>
@@ -1600,22 +1603,23 @@
             <div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">{{ t.pricing2.calcCommVat }}</span><span class="num" style="color:#8A5A00">− {{ curPre }}{{ calc.commVat }}{{ curPost }}</span></div>
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-top:10px;border-top:1px solid #EEEDF5"><span style="font-weight:600;color:#1B1464;font-size:14.5px">{{ t.pricing2.calcCoGets }}</span><span class="num" style="font-size:22px;font-weight:600;color:#15703A">{{ curPre }}{{ calc.coGets }}{{ curPost }}</span></div>
           </div>
-        </div>
-        <div style="margin-top:12px;padding-top:18px;border-top:1px solid #EEEDF5">
-          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:10px">
-            <span class="kick" style="color:#6B6986">{{ t.pricing2.calcBeforeVat }}</span>
-            <span class="num" style="font-size:18px;font-weight:600;color:#1B1464">{{ curPre }}{{ calc.beforeVat }}{{ curPost }}</span>
+          </sc-if>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+              <span class="kick" style="color:#6B6986">{{ calc.split.head }}</span>
+              <span class="num" style="font-size:18px;font-weight:600;color:#1B1464">{{ curPre }}{{ calc.split.total }}{{ curPost }}</span>
+            </div>
+            <div style="display:flex;height:10px;border-radius:6px;overflow:hidden;background:#EEEDF5;gap:2px">
+              <span style="width:{{ calc.split.aPct }}%;background:#1B7A3E;transition:width .35s ease"></span>
+              <span style="width:{{ calc.split.bPct }}%;background:#FF5A3C;transition:width .35s ease"></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;font-size:13px">
+              <span style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:3px;background:#1B7A3E;flex:none"></span><span style="min-width:0">{{ calc.split.a }}</span><span class="num" style="font-weight:600;color:#1B1464;margin-inline-start:auto">{{ curPre }}{{ calc.split.aVal }}{{ curPost }}</span></span>
+              <span style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:3px;background:#FF5A3C;flex:none"></span><span style="min-width:0">{{ calc.split.b }}</span><span class="num" style="font-weight:600;color:#1B1464;margin-inline-start:auto">{{ curPre }}{{ calc.split.bVal }}{{ curPost }}</span></span>
+            </div>
+            <p class="muted" style="font-size:12px;margin-top:12px;line-height:1.7">{{ calc.split.note }}</p>
+            <p class="muted" style="font-size:12px;margin-top:6px;line-height:1.7">{{ calc.split.note2 }}</p>
           </div>
-          <div style="display:flex;height:10px;border-radius:6px;overflow:hidden;background:#EEEDF5;gap:2px">
-            <span style="width:{{ calc.coPct }}%;background:#1B7A3E;transition:width .35s ease"></span>
-            <span style="width:{{ calc.tmPct }}%;background:#FF5A3C;transition:width .35s ease"></span>
-          </div>
-          <div style="display:flex;gap:10px 24px;margin-top:12px;font-size:13px;flex-wrap:wrap">
-            <span style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:3px;background:#1B7A3E;flex:none"></span>{{ t.pricing2.barCo }}<span class="num" style="font-weight:600;color:#1B1464">{{ curPre }}{{ calc.coBeforeVat }}{{ curPost }}</span></span>
-            <span style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:3px;background:#FF5A3C;flex:none"></span>{{ t.pricing2.barTarmem }}<span class="num" style="font-weight:600;color:#1B1464">{{ curPre }}{{ calc.tmFees }}{{ curPost }}</span></span>
-          </div>
-          <p class="muted" style="font-size:12px;margin-top:10px">{{ t.pricing2.barBase }}</p>
-          <p class="muted" style="font-size:12px;margin-top:6px;line-height:1.7">{{ t.pricing2.barBase2 }}</p>
         </div>
       </div>
     </section>
@@ -4712,6 +4716,10 @@ Rules:
     const calc = { raw:V, value:fmt(V), first:s.calcFirst, hoPays:fmt(hoPays), beforeVat:fmt(V+fee), coBeforeVat:fmt(V-comm), tmFees:fmt(tmTotal), comm:fmt(comm), coGets:fmt(V-comm-commVat), feeVat:fmt(feeVat), commVat:fmt(commVat),
       fee:fmt(fee), feeLabel: '+ '+mny(fee), feeColor: '#1B1464',
       coPct: Math.round((V-comm)/(V+fee)*100), tmPct: 100 - Math.round((V-comm)/(V+fee)*100), big: V >= 1000000, draft: s.calcDraft };
+    calc.split = s.prole==='contractor'
+      ? { head:t.pricing2.calcWork, total:fmt(V), a:t.pricing2.calcCoBeforeVat, aVal:fmt(V-comm), b:t.pricing2.calcCommNet, bVal:fmt(comm), aPct:Math.round((V-comm)/V*100), note:t.pricing2.barBaseCo, note2:t.pricing2.barBase2Co }
+      : { head:t.pricing2.calcBeforeVat, total:fmt(V+fee), a:t.pricing2.calcWork, aVal:fmt(V), b:t.pricing2.calcFeeNet, bVal:fmt(fee), aPct:Math.round(V/(V+fee)*100), note:t.pricing2.barBase, note2:t.pricing2.barBase2 };
+    calc.split.bPct = 100 - calc.split.aPct;
     const priceCards = (s.prole==='contractor' ? t.pricing2.coCards : t.pricing2.hoCards).map((p,i)=>({...p,
       border: /%/.test(p.rate) ? '#FF7722' : '#E6E5F0', badgeCls: /%/.test(p.rate) ? 'tag-a' : 'tag-n' }));
     const paidCard = priceCards.find(p=>/%/.test(p.rate)) || priceCards[1] || {}, freeCard = priceCards.find(p=>!/%/.test(p.rate)) || priceCards[0] || {};

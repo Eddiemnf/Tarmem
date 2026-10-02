@@ -938,6 +938,10 @@ Rules:
     const calc = { raw:V, value:fmt(V), first:s.calcFirst, hoPays:fmt(hoPays), beforeVat:fmt(V+fee), coBeforeVat:fmt(V-comm), tmFees:fmt(tmTotal), comm:fmt(comm), coGets:fmt(V-comm-commVat), feeVat:fmt(feeVat), commVat:fmt(commVat),
       fee:fmt(fee), feeLabel: '+ '+mny(fee), feeColor: '#1B1464',
       coPct: Math.round((V-comm)/(V+fee)*100), tmPct: 100 - Math.round((V-comm)/(V+fee)*100), big: V >= 1000000, draft: s.calcDraft };
+    calc.split = s.prole==='contractor'
+      ? { head:t.pricing2.calcWork, total:fmt(V), a:t.pricing2.calcCoBeforeVat, aVal:fmt(V-comm), b:t.pricing2.calcCommNet, bVal:fmt(comm), aPct:Math.round((V-comm)/V*100), note:t.pricing2.barBaseCo, note2:t.pricing2.barBase2Co }
+      : { head:t.pricing2.calcBeforeVat, total:fmt(V+fee), a:t.pricing2.calcWork, aVal:fmt(V), b:t.pricing2.calcFeeNet, bVal:fmt(fee), aPct:Math.round(V/(V+fee)*100), note:t.pricing2.barBase, note2:t.pricing2.barBase2 };
+    calc.split.bPct = 100 - calc.split.aPct;
     const priceCards = (s.prole==='contractor' ? t.pricing2.coCards : t.pricing2.hoCards).map((p,i)=>({...p,
       border: /%/.test(p.rate) ? '#FF7722' : '#E6E5F0', badgeCls: /%/.test(p.rate) ? 'tag-a' : 'tag-n' }));
     const paidCard = priceCards.find(p=>/%/.test(p.rate)) || priceCards[1] || {}, freeCard = priceCards.find(p=>!/%/.test(p.rate)) || priceCards[0] || {};

@@ -492,3 +492,20 @@ all of it too (the design's seed data has an introduction and payment rows, so i
 >   `public_projects()` returns, and a card inviting the visitor to join or sign in. The team sees exactly this page.
 > - **The hero's bar** shows a small «تصفّح المشاريع» pill (`src/launch/HeroBrowseLink.tsx`). It sits where the design puts
 >   its live-visitor counter, which stays hidden on the public site.
+
+### Pricing calculator, one side at a time — 2 October 2026
+
+> Please make these changes to Tarmem, in both Arabic and English:
+>
+> **Pricing → «احسبها بأرقام مشروعك» / "Run it on your own project"**
+> 1. The calculator follows the «أنا صاحب منزل / أنا مقاول» switch at the top of the page. A homeowner sees only the
+>    homeowner's card, and a contractor only the contractor's card.
+> 2. The split bar moves beside that card (below it on a phone) and splits that side's own amount:
+>    - Homeowner: «المبلغ قبل ضريبة رسوم الخدمة», split into the agreed work value and Tarmem's 1% fee, with the
+>      existing `barBase` and `barBase2` notes.
+>    - Contractor: «قيمة العمل المتفق عليها», split into «المبلغ بعد خصم رسوم الخدمة» and the 9% fee, with two new notes:
+>      `pricing2.barBaseCo` and `pricing2.barBase2Co` (wording in `project/tarmem-i18n.js`).
+> 3. The bar no longer shows both fees added together («رسوم ترميم، قبل الضريبة»). `barCo` and `barTarmem` are no longer
+>    used on this page.
+
+Why: the owner asked that each side see only its own numbers.
